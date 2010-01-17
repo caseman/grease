@@ -17,10 +17,9 @@ import new
 class KeyControls(object):
 	"""Maps subclass-defined action methods to keys. 
 
-	So long as the key is down, its corresponding action method
-	will be called. Methods are assigned to keys via the 
-	key_map attribute (a dict-like object), which the subclass 
-	can use to map key codes to methods.
+	Keys may be mapped in the subclass definition using decorators
+	defined here as class methods or at runtime using the bind_key_* 
+	instance methods.
 	"""
 
 	_cls_key_hold_map = {}
