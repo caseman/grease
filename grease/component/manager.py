@@ -1,7 +1,7 @@
 from grease import entity
 
 class ComponentEntityManager(object):
-	"""manages components and entities. The CEM acts as a comtainer
+	"""manages components and entities. The CEM acts as a container
 	for its entities. Component entity sets are exposed as attributes 
 	of the CEM. Components themselves can be manipulated via the
 	component map accessible through the "components" attribute.
@@ -16,6 +16,7 @@ class ComponentEntityManager(object):
 			if hasattr(system, "set_manager"):
 				system.set_manager(self)
 		self._entity_id = 0
+		self.time = 0
 	
 	def add_system(self, system):
 		"""Add a new system to the manager"""
@@ -24,10 +25,16 @@ class ComponentEntityManager(object):
 		self.systems += (system,)
 	
 	def remove_system(self, system):
-		"""REmove a system from the manager"""
+		"""Remove a system from the manager"""
 		systems = list(self.systems)
 		systems.remove(system)
 		self.systems = tuple(systems)
+	
+	def run(self, dt):
+		"""Run a time step for all systems"""
+		self.time += dt
+		for system in self.systems:
+			system.run(dt)
 
 	@property
 	def components(self):
@@ -70,8 +77,17 @@ class ComponentEntityManager(object):
 			return self.components[name].entity_set
 		raise AttributeError(name)
 	
-	def __setattr__(self, name, value):
-		raise AttributeError(name)
+	def iter_components(self, *component_names):
+		"""Return an iterator of tuples containing data from each
+		component specified by name for each entity in all of the
+		components
+		"""
+		components = [self.components[name] for name in component_names]
+		entity_ids = components[0].entity_id_set
+		for comp in components[1:]:
+			entity_ids &= comp.entity_id_set
+		for id in entity_ids:
+			yield [comp[id] for comp in components]
 
 
 class ComponentMap(dict):
@@ -79,7 +95,7 @@ class ComponentMap(dict):
 
 	def __init__(self, manager, components):
 		self._manager = manager
-		for name, comp in components:
+		for name, comp in components.items():
 			self[name] = comp
 	
 	def __setitem__(self, name, component):

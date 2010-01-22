@@ -15,14 +15,24 @@ class Position(Component):
 
 
 class Movement(Component):
-	"""Stores velocity and acceleration info for entities"""
+	"""Stores velocity, acceleration and rotation info for entities"""
 
 	def __init__(self):
-		Component.__init__(self, velocity=Vec2d, last_velocity=Vec2d, accel=Vec2d)
+		Component.__init__(self, velocity=Vec2d, last_velocity=Vec2d, accel=Vec2d, rotation=float)
 
 
 class Shape(Component):
 	"""Stores shape vertices for entities"""
 
 	def __init__(self):
-		Component.__init__(self, verts=Vec2dArray, line_color=color.RGBA, fill_color=color.RGBA)
+		Component.__init__(self, closed=int, verts=Vec2dArray)
+		self.fields['closed'].default = lambda: 1
+
+
+class Renderable(Component):
+	"""Identifies entities to be rendered and provides their color"""
+
+	def __init__(self):
+		Component.__init__(self, color=color.RGBA)
+		self.fields['color'].default = lambda: color.RGBA(1,1,1,1)
+

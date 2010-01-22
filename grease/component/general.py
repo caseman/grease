@@ -18,6 +18,9 @@ class Component(base.ComponentBase):
 		self.entity_id_set = set()
 		self._data = {}
 	
+	def set_manager(self, manager):
+		self.manager = manager
+	
 	@property
 	def entity_set(self):
 		"""Return an entity set for all entities in this component"""
@@ -62,6 +65,22 @@ class Component(base.ComponentBase):
 	
 	def __iter__(self):
 		return self._data.itervalues()
+
+
+class Singleton(Component):
+	"""Component that may contain only a single entity"""
+
+	def add(self, entity_id, data=None, **data_kw):
+		if entity_id not in self._data:
+			self.entity_id_set.clear()
+			self._data.clear()
+		Component.add(self, entity_id, data, **data_kw)
+	
+	@property
+	def entity(self):
+		"""Return the entity in the component, or None if empty"""
+		if self._data:
+			return self.manager[self._data.keys()[0]]
 	
 
 class Data(object):

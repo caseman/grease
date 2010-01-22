@@ -76,5 +76,11 @@ class FieldTest(unittest.TestCase):
 		self.assertEqual(acc.ids, set([2,4]))
 
 
+class FieldAccessorTest(unittest.TestCase):
+
+	def test_iter(self):
+		from grease.component.field import FieldAccessor
+		
+
 if __name__ == '__main__':
 	unittest.main()

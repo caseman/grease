@@ -1,3 +1,4 @@
+from integrator import EulerMovement
 try:
 	import pyglet
 except ImportError:
