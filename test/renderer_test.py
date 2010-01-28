@@ -6,7 +6,10 @@ sqrt2 = math.sqrt(2)
 
 class TestManager(object):
 
-	def iter_components(self, *components):
+	def __init__(self):
+		self.components = self
+
+	def iter_data(self, *components):
 		assert components == ('shape', 'position', 'renderable')
 		return itertools.izip(self.shapes, self.positions, self.renderable)
 
