@@ -53,7 +53,7 @@ class VectorRenderer(object):
 	def _generate_verts(self):
 		"""Generate vertex and index arrays for rendering"""
 		vert_count = sum(len(shape.verts) + 1
-			for shape, ignored, ignored in self.manager.iter_components(
+			for shape, ignored, ignored in self.manager.components.iter_data(
 				self.shape_component, self.position_component, self.renderable_component))
 		v_array = (CVertColor * vert_count)()
 		if vert_count > 65536:
@@ -66,7 +66,7 @@ class VectorRenderer(object):
 		i_index = 0
 		scale = self.scale
 		rot_vec = Vec2d(0, 0)
-		for shape, position, renderable in self.manager.iter_components(
+		for shape, position, renderable in self.manager.components.iter_data(
 			self.shape_component, self.position_component, self.renderable_component):
 			shape_start = v_index
 			angle = radians(-position.angle)

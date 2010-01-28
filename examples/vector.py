@@ -4,15 +4,15 @@ import math
 import random
 import pyglet
 import grease
-from grease import component, system, renderer, vector
+from grease import component, controller, renderer, vector
 
 manager = grease.ComponentEntityManager(
 	position=component.Position(),
 	movement=component.Movement(),
 	shape=component.Shape(),
 	renderable=component.Renderable(),
-	systems=[
-		system.EulerMovement(),
+	controllers=[
+		controller.EulerMovement(),
 	]
 )
 
@@ -44,7 +44,7 @@ def add_shape(dt=None):
 	shape.renderable.color = (random.random(), random.random(), random.random(), 1)
 	pyglet.clock.schedule_once(add_shape, random.expovariate(5.0))
 
-pyglet.clock.schedule_interval(manager.run, 1.0/60.0)
+pyglet.clock.schedule_interval(manager.controllers.run, 1.0/60.0)
 add_shape()
 pyglet.app.run()
 

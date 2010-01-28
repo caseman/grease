@@ -71,13 +71,12 @@ class EntityComponentAccessor(object):
 class EntitySet(object):
 	"""A queriable set of entities"""
 
-	_entity_factory = Entity
-
-	def __init__(self, manager, entity_ids=()):
+	def __init__(self, manager, entity_ids=(), entity_factory=Entity):
 		self._manager = manager
 		if not isinstance(entity_ids, set):
 			entity_ids = set(entity_ids)
 		self._entities = entity_ids
+		self._entity_factory = entity_factory
 	
 	def __len__(self):
 		return len(self._entities)

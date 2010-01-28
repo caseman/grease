@@ -37,8 +37,6 @@ class PlayerControls(KeyControls):
 manager = grease.ComponentEntityManager(
 	position=component.Position(),
 	movement=component.Movement(),
-	script=component.Script(),
-	physics=component.ChipmunkPhysics(),
 	shape=component.Shape(),
 	renderable=component.Renderable(),
 	# Custom components
@@ -46,7 +44,6 @@ manager = grease.ComponentEntityManager(
 	player=component.Singleton(thrust=vector.Vec2d, turn=float),
 	systems=[
 		PlayerControls(window),
-		system.ChipmunkPhysics(),
 		system.VectorRenderer(scale=20),
 	]
 )

@@ -78,7 +78,7 @@ class TestGL(object):
 		self.draw_indices = indices
 
 
-class VectorRendererTest(unittest.TestCase):
+class VectorRendererTestCase(unittest.TestCase):
 
 	def assertArrayEqual(self, a1, a2):
 		for (x1, y1), (x2, y2) in zip(a1, a2):

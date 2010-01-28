@@ -19,7 +19,7 @@ class EulerMovement(object):
 	def run(self, dt):
 		"""Apply movement to position"""
 		assert self.manager is not None, "Cannot run with no manager set"
-		for position, movement in self.manager.iter_components(
+		for position, movement in self.manager.components.iter_data(
 			self.position_component, self.movement_component):
 			position.last_xy = position.xy
 			position.xy += movement.velocity * dt
