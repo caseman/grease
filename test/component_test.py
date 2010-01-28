@@ -71,7 +71,7 @@ class GeneralTest(unittest.TestCase):
 	
 	def test_data_defaults(self):
 		from grease.component import Component
-		from grease.vector import Vec2d
+		from grease.geometry import Vec2d
 		c = Component(speed=int, accel=Vec2d, state=str)
 		ed = c.add(3, accel=(10,5))
 		self.assertEqual(ed.speed, 0)
@@ -126,7 +126,6 @@ class GeneralTest(unittest.TestCase):
 		manager = object()
 		c.set_manager(manager)
 		self.assertTrue(c.manager is manager)
-		self.assertRaises(AssertionError, c.set_manager, object())
 	
 	def test_entity_set(self):
 		from grease.component import Component

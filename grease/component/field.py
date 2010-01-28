@@ -1,6 +1,6 @@
 import operator
 from grease.entity import EntitySet
-from grease.vector import Vec2d, Vec2dArray
+from grease.geometry import Vec2d, Vec2dArray, Rect
 from grease import color
 
 # Allowed field types -> default values
@@ -9,7 +9,8 @@ types = {int:lambda: 0,
 		 str:lambda:"", 
 		 Vec2d:lambda: Vec2d(0,0), 
 		 Vec2dArray:lambda: Vec2dArray(),
-		 color.RGBA: lambda: color.RGBA(0.0, 0.0, 0.0, 0.0)}
+		 color.RGBA: lambda: color.RGBA(0.0, 0.0, 0.0, 0.0),
+		 Rect: lambda: Rect(0.0, 0.0, 0.0, 0.0)}
 
 class Schema(dict):
 	"""Field schema definition for custom components"""

@@ -89,7 +89,7 @@ class VectorRendererTestCase(unittest.TestCase):
 			self.assertAlmostEqual(y1, y2, 4, '%r != %r' % (a1, a2))
 	
 	def make_manager(self):
-		from grease.vector import Vec2d, Vec2dArray
+		from grease.geometry import Vec2d, Vec2dArray
 		from grease.color import RGBA
 		manager = TestManager()
 		manager.shapes = [
@@ -195,7 +195,7 @@ class VectorRendererTestCase(unittest.TestCase):
 
 	def test_generate_verts_with_angle(self):
 		from grease.renderer import VectorRenderer
-		from grease.vector import Vec2d, Vec2dArray
+		from grease.geometry import Vec2d, Vec2dArray
 		manager = self.make_manager()
 		renderer = VectorRenderer(manager)
 		self.assertTrue(renderer.manager is manager)
@@ -225,7 +225,7 @@ class VectorRendererTestCase(unittest.TestCase):
 	
 	def test_draw_plain(self):
 		from grease.renderer import VectorRenderer
-		from grease.vector import Vec2d, Vec2dArray
+		from grease.geometry import Vec2d, Vec2dArray
 		import pyglet
 		manager = self.make_manager()
 		renderer = VectorRenderer(manager)
@@ -245,7 +245,7 @@ class VectorRendererTestCase(unittest.TestCase):
 
 	def test_draw_line_width(self):
 		from grease.renderer import VectorRenderer
-		from grease.vector import Vec2d, Vec2dArray
+		from grease.geometry import Vec2d, Vec2dArray
 		import pyglet
 		manager = self.make_manager()
 		renderer = VectorRenderer(manager, line_width=3.0)

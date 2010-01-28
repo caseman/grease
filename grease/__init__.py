@@ -1,3 +1,3 @@
 import component
-import vector
+import geometry
 from component.manager import ComponentEntityManager

@@ -4,7 +4,7 @@ import math
 import random
 import pyglet
 import grease
-from grease import component, controller, renderer, vector
+from grease import component, controller, renderer
 
 manager = grease.ComponentEntityManager(
 	position=component.Position(),

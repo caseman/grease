@@ -1,5 +1,5 @@
 
-from grease.vector import Vec2d
+from grease.geometry import Vec2d
 import ctypes
 from math import sin, cos, radians
 import pyglet

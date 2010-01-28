@@ -398,6 +398,7 @@ Vec2d._fields_ = [
             ('y', ctypes.c_double),
         ]
 
+
 class Vec2dArray(list):
 
 	def __init__(self, iterable=()):
@@ -412,6 +413,23 @@ class Vec2dArray(list):
 	def insert(self, index, value):
 		list.insert(self, index, Vec2d(value))
 
+
+class Rect(ctypes.Structure):
+	"""Simple rectangle. Will gain more functionality as needed"""
+	_fields_ = [
+		('left', ctypes.c_double),
+		('top', ctypes.c_double),
+		('right', ctypes.c_double),
+		('bottom', ctypes.c_double),
+	]
+
+	@property
+	def width(self):
+		return self.right - self.left
+	
+	@property
+	def height(self):
+		return self.top - self.bottom
 
 
 ########################################################################

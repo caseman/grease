@@ -35,7 +35,7 @@ class FieldTest(unittest.TestCase):
 	
 	def test_cast(self):
 		from grease.component.field import Field
-		from grease.vector import Vec2d
+		from grease.geometry import Vec2d
 		f = Field(None, "string", str)
 		self.assertEqual(f.cast(22), "22")
 		f = Field(None, "int", int)
