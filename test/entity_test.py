@@ -1,229 +1,151 @@
 import unittest
 
+from grease import Entity
 
-class TestManager(object):
+class TestWorld(object):
 	
 	def __init__(self, **kw):
 		self.components = kw
 		for comp in kw.values():
-			comp._manager = self
-	
-	def __getitem__(self, name):
-		return self.components[name]
+			comp.world = self
 
 
-class TestComponent(object):
+class TestComponent(dict):
 	
-	def __init__(self, data=None):
-		self.data = data or {}
-		self.entity_set = self
+	def __init__(self):
+		self.entities = set()
 	
-	def __contains__(self, id):
-		return id in self.data
-	
-	def __getitem__(self, id):
-		return self.data[id]
-	
-	def add(self, id):
+	def set(self, entity):
 		data = TestData()
-		data.entity_id = id
-		self.data[id] = data
+		self[entity] = data
+		self.entities.add(entity)
 		return data
 	
-	def remove(self, id):
-		del self.data[id]
-	
-	@property
-	def _entities(self):
-		return set(self.data.keys())
+	def remove(self, entity):
+		del self[entity]
 	
 
 class TestData(object):
 	attr = 'deadbeef'
 
+	def __init__(self, **kw):
+		self.__dict__.update(kw)
+
+
+class TestEntity(Entity):
+	
+	def __new__(cls, world=None, id=1):
+		entity = object.__new__(cls)
+		entity.__dict__['world'] = world
+		entity.__dict__['entity_id'] = id
+		return entity
+	
+	def __init__(self, world=None, id=None):
+		pass
+
 
 class EntityTest(unittest.TestCase):
-
-	def test_entity_id(self):
-		from grease.entity import Entity
-		entity = Entity(TestManager(), 101)
-		self.assertEqual(entity.entity_id, 101)
 	
 	def test_repr(self):
-		from grease.entity import Entity
-		entity = Entity(TestManager(), 72)
-		self.assertTrue(repr(entity).startswith('<Entity id: 72 of TestManager'), repr(entity))
+		entity = TestEntity(TestWorld(), 72)
+		self.assertTrue(repr(entity).startswith('<TestEntity id: 72 of TestWorld'), repr(entity))
 	
 	def test_accessor_getattr_for_nonexistant_component(self):
-		from grease.entity import Entity
 		comp = TestComponent()
-		manager = TestManager(test=comp)
-		entity = Entity(manager, 72)
+		world = TestWorld(test=comp)
+		entity = TestEntity(world, 72)
+		self.assertTrue(entity not in comp)
 		self.assertRaises(AttributeError, getattr, entity, 'foo')
 	
 	def test_accessor_getattr_for_non_member_entity(self):
-		from grease.entity import Entity
 		comp = TestComponent()
-		manager = TestManager(test=comp)
-		entity = Entity(manager, 96)
+		world = TestWorld(test=comp)
+		entity = TestEntity(world, 96)
 		accessor = entity.test
-		self.assertFalse(96 in comp.data)
-		self.assertRaises(KeyError, getattr, accessor, 'attr')
+		self.assertFalse(entity in comp)
+		self.assertRaises(AttributeError, getattr, accessor, 'attr')
 	
 	def test_accessor_getattr_for_member_entity(self):
-		from grease.entity import Entity
-		comp = TestComponent({96: TestData()})
-		manager = TestManager(test=comp)
-		entity = Entity(manager, 96)
-		self.assertTrue(96 in comp.data)
+		comp = TestComponent()
+		world = TestWorld(test=comp)
+		entity = TestEntity(world, 96)
+		comp.set(entity)
+		self.assertTrue(entity in comp)
 		self.assertEqual(entity.test.attr, 'deadbeef')
 	
 	def test_accessor_setattr_adds_non_member_entity(self):
-		from grease.entity import Entity
 		comp = TestComponent()
-		manager = TestManager(test=comp)
-		entity = Entity(manager, 101)
-		self.assertFalse(101 in comp.data)
+		world = TestWorld(test=comp)
+		entity = TestEntity(world, 101)
+		self.assertFalse(entity in comp)
 		entity.test.attr = 'foobar'
 		self.assertEqual(entity.test.attr, 'foobar')
-		self.assertTrue(101 in comp.data)
+		self.assertTrue(entity in comp)
 
 	def test_accessor_setattr_for_member_entity(self):
-		from grease.entity import Entity
-		comp = TestComponent({999: TestData()})
-		manager = TestManager(test=comp)
-		entity = Entity(manager, 999)
-		self.assertTrue(999 in comp.data)
+		comp = TestComponent()
+		world = TestWorld(test=comp)
+		entity = TestEntity(world, 999)
+		comp.set(entity)
 		self.assertNotEqual(entity.test.attr, 'spam')
 		entity.test.attr = 'spam'
-		self.assertTrue(999 in comp.data)
+		self.assertTrue(entity in comp)
 		self.assertEqual(entity.test.attr, 'spam')
 	
 	def test_eq(self):
-		from grease.entity import Entity
-		manager = TestManager()
-		self.assertEqual(Entity(manager, 78), Entity(manager, 78))
-		othermgr = TestManager()
-		self.assertNotEqual(Entity(manager, 8), Entity(othermgr, 8))
-		self.assertNotEqual(Entity(manager, 51), Entity(manager, 32))
+		world = TestWorld()
+		self.assertEqual(TestEntity(world, 78), TestEntity(world, 78))
+		otherworld = TestWorld()
+		self.assertNotEqual(TestEntity(world, 8), TestEntity(otherworld, 8))
+		self.assertNotEqual(TestEntity(world, 51), TestEntity(world, 32))
 	
 	def test_delattr(self):
-		from grease.entity import Entity
-		comp = TestComponent({88: TestData()})
-		manager = TestManager(test=comp)
-		entity = Entity(manager, 88)
-		self.failUnless(88 in comp.data)
+		comp = TestComponent()
+		world = TestWorld(test=comp)
+		entity = TestEntity(world, 88)
+		comp.set(entity)
+		self.failUnless(entity in comp)
 		del entity.test
-		self.failIf(88 in comp.data)
+		self.failIf(entity in comp)
 
 
-class EntitySetTest(unittest.TestCase):
+class EntityComponentAccessorTestCase(unittest.TestCase):
 
-	def test_contains(self):
-		from grease.entity import EntitySet, Entity
-		manager = TestManager()
-		es = EntitySet(manager)
-		e1 = Entity(manager, 1)
-		e2 = Entity(manager, 2)
-		e3 = Entity(manager, 3)
-		for e in (e1, e2, e3):
-			self.assertFalse(e in es, e)
-			self.assertFalse(e.entity_id in es, e.entity_id)
+	def test_getattr(self):
+		from grease.entity import EntityComponentAccessor
+		entity = TestEntity(id=1)
+		component = {entity: TestData(foo=5)}
+		accessor = EntityComponentAccessor(component, entity)
+		self.assertEqual(accessor.foo, 5)
+		self.assertRaises(AttributeError, getattr, accessor, 'bar')
 
-		es = EntitySet(manager, (1, 3))
-		self.assertTrue(e1 in es)
-		self.assertTrue(1 in es)
-		self.assertFalse(e2 in es)
-		self.assertFalse(2 in es)
-		self.assertTrue(e3 in es)
-		self.assertTrue(3 in es)
+		entity2 = TestEntity(id=2)
+		accessor = EntityComponentAccessor(component, entity2)
+		self.assertRaises(AttributeError, getattr, accessor, 'foo')
+		self.assertRaises(AttributeError, getattr, accessor, 'bar')
 	
-	def test_len(self):
-		from grease.entity import EntitySet
-		manager = TestManager()
-		self.assertEqual(len(EntitySet(manager)), 0)
-		self.assertEqual(len(EntitySet(manager, [1])), 1)
-		self.assertEqual(len(EntitySet(manager, range(1000))), 1000)
+	def test_setattr_member_entity(self):
+		from grease.entity import EntityComponentAccessor
+		entity = TestEntity()
+		data = TestData(foo=5)
+		accessor = EntityComponentAccessor({entity: data}, entity)
+		self.assertEqual(data.foo, 5)
+		accessor.foo = 66
+		self.assertEqual(data.foo, 66)
+		accessor.bar = '!!'
+		self.assertEqual(data.bar, '!!')
 	
-	def test_iter(self):
-		from grease.entity import EntitySet, Entity
-		manager = TestManager()
-		e1 = Entity(manager, 1)
-		e2 = Entity(manager, 3)
-		e3 = Entity(manager, 100)
-		self.assertEqual(list(iter(EntitySet(manager))), [])
-		self.assertEqual(sorted(iter(EntitySet(manager, [1]))), [e1])
-		self.assertEqual(
-			sorted(iter(EntitySet(manager, [1,100,3])), key=lambda e: e.entity_id), 
-			[e1,e2,e3])
-	
-	def test_eq(self):
-		from grease.entity import EntitySet
-		manager = TestManager()
-		self.assertEqual(EntitySet(manager), EntitySet(manager))
-		self.assertEqual(EntitySet(manager, [1,2,8,100]), EntitySet(manager, [1,2,8,100]))
-		self.assertNotEqual(EntitySet(manager, [1,100]), EntitySet(manager, [1,200,201]))
-		othermgr = TestManager()
-		self.assertNotEqual(EntitySet(manager), EntitySet(othermgr))
-		self.assertNotEqual(EntitySet(manager, [1,2,3]), EntitySet(othermgr, [1,2,3]))
-		self.assertNotEqual(EntitySet(manager, [3,7]), EntitySet(othermgr, [5,8,11,12]))
-	
-	def test_intersection(self):
-		from grease.entity import EntitySet
-		manager = TestManager()
-		set1 = EntitySet(manager, [1, 3, 7, 5])
-		set2 = EntitySet(manager, [1, 2, 3, 4])
-		expected = EntitySet(manager, [1, 3])
-		self.assertEqual(set1.intersection(set2), expected)
-		self.assertEqual(set1 & set2, expected)
-		self.assertEqual(set2 & set1, expected)
-		self.assertEqual(set1.intersection(set1), set1)
-		empty = EntitySet(manager)
-		self.assertEqual(set1 & empty, empty)
-		othermgr = TestManager()
-		self.assertRaises(AssertionError, set1.intersection, EntitySet(othermgr, [1,2]))
-	
-	def test_union(self):
-		from grease.entity import EntitySet
-		manager = TestManager()
-		set1 = EntitySet(manager, [1, 3, 7, 5])
-		set2 = EntitySet(manager, [1, 2, 3, 4])
-		expected = EntitySet(manager, [1, 2, 3, 4, 5, 7])
-		self.assertEqual(set1.union(set2), expected)
-		self.assertEqual(set1 | set2, expected)
-		self.assertEqual(set2 | set1, expected)
-		self.assertEqual(set1.union(set1), set1)
-		empty = EntitySet(manager)
-		self.assertEqual(set1 | empty, set1)
-		othermgr = TestManager()
-		self.assertRaises(AssertionError, set1.union, EntitySet(othermgr, [1,2]))
-	
-	def test_difference(self):
-		from grease.entity import EntitySet
-		manager = TestManager()
-		set1 = EntitySet(manager, [1, 3, 7, 5])
-		set2 = EntitySet(manager, [1, 2, 3, 4])
-		expected = EntitySet(manager, [5, 7])
-		self.assertEqual(set1.difference(set2), expected)
-		self.assertEqual(set1 - set2, expected)
-		expected = EntitySet(manager, [2, 4])
-		self.assertEqual(set2.difference(set1), expected)
-		self.assertEqual(set2 - set1, expected)
-		empty = EntitySet(manager)
-		self.assertEqual(set1 - empty, set1)
-		self.assertEqual(empty - set1, empty)
-		othermgr = TestManager()
-		self.assertRaises(AssertionError, set1.difference, EntitySet(othermgr, [1,2]))
-	
-	def test_component_access(self):
-		from grease.entity import EntitySet
-		comp = TestComponent({11: TestData()})
-		manager = TestManager(test=comp)
-		es = EntitySet(manager, [2, 5, 11])
-		comp_es = es.test
-		self.assertTrue(isinstance(comp_es, EntitySet))
-		self.assertEqual(comp_es, EntitySet(manager, [11]))
-		self.assertRaises(AttributeError, getattr, es, "notthere")
+	def test_setattr_nonmember_entity(self):
+		from grease.entity import EntityComponentAccessor
+		entity = TestEntity()
+		component = TestComponent()
+		accessor = EntityComponentAccessor(component, entity)
+		self.assertRaises(AttributeError, getattr, entity, 'baz')
+		self.assertTrue(entity not in component)
+		accessor.baz = 1000
+		self.assertTrue(entity in component)
+		self.assertEqual(accessor.baz, 1000)
+		self.assertEqual(component[entity].baz, 1000)
 
 
 if __name__ == '__main__':

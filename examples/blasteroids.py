@@ -39,14 +39,17 @@ manager = grease.ComponentEntityManager(
 	movement=component.Movement(),
 	shape=component.Shape(),
 	renderable=component.Renderable(),
+	collision=component.Collision(),
 	# Custom components
 	asteroids=component.Component(),
 	player=component.Singleton(thrust=vector.Vec2d, turn=float),
-	systems=[
+	controllers=[
 		PlayerControls(window),
 		system.VectorRenderer(scale=20),
 	]
 )
+
+renderer = VectorRenderer(manager, scale=20)
 
 def reset_player_ship():
 	ship = manager.player.entity or manager.new_entity()

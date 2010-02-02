@@ -1,5 +1,4 @@
 import operator
-from grease.entity import EntitySet
 from grease.geometry import Vec2d, Vec2dArray, Rect
 from grease import color
 
@@ -23,31 +22,20 @@ class Schema(dict):
 class FieldAccessor(object):
 	"""Facade for manipulating a field for a set of entities"""
 
-	def __init__(self, field, entity_id_set):
+	def __init__(self, field, entities):
 		self.field = field
-		self.entity_ids = entity_id_set
+		self.entities = entities
 	
 	def __iter__(self):
 		"""Return an iterator of all field values in the set"""
 		component = self.field.component
 		name = self.field.name
-		for entity_id in self.entity_ids:
+		for entity in self.entities:
 			try:
-				data = component[entity_id]
+				data = component[entity]
 			except KeyError:
 				continue
 			yield getattr(data, name)
-	
-	def enumerate(self):
-		"""yield (entity id, field value) pairs for each entity in the set"""
-		component = self.field.component
-		name = self.field.name
-		for entity_id in self.entity_ids:
-			try:
-				data = component[entity_id]
-			except KeyError:
-				continue
-			yield entity_id, getattr(data, name)
 	
 	def _match(self, value, op):
 		value = self.field.cast(value)
@@ -55,14 +43,14 @@ class FieldAccessor(object):
 		name = self.field.name
 		matches = set()
 		add = matches.add
-		for entity_id in self.entity_ids:
+		for entity in self.entities:
 			try:
-				data = component[entity_id]
+				data = component[entity]
 			except KeyError:
 				continue
 			if op(getattr(data, name), value):
-				add(entity_id)
-		return EntitySet(self.field.component.manager, matches)
+				add(entity)
+		return matches
 	
 	def __eq__(self, value):
 		"""Return an entity set of all entities with a matching field value"""

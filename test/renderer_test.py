@@ -4,12 +4,12 @@ import math
 
 sqrt2 = math.sqrt(2)
 
-class TestManager(object):
+class TestWorld(object):
 
 	def __init__(self):
 		self.components = self
 
-	def iter_data(self, *components):
+	def join(self, *components):
 		assert components == ('shape', 'position', 'renderable')
 		return itertools.izip(self.shapes, self.positions, self.renderable)
 
@@ -88,32 +88,30 @@ class VectorRendererTestCase(unittest.TestCase):
 			self.assertAlmostEqual(x1, x2, 4, '%r != %r' % (a1, a2))
 			self.assertAlmostEqual(y1, y2, 4, '%r != %r' % (a1, a2))
 	
-	def make_manager(self):
+	def make_world(self):
 		from grease.geometry import Vec2d, Vec2dArray
 		from grease.color import RGBA
-		manager = TestManager()
-		manager.shapes = [
+		world = TestWorld()
+		world.shapes = [
 			Data(closed=True, verts=Vec2dArray([(0,0), (0, 1), (0.5, 0.5)])),
 			Data(closed=True, verts=Vec2dArray([(-1, -1), (1, -1), (1, 1), (-1, 1)])),
 			Data(closed=False, verts=Vec2dArray([(1, -1), (-1, -1), (1, 1), (-1, 1)])),
 		]
-		manager.positions = [
+		world.positions = [
 			Data(xy=Vec2d(10, 10), angle=0),
 			Data(xy=Vec2d(4, 3), angle=0),
 			Data(xy=Vec2d(0, 0), angle=0),
 		]
-		manager.renderable = [
+		world.renderable = [
 			Data(color=RGBA(1,1,1,1)),
 			Data(color=RGBA(1,1,1,1)),
 			Data(color=RGBA(1,1,1,1)),
 		]
-		return manager
+		return world
 
 	def test_defaults(self):
 		from grease.renderer import VectorRenderer
-		manager = object()
-		vr = VectorRenderer(manager)
-		self.assertTrue(vr.manager is manager)
+		vr = VectorRenderer()
 		self.assertEqual(vr.scale, 1.0)
 		self.assertEqual(vr.line_width, None)
 		self.assertEqual(vr.corner_fill, True)
@@ -123,16 +121,21 @@ class VectorRendererTestCase(unittest.TestCase):
 
 	def test_overrides(self):
 		from grease.renderer import VectorRenderer
-		manager = object()
-		vr = VectorRenderer(manager, scale=2.5, line_width=3.7, corner_fill=False,
+		vr = VectorRenderer(scale=2.5, line_width=3.7, corner_fill=False,
 			position_component='pos', shape_component='fit', renderable_component='drawme')
-		self.assertTrue(vr.manager is manager)
 		self.assertEqual(vr.scale, 2.5)
 		self.assertEqual(vr.line_width, 3.7)
 		self.assertEqual(vr.corner_fill, False)
 		self.assertEqual(vr.position_component, 'pos')
 		self.assertEqual(vr.shape_component, 'fit')
 		self.assertEqual(vr.renderable_component, 'drawme')
+	
+	def test_set_world(self):
+		from grease.renderer import VectorRenderer
+		world = object()
+		vr = VectorRenderer()
+		vr.set_world(world)
+		self.assertTrue(vr.world is world)
 	
 	def get_verts(self, array):
 		return [(i.vert.x, i.vert.y) for i in array]
@@ -142,9 +145,9 @@ class VectorRendererTestCase(unittest.TestCase):
 
 	def test_generate_verts_no_scale_or_angle(self):
 		from grease.renderer import VectorRenderer
-		manager = self.make_manager()
-		renderer = VectorRenderer(manager)
-		self.assertTrue(renderer.manager is manager)
+		world = self.make_world()
+		renderer = VectorRenderer()
+		renderer.set_world(world)
 		v_array, i_size, i_array, i_count = renderer._generate_verts()
 		self.assertEqual(i_count, 20)
 		self.assertEqual(self.get_verts(v_array[:3]), [(10, 10), (10, 11), (10.5, 10.5)]) 
@@ -158,14 +161,14 @@ class VectorRendererTestCase(unittest.TestCase):
 	def test_generate_verts_with_color(self):
 		from grease.renderer import VectorRenderer
 		from grease.color import RGBA
-		manager = self.make_manager()
-		manager.renderable = [
+		world = self.make_world()
+		world.renderable = [
 			Data(color=RGBA(1,0,0,1)),
 			Data(color=RGBA(1,0,1,1)),
 			Data(color=RGBA(0,0,1,1)),
 		]
-		renderer = VectorRenderer(manager)
-		self.assertTrue(renderer.manager is manager)
+		renderer = VectorRenderer()
+		renderer.set_world(world)
 		v_array, i_size, i_array, i_count = renderer._generate_verts()
 		self.assertEqual(i_count, 20)
 		self.assertEqual(self.get_verts(v_array[:3]), [(10, 10), (10, 11), (10.5, 10.5)]) 
@@ -180,9 +183,10 @@ class VectorRendererTestCase(unittest.TestCase):
 
 	def test_generate_verts_with_scale(self):
 		from grease.renderer import VectorRenderer
-		manager = self.make_manager()
-		renderer = VectorRenderer(manager, scale=10.0)
-		self.assertTrue(renderer.manager is manager)
+		world = self.make_world()
+		renderer = VectorRenderer(scale=10.0)
+		renderer.set_world(world)
+		self.assertTrue(renderer.world is world)
 		v_array, i_size, i_array, i_count = renderer._generate_verts()
 		self.assertEqual(i_count, 20)
 		self.assertEqual(self.get_verts(v_array[:3]), [(10, 10), (10, 20), (15, 15)]) 
@@ -196,15 +200,16 @@ class VectorRendererTestCase(unittest.TestCase):
 	def test_generate_verts_with_angle(self):
 		from grease.renderer import VectorRenderer
 		from grease.geometry import Vec2d, Vec2dArray
-		manager = self.make_manager()
-		renderer = VectorRenderer(manager)
-		self.assertTrue(renderer.manager is manager)
-		manager.shapes = [
+		world = self.make_world()
+		renderer = VectorRenderer()
+		renderer.set_world(world)
+		self.assertTrue(renderer.world is world)
+		world.shapes = [
 			Data(closed=True, verts=Vec2dArray([(0,0), (0, 1), (1, 0)])),
 			Data(closed=True, verts=Vec2dArray([(-2, -1), (2, -1), (2, 1), (-2, 1)])),
 			Data(closed=False, verts=Vec2dArray([(1, -1), (-1, -1), (1, 1), (-1, 1)])),
 		]
-		manager.positions = [
+		world.positions = [
 			Data(xy=Vec2d(10, 10), angle=45),
 			Data(xy=Vec2d(4, 3), angle=90),
 			Data(xy=Vec2d(0, 0), angle=-45),
@@ -227,8 +232,9 @@ class VectorRendererTestCase(unittest.TestCase):
 		from grease.renderer import VectorRenderer
 		from grease.geometry import Vec2d, Vec2dArray
 		import pyglet
-		manager = self.make_manager()
-		renderer = VectorRenderer(manager)
+		world = self.make_world()
+		renderer = VectorRenderer()
+		renderer.set_world(world)
 		gl = TestGL()
 		renderer.draw(gl=gl)
 		self.assertTrue(gl.GL_VERTEX_ARRAY in gl.enabled)
@@ -247,8 +253,9 @@ class VectorRendererTestCase(unittest.TestCase):
 		from grease.renderer import VectorRenderer
 		from grease.geometry import Vec2d, Vec2dArray
 		import pyglet
-		manager = self.make_manager()
-		renderer = VectorRenderer(manager, line_width=3.0)
+		world = self.make_world()
+		renderer = VectorRenderer(line_width=3.0)
+		renderer.set_world(world)
 		gl = TestGL()
 		renderer.draw(gl=gl)
 		self.assertTrue(gl.GL_VERTEX_ARRAY in gl.enabled)

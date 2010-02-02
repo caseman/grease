@@ -12,14 +12,14 @@ class EulerMovement(object):
 		self.position_component = position_component
 		self.movement_component = movement_component
 	
-	def set_manager(self, manager):
-		"""Bind the system to a manager"""
-		self.manager = manager
+	def set_world(self, world):
+		"""Bind the system to a world"""
+		self.world = world
 	
-	def run(self, dt):
+	def step(self, dt):
 		"""Apply movement to position"""
-		assert self.manager is not None, "Cannot run with no manager set"
-		for position, movement in self.manager.components.iter_data(
+		assert self.world is not None, "Cannot run with no world set"
+		for position, movement in self.world.components.join(
 			self.position_component, self.movement_component):
 			position.last_xy = position.xy
 			position.xy += movement.velocity * dt

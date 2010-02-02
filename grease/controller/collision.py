@@ -25,12 +25,13 @@ class SAPCollision(object):
 		self._by_y = None
 		self._collision_pairs = None
 	
-	def add_manager(self, manager):
-		self.manager = manager
+	def set_world(self, world):
+		"""Bind the system to a world"""
+		self.world = world
 	
-	def run(self, dt):
+	def step(self, dt):
 		"""Update and sort the axis arrays"""
-		component = self.manager.components[self.collision_component]
+		component = self.world.components[self.collision_component]
 		LEFT = self.LEFT_ATTR
 		RIGHT = self.RIGHT_ATTR
 		TOP = self.TOP_ATTR
@@ -43,7 +44,7 @@ class SAPCollision(object):
 			# box positions after we run
 			by_x = self._by_x = []
 			by_y = self._by_y = []
-			for data in component:
+			for data in component.itervalues():
 				by_x.append([data.AABB.left, data, LEFT])
 				by_x.append([data.AABB.right, data, RIGHT])
 				by_y.append([data.AABB.bottom, data, BOTTOM])
@@ -57,7 +58,7 @@ class SAPCollision(object):
 			for entry in by_y:
 				entry[0] = getattr(entry[1].AABB, entry[2])
 			# Removing entities is inefficient, but expected to be rare
-			if component.deleted_entity_ids:
+			if component.deleted_entities:
 				deleted_ids = component.deleted_entity_ids
 				deleted_x = []
 				deleted_y = []
@@ -74,8 +75,8 @@ class SAPCollision(object):
 				for i in deleted_y:
 					del by_y[i]
 			# Tack on new entities
-			for id in component.new_entity_ids:
-				data = component[id]
+			for entity in component.new_entities:
+				data = component[entity]
 				by_x.append([data.AABB.left, data, LEFT])
 				by_x.append([data.AABB.right, data, RIGHT])
 				by_y.append([data.AABB.bottom, data, BOTTOM])
@@ -102,7 +103,7 @@ class SAPCollision(object):
 			TOP = self.TOP_ATTR
 			BOTTOM = self.BOTTOM_ATTR
 			# Build candidates overlapping along the x-axis
-			component = self.manager.components[self.collision_component]
+			component = self.world.components[self.collision_component]
 			xoverlaps = set()
 			add_xoverlap = xoverlaps.add
 			discard_xoverlap = xoverlaps.discard

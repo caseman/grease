@@ -4,19 +4,18 @@ import ctypes
 from math import sin, cos, radians
 import pyglet
 
+
 class VectorRenderer(object):
 	"""Renders shapes in vector graphics style"""
 
 	CORNER_FILL_SCALE = 0.6
 	CORNER_FILL_THRESHOLD = 2.0
 
-	def __init__(self, manager, scale=1.0, line_width=None, corner_fill=True,
+	def __init__(self, scale=1.0, line_width=None, corner_fill=True,
 		position_component='position', 
 		renderable_component='renderable', 
 		shape_component='shape'):
 		"""Initialize a vector renderer
-
-		manager -- ComponentEntityManager this renderer is bound to
 
 		scale -- Scaling factor applied to shape vertices when rendered.
 	
@@ -41,7 +40,6 @@ class VectorRenderer(object):
 		The entities rendered are taken from the intersection of he position,
 		renderable and shape components each time draw() is called.
 		"""
-		self.manager = manager
 		self.scale = float(scale)
 		self.corner_fill = corner_fill
 		self.line_width = line_width
@@ -50,10 +48,13 @@ class VectorRenderer(object):
 		self.renderable_component = renderable_component
 		self.shape_component = shape_component
 	
+	def set_world(self, world):
+		self.world = world
+
 	def _generate_verts(self):
 		"""Generate vertex and index arrays for rendering"""
 		vert_count = sum(len(shape.verts) + 1
-			for shape, ignored, ignored in self.manager.components.iter_data(
+			for shape, ignored, ignored in self.world.components.join(
 				self.shape_component, self.position_component, self.renderable_component))
 		v_array = (CVertColor * vert_count)()
 		if vert_count > 65536:
@@ -66,7 +67,7 @@ class VectorRenderer(object):
 		i_index = 0
 		scale = self.scale
 		rot_vec = Vec2d(0, 0)
-		for shape, position, renderable in self.manager.components.iter_data(
+		for shape, position, renderable in self.world.components.join(
 			self.shape_component, self.position_component, self.renderable_component):
 			shape_start = v_index
 			angle = radians(-position.angle)

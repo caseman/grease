@@ -2,7 +2,7 @@ import base
 import field
 from grease.entity import ComponentEntitySet
 
-class Component(base.ComponentBase):
+class Component(dict):
 	"""General component with a configurable schema"""
 
 	def __init__(self, **fields):
@@ -15,20 +15,14 @@ class Component(base.ComponentBase):
 		for fname, ftype in fields.items():
 			assert ftype in field.types, fname + " has an illegal field type"
 			self.fields[fname] = field.Field(self, fname, ftype)
-		self.entity_id_set = set()
-		self._data = {}
+		self.entities = ComponentEntitySet(self)
 	
-	def set_manager(self, manager):
-		self.manager = manager
+	def set_world(self, world):
+		self.world = world
 	
-	@property
-	def entity_set(self):
-		"""Return an entity set for all entities in this component"""
-		return ComponentEntitySet(self, self.entity_id_set)
-	
-	def add(self, entity_id, data=None, **data_kw):
-		"""Add the entity_id to the component and return an entity data
-		object for it. 
+	def set(self, entity, data=None, **data_kw):
+		"""Set the component data for an entity, adding it to the
+		component if it is not already a member.
 
 		If data is specified, its data for the new entity's fields are
 		copied from its attributes, making it easy to copy another
@@ -36,35 +30,30 @@ class Component(base.ComponentBase):
 		If both a data attribute and keyword argument are supplied for
 		a single field, the keyword arg is used.
 		"""
-		if entity_id not in self._data:
-			if data is not None:
-				for fname, field in self.fields.items():
-					if fname not in data_kw and hasattr(data, fname):
-						data_kw[fname] = getattr(data, fname)
-			self._data[entity_id] = Data(self.fields, entity_id, **data_kw)
-			self.entity_id_set.add(entity_id)
-		return self._data[entity_id]
+		if data is not None:
+			for fname, field in self.fields.items():
+				if fname not in data_kw and hasattr(data, fname):
+					data_kw[fname] = getattr(data, fname)
+		data = self[entity] = Data(self.fields, entity, **data_kw)
+		return data
 	
-	def remove(self, entity_id):
-		if entity_id in self.entity_id_set:
-			del self._data[entity_id]
-			self.entity_id_set.remove(entity_id)
+	def __setitem__(self, entity, data):
+		assert entity.world is self.world, "Entity not in component's world"
+		self.entities.add(entity)
+		super(Component, self).__setitem__(entity, data)
+	
+	def remove(self, entity):
+		if entity in self.entities:
+			self.entities.remove(entity)
+			super(Component, self).__delitem__(entity)
 			return True
 		return False
 	
 	__delitem__ = remove
 
-	def __len__(self):
-		return len(self.entity_id_set)
-
-	def __getitem__(self, entity_id):
-		return self._data[entity_id]
-	
-	def __contains__(self, entity_id):
-		return entity_id in self._data
-	
-	def __iter__(self):
-		return self._data.itervalues()
+	def __repr__(self):
+		return '<%s %x of %r>' % (
+			self.__class__.__name__, id(self), getattr(self, 'world', None))
 
 
 class Singleton(Component):
@@ -85,9 +74,9 @@ class Singleton(Component):
 
 class Data(object):
 
-	def __init__(self, fields, entity_id, **data):
+	def __init__(self, fields, entity, **data):
 		self.__dict__['_Data__fields'] = fields
-		self.__dict__['entity_id'] = entity_id
+		self.__dict__['entity'] = entity
 		for field in fields.values():
 			if field.name in data:
 				setattr(self, field.name, data[field.name])
