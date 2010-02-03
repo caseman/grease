@@ -43,12 +43,14 @@ class SAPCollision(object):
 			# it also isolates us from changes made to the 
 			# box positions after we run
 			by_x = self._by_x = []
+			append_x = by_x.append
 			by_y = self._by_y = []
+			append_y = by_y.append
 			for data in component.itervalues():
-				by_x.append([data.AABB.left, data, LEFT])
-				by_x.append([data.AABB.right, data, RIGHT])
-				by_y.append([data.AABB.bottom, data, BOTTOM])
-				by_y.append([data.AABB.top, data, TOP])
+				append_x([data.AABB.left, data, LEFT])
+				append_x([data.AABB.right, data, RIGHT])
+				append_y([data.AABB.bottom, data, BOTTOM])
+				append_y([data.AABB.top, data, TOP])
 		else:
 			by_x = self._by_x
 			by_y = self._by_y
@@ -59,17 +61,17 @@ class SAPCollision(object):
 				entry[0] = getattr(entry[1].AABB, entry[2])
 			# Removing entities is inefficient, but expected to be rare
 			if component.deleted_entities:
-				deleted_ids = component.deleted_entity_ids
+				deleted_entities = component.deleted_entities
 				deleted_x = []
 				deleted_y = []
 				for i, (_, box, _) in enumerate(by_x):
-					if box.entity_id in deleted_ids:
+					if box.entity in deleted_entities:
 						deleted_x.append(i)
 				deleted_x.reverse()
 				for i in deleted_x:
 					del by_x[i]
 				for i, (_, box, _) in enumerate(by_y):
-					if box.entity_id in deleted_ids:
+					if box.entity in deleted_entities:
 						deleted_y.append(i)
 				deleted_y.reverse()
 				for i in deleted_y:
@@ -112,25 +114,28 @@ class SAPCollision(object):
 			discard_open = open.discard
 			for _, data, side in self._by_x:
 				if side is LEFT:
-					for open_id in open:
-						add_xoverlap((data.entity_id, open_id))
-					add_open(data.entity_id)
+					for open_entity in open:
+						add_xoverlap(Pair(data.entity, open_entity))
+					add_open(data.entity)
 				elif side is RIGHT:
-					discard_open(data.entity_id)
+					discard_open(data.entity)
 
 			if len(xoverlaps) <= 10 and len(xoverlaps)*4 < len(self._by_y):
 				# few candidates were found, so just scan the x overlap candidates
 				# along y. This requires an additional sort, but it should
 				# be cheaper than scanning everyone and its simpler
 				# than a separate brute-force check
-				ids = set([id for id, _ in xoverlaps] + [id for _, id in xoverlaps])
+				entities = set([entity for entity, _ in xoverlaps] 
+					+ [entity for _, entity in xoverlaps])
 				by_y = []
-				for id in ids:
-					data = component[id]
+				for entity in entities:
+					data = component[entity]
 					# We can use tuples here, which are cheaper to create
 					by_y.append((data.AABB.bottom, data, BOTTOM))
 					by_y.append((data.AABB.top, data, TOP))
 				by_y.sort()
+			else:
+				by_y = self._by_y
 
 			# Now check the candidates along the y-axis
 			open.clear()
@@ -138,16 +143,17 @@ class SAPCollision(object):
 			add_pair = self._collision_pairs.add
 			for _, data, side in by_y:
 				if side is BOTTOM:
-					for open_id in open:
-						pair = (data.entity_id, open_id)
-						if discard_xoverlap(pair):
+					for open_entity in open:
+						pair = Pair(data.entity, open_entity)
+						if pair in xoverlaps:
+							discard_xoverlap(pair)
 							add_pair(pair)
 							if not xoverlaps:
 								# No more candidates, bail
 								return self._collision_pairs
-					add_open(data.entity_id)
+					add_open(data.entity)
 				elif side is TOP:
-					discard_open(id)
+					discard_open(open_entity)
 		return self._collision_pairs
 	
 	def query_point(self, x_or_point, y=None):
@@ -174,9 +180,9 @@ class SAPCollision(object):
 			# closer to the left, scan from left to right
 			for x, data, side in self._by_x[:x_index]:
 				if side is LEFT:
-					add_x_hit(data.entity_id)
+					add_x_hit(data.entity)
 				else:
-					discard_x_hit(data.entity_id)
+					discard_x_hit(data.entity)
 		else:
 			# closer to the right
 			while x_index > 0 and x == self._by_x[x_index][0]:
@@ -186,9 +192,9 @@ class SAPCollision(object):
 				x_index -= 1
 			for x, data, side in reversed(self._by_x[x_index:]):
 				if side is RIGHT:
-					add_x_hit(data.entity_id)
+					add_x_hit(data.entity)
 				else:
-					discard_x_hit(data.entity_id)
+					discard_x_hit(data.entity)
 		if not x_hits:
 			return x_hits
 
@@ -200,9 +206,9 @@ class SAPCollision(object):
 			# closer to the bottom
 			for y, data, side in self._by_y[:y_index]:
 				if side is BOTTOM:
-					add_y_hit(data.entity_id)
+					add_y_hit(data.entity)
 				else:
-					discard_y_hit(data.entity_id)
+					discard_y_hit(data.entity)
 		else:
 			# closer to the top
 			while y_index > 0 and y == self._by_x[y_index][0]:
@@ -210,12 +216,26 @@ class SAPCollision(object):
 				y_index -= 1
 			for y, data, side in reversed(self._by_y[y_index:]):
 				if side is TOP:
-					add_y_hit(data.entity_id)
+					add_y_hit(data.entity)
 				else:
-					discard_y_hit(data.entity_id)
+					discard_y_hit(data.entity)
 		if y_hits:
 			return x_hits & y_hits
 		else:
 			return y_hits
 
+class Pair(tuple):
+	"""Pair of objects that is stored ordered, but hashes and compares unordered"""
 
+	def __new__(cls, obj1, obj2):
+		return tuple.__new__(cls, (obj1, obj2))
+	
+	def __hash__(self):
+		return hash(self[0]) ^ hash(self[1])
+	
+	def __eq__(self, other):
+		other = tuple(other)
+		return other == tuple(self) or other == (self[1], self[0])
+	
+	def __repr__(self):
+		return '%s(%r, %r)' % (self.__class__.__name__, self[0], self[1])

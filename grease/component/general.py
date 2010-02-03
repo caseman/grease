@@ -76,7 +76,7 @@ class Data(object):
 
 	def __init__(self, fields, entity, **data):
 		self.__dict__['_Data__fields'] = fields
-		self.__dict__['entity'] = entity
+		self.__dict__['entity_id'] = entity
 		for field in fields.values():
 			if field.name in data:
 				setattr(self, field.name, data[field.name])
