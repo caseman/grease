@@ -6,10 +6,16 @@ class TestCollisionComp(dict):
 		self.new_entities = set()
 		self.deleted_entities = set()
 
-	def add(self, id, left, bottom, right, top, from_mask=0xffffffff, into_mask=0xffffffff):
-		self[id] = Data(entity=id, 
-			AABB=Data(left=left, top=top, right=right, bottom=bottom),
-			from_mask=from_mask, into_mask=into_mask)
+	def set(self, entity, left, bottom, right, top, from_mask=0xffffffff, into_mask=0xffffffff):
+		if entity in self:
+			data = self[entity]
+		else:
+			data = self[entity] = Data()
+		data.entity = entity
+		data.AABB = Data(left=left, top=top, right=right, bottom=bottom)
+		data.from_mask = from_mask
+		data.into_mask = into_mask
+
 
 class TestWorld(object):
 
@@ -58,11 +64,11 @@ class SAPCollisionTestCase(unittest.TestCase):
 		from grease.controller.collision import SAPCollision
 		world = TestWorld()
 		coll = SAPCollision()
-		add = world.collision.add
-		add(1, 10, 10, 20, 20)
-		add(2, 0, 0, 3, 3)
-		add(3, 11, 21, 15, 40)
-		add(4, -5, 0, -3, 100)
+		set_entity = world.collision.set
+		set_entity(1, 10, 10, 20, 20)
+		set_entity(2, 0, 0, 3, 3)
+		set_entity(3, 11, 21, 15, 40)
+		set_entity(4, -5, 0, -3, 100)
 		coll.set_world(world)
 		self.assertTrue(coll.world is world)
 		coll.step(0)
@@ -70,41 +76,186 @@ class SAPCollisionTestCase(unittest.TestCase):
 		coll.step(0)
 		self.assertEqual(coll.collision_pairs, set())
 	
+	def assertPairs(self, set1, *pairs):
+		pairs = set(pairs)
+		self.assertEqual(set1, pairs,
+			"%r not found, %r not expected" % (tuple(pairs - set1), tuple(set1 - pairs)))
+		
+	
 	def test_collision_pairs_static_collision(self):
 		from grease.controller.collision import SAPCollision, Pair
 		world = TestWorld()
 		coll = SAPCollision()
 		coll.set_world(world)
-		add = world.collision.add
+		set_entity = world.collision.set
 
-		add(1, 10, 10, 20, 20)
-		add(2, 15, 15, 25, 25)
-		add(3, 5, 12, 30, 15)
+		set_entity(1, 10, 10, 20, 20)
+		set_entity(2, 15, 15, 25, 25)
+		set_entity(3, 5, 12, 30, 15)
 
 		# boxes fully enclosed
-		add(4, 30, 10, 40, 13)
-		add(5, 31, 11, 39, 12)
+		set_entity(4, 31, 10, 40, 13)
+		set_entity(5, 32, 11, 39, 12)
 
-		add(6, 0, 0, 2, 2)
-		add(7, -1, 0.5, 1, 1.5)
+		set_entity(6, 0, 0, 2, 2)
+		set_entity(7, -1, 0.5, 1, 1.5)
 
 		# no collisions with below
-		add(8, 2.1, 2.1, 2.2, 2.2)
-		add(9, 50, -40, 55, 40)
-		add(10, -50, -50, 50, -45) 
+		set_entity(8, 2.1, 2.1, 2.2, 2.2)
+		set_entity(9, 50, -40, 55, 40)
+		set_entity(10, -50, -50, 50, -45) 
 
-		#import pdb; pdb.set_trace()
 		coll.step(0)
 		pairs = set(coll.collision_pairs)
-		self.assertTrue(Pair(1,2) in pairs, pairs)
-		self.assertTrue(Pair(1,3) in pairs, pairs)
-		self.assertTrue(Pair(2,3) in pairs, pairs)
-		self.assertTrue(Pair(4,5) in pairs, pairs)
-		self.assertTrue(Pair(6,7) in pairs, pairs)
-		self.assertEqual(len(pairs), 5)
+		self.assertPairs(pairs, Pair(1,2), Pair(1,3), Pair(2,3), Pair(4,5), Pair(6,7))
 
 		coll.step(0)
 		self.assertEqual(coll.collision_pairs, pairs)
+	
+	def test_collision_pairs_no_collide_then_collide(self):
+		from grease.controller.collision import SAPCollision, Pair
+		world = TestWorld()
+		coll = SAPCollision()
+		coll.set_world(world)
+		set_entity = world.collision.set
+
+		# Start with no collisions
+		set_entity(1, 0, 0, 10, 10)
+		set_entity(2, 7, 12, 9, 13)
+		set_entity(3, -2.1, 1, -0.1, 2)
+		coll.step(0)
+		self.assertEqual(coll.collision_pairs, set())
+
+		# One pair collides
+		set_entity(2, 8, 11, 10, 12)
+		set_entity(3, -2, 1, 0, 2)
+		coll.step(0)
+		self.assertPairs(coll.collision_pairs, Pair(1,3))
+
+		# Now two pair
+		set_entity(2, 9, 10, 11, 11)
+		set_entity(3, -1.9, 1, 0.1, 2)
+		coll.step(0)
+		self.assertPairs(coll.collision_pairs, Pair(1,3), Pair(1,2))
+
+		# Same
+		set_entity(2, 10, 9, 12, 10)
+		set_entity(3, -1.8, 1, 0.2, 2)
+		coll.step(0)
+		self.assertPairs(coll.collision_pairs, Pair(1,3), Pair(1,2))
+
+		# Now just one again
+		set_entity(2, 11, 8, 13, 9)
+		set_entity(3, -1.7, 1, 0.3, 2)
+		coll.step(0)
+		self.assertPairs(coll.collision_pairs, Pair(1,3))
+	
+	def test_collision_pairs_new_entities(self):
+		from grease.controller.collision import SAPCollision, Pair
+		world = TestWorld()
+		coll = SAPCollision()
+		coll.set_world(world)
+		set_entity = world.collision.set
+
+		# Start with a couple not colliding
+		set_entity(1, 1, 1, 3, 3)
+		set_entity(2, 4, 0, 10, 3)
+		coll.step(0)
+		self.assertEqual(coll.collision_pairs, set())
+
+		# Add one that collides, one that doesn't
+		set_entity(3, 2, 2, 4, 4)
+		set_entity(4, 20, 5, 25, 7)
+		world.collision.new_entities.add(3)
+		world.collision.new_entities.add(4)
+		coll.step(0)
+		self.assertPairs(coll.collision_pairs, Pair(1,3), Pair(3, 2))
+
+		# Add one more and move one into collision and one out
+		set_entity(5, 19, 8, 21, 14)
+		set_entity(4, 20, 6, 25, 8)
+		set_entity(2, 5, 0, 11, 3)
+		world.collision.new_entities.clear()
+		world.collision.new_entities.add(5)
+		coll.step(0)
+		self.assertPairs(coll.collision_pairs, Pair(1,3), Pair(4,5))
+	
+	def test_collision_pairs_deleted_entities(self):
+		from grease.controller.collision import SAPCollision, Pair
+		world = TestWorld()
+		coll = SAPCollision()
+		coll.set_world(world)
+		set_entity = world.collision.set
+
+		# Add some colliding pairs
+		set_entity(1, 1, 1, 5, 2)
+		set_entity(2, 2, 0, 3, 5)
+		set_entity(3, 0, 0, 2, 2)
+		set_entity(4, 4, 0, 5, 2)
+		coll.step(0)
+		self.assertPairs(coll.collision_pairs, Pair(1,2), Pair(1,3), Pair(2,3), Pair(1,4))
+
+		# Remove one
+		world.collision.deleted_entities.add(3)
+		coll.step(0)
+		self.assertPairs(coll.collision_pairs, Pair(1,2), Pair(1,4))
+
+		# Remove another and move one into collision
+		world.collision.deleted_entities.clear()
+		world.collision.deleted_entities.add(1)
+		set_entity(2, 4, 0, 5, 5)
+		coll.step(0)
+		self.assertPairs(coll.collision_pairs, Pair(4,2))
+	
+	def test_query_point(self):
+		from grease.controller.collision import SAPCollision, Pair
+		world = TestWorld()
+		coll = SAPCollision()
+		coll.set_world(world)
+		set_entity = world.collision.set
+
+		set_entity(1, -1, -1, 3, 1)
+		set_entity(2, 4, 4, 8, 8)
+		set_entity(3, 6, 6, 9, 9)
+
+		# Queries before the first step should always return no hits
+		self.assertEqual(coll.query_point(0, 0), set())
+		coll.step(0)
+		self.assertEqual(coll.query_point(0, 0), set([1]))
+		self.assertEqual(coll.query_point([0, 0]), set([1]))
+
+		set_entity(2, 4, 4, 8, 8)
+		set_entity(3, 6, 6, 9, 9)
+		world.collision.new_entities.add(2)
+		world.collision.new_entities.add(3)
+		coll.step(0)
+		self.assertEqual(coll.query_point(0, 0), set([1]))
+		self.assertEqual(coll.query_point([0, 0]), set([1]))
+		self.assertEqual(coll.query_point(-1, 0), set([1]))
+		self.assertEqual(coll.query_point(-1.0001, 0), set())
+		self.assertEqual(coll.query_point(3, 0), set([1]))
+		self.assertEqual(coll.query_point(3.0001, 0), set())
+		self.assertEqual(coll.query_point(0, -1), set([1]))
+		self.assertEqual(coll.query_point(0, -1.0001), set())
+		self.assertEqual(coll.query_point(0, 1), set([1]))
+		self.assertEqual(coll.query_point(0, 1.0001), set())
+		self.assertEqual(coll.query_point(-1, -1), set([1]))
+		self.assertEqual(coll.query_point(3, -1), set([1]))
+		self.assertEqual(coll.query_point(3, 1), set([1]))
+		self.assertEqual(coll.query_point(3, 1), set([1]))
+
+		self.assertEqual(coll.query_point(5, 5), set([2]))
+		self.assertEqual(coll.query_point([6, 7]), set([2, 3]))
+		self.assertEqual(coll.query_point([7, 7]), set([2, 3]))
+		self.assertEqual(coll.query_point([7, 8]), set([2, 3]))
+		self.assertEqual(coll.query_point([8.5, 8.5]), set([3]))
+
+		self.assertEqual(coll.query_point(-2, 0), set())
+		self.assertEqual(coll.query_point(10, 5), set())
+		self.assertEqual(coll.query_point(7, 10), set())
+		self.assertEqual(coll.query_point(7, -10), set())
+		self.assertEqual(coll.query_point(-200, 100), set())
+
 
 if __name__ == '__main__':
 	unittest.main()
