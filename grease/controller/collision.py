@@ -234,5 +234,5 @@ class Pair(frozenset):
 		return frozenset.__new__(cls, (obj1, obj2))
 	
 	def __repr__(self):
-		return '%s(%r, %r)' % (self.__class__.__name__, self[0], self[1])
+		return '%s%r' % (self.__class__.__name__, tuple(sorted(self)))
 

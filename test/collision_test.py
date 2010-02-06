@@ -47,6 +47,20 @@ class PairTestCase(unittest.TestCase):
 	def test_unordered_comparison(self):
 		from grease.controller.collision import Pair
 		self.assertEqual(Pair(42, 24), Pair(24, 42))
+	
+	def test_pair_set(self):
+		from grease.controller.collision import Pair
+		p1 = Pair(3,4)
+		p2 = Pair(4,5)
+		pairs = set([p1, p2])
+		self.assertTrue(Pair(3,4) in pairs)
+		self.assertTrue(Pair(4,3) in pairs)
+		self.assertTrue(Pair(4,5) in pairs)
+		self.assertTrue(Pair(5,4) in pairs)
+	
+	def test_pair_repr(self):
+		from grease.controller.collision import Pair
+		self.assertEqual(repr(Pair(1,2)), "Pair(1, 2)")
 
 
 class SAPCollisionTestCase(unittest.TestCase):
