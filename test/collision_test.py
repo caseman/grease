@@ -37,9 +37,7 @@ class PairTestCase(unittest.TestCase):
 	def test_create_pair(self):
 		from grease.controller.collision import Pair
 		p = Pair(3, 4)
-		self.assertEqual(p[0], 3)
-		self.assertEqual(p[1], 4)
-		self.assertEqual(tuple(p), (3, 4))
+		self.assertEqual(sorted(p), [3, 4])
 		self.assertRaises(TypeError, p, 1, 2, 3)
 	
 	def test_symmetric_hash(self):

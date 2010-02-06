@@ -227,18 +227,11 @@ class SAPCollision(object):
 			return y_hits
 
 
-class Pair(tuple):
-	"""Pair of objects that is stored ordered, but hashes and compares unordered"""
+class Pair(frozenset):
+	"""Unordered pair of objects"""
 
 	def __new__(cls, obj1, obj2):
-		return tuple.__new__(cls, (obj1, obj2))
-	
-	def __hash__(self):
-		return hash(self[0]) ^ hash(self[1])
-	
-	def __eq__(self, other):
-		other = tuple(other)
-		return other == tuple(self) or other == (self[1], self[0])
+		return frozenset.__new__(cls, (obj1, obj2))
 	
 	def __repr__(self):
 		return '%s(%r, %r)' % (self.__class__.__name__, self[0], self[1])
