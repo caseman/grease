@@ -33,7 +33,7 @@ class Shape(grease.Entity):
 	Entity types are automagically available as attributes of any world object.
 	"""
 	def __init__(self, num_sides, size):
-		self.position.xy = (window.width / 2, window.height / 2)
+		self.position.position = (window.width / 2, window.height / 2)
 		self.position.angle = random.randint(0, 359)
 		self.movement.velocity = (random.gauss(0, 50), random.gauss(0, 50))
 		self.movement.rotation = random.gauss(0, 90)

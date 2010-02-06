@@ -98,9 +98,9 @@ class VectorRendererTestCase(unittest.TestCase):
 			Data(closed=False, verts=Vec2dArray([(1, -1), (-1, -1), (1, 1), (-1, 1)])),
 		]
 		world.positions = [
-			Data(xy=Vec2d(10, 10), angle=0),
-			Data(xy=Vec2d(4, 3), angle=0),
-			Data(xy=Vec2d(0, 0), angle=0),
+			Data(position=Vec2d(10, 10), angle=0),
+			Data(position=Vec2d(4, 3), angle=0),
+			Data(position=Vec2d(0, 0), angle=0),
 		]
 		world.renderable = [
 			Data(color=RGBA(1,1,1,1)),
@@ -210,9 +210,9 @@ class VectorRendererTestCase(unittest.TestCase):
 			Data(closed=False, verts=Vec2dArray([(1, -1), (-1, -1), (1, 1), (-1, 1)])),
 		]
 		world.positions = [
-			Data(xy=Vec2d(10, 10), angle=45),
-			Data(xy=Vec2d(4, 3), angle=90),
-			Data(xy=Vec2d(0, 0), angle=-45),
+			Data(position=Vec2d(10, 10), angle=45),
+			Data(position=Vec2d(4, 3), angle=90),
+			Data(position=Vec2d(0, 0), angle=-45),
 		]
 		v_array, i_size, i_array, i_count = renderer._generate_verts()
 		self.assertEqual(i_count, 20)

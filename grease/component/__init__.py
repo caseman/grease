@@ -1,6 +1,6 @@
 from field import Schema
 from general import Component
-from grease.geometry import Vec2d, Vec2dArray
+from grease.geometry import Vec2d, Vec2dArray, Rect
 from grease import color
 
 class ComponentError(Exception):
@@ -8,17 +8,25 @@ class ComponentError(Exception):
 
 
 class Position(Component):
-	"""Stores position and rotation info for entities"""
+	"""Stores position and orientation info for entities"""
 
 	def __init__(self):
-		Component.__init__(self, xy=Vec2d, last_xy=Vec2d, z=float, angle=float, last_angle=float)
+		Component.__init__(self, position=Vec2d, angle=float)
+
+
+class Transform(Component):
+	"""Stores offset, shear, rotation and scale info for entity shapes"""
+
+	def __init__(self):
+		Component.__init__(self, offset=Vec2d, shear=Ve2d, rotation=float, scale=float)
+		self.fields['scale'].default = lambda: 1.0
 
 
 class Movement(Component):
 	"""Stores velocity, acceleration and rotation info for entities"""
 
 	def __init__(self):
-		Component.__init__(self, velocity=Vec2d, last_velocity=Vec2d, accel=Vec2d, rotation=float)
+		Component.__init__(self, velocity=Vec2d, accel=Vec2d, rotation=float)
 
 
 class Shape(Component):
@@ -30,10 +38,10 @@ class Shape(Component):
 
 
 class Renderable(Component):
-	"""Identifies entities to be rendered and provides their color"""
+	"""Identifies entities to be rendered and provides their depth and color"""
 
 	def __init__(self):
-		Component.__init__(self, color=color.RGBA)
+		Component.__init__(self, depth=float, color=color.RGBA)
 		self.fields['color'].default = lambda: color.RGBA(1,1,1,1)
 
 
@@ -44,6 +52,10 @@ class Collision(Component):
 
 	AABB (Rect) -- The axis-aligned bounding box for the entity.
 	This is used for broad-phase collision detection.
+
+	radius (float) -- The collision radius of the entity, used for narrow-phase
+	collision detection. The exact meaning of this value depends on the collision
+	system in use.
 	
 	from_mask (int) -- A bitmask that determines what entities this object
 	can collide with.
@@ -64,7 +76,7 @@ class Collision(Component):
 	all entities will collide with each other by default.
 	"""
 	def __init__(self):
-		Component.__init__(self, from_mask=int, into_mask=int)
+		Component.__init__(self, AABB=Rect, radius=float, from_mask=int, into_mask=int)
 		self.fields['into_mask'].default = lambda: 0xffffffff
 		self.fields['from_mask'].default = lambda: 0xffffffff
 

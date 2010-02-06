@@ -78,7 +78,7 @@ class VectorRenderer(object):
 			b = int(renderable.color.b * 255)
 			a = int(renderable.color.a * 255)
 			for vert in shape.verts:
-				vert = vert.cpvrotate(rot_vec) * scale + position.xy
+				vert = vert.cpvrotate(rot_vec) * scale + position.position
 				v_array[v_index].vert.x = vert.x
 				v_array[v_index].vert.y = vert.y
 				v_array[v_index].color.r = r

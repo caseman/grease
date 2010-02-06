@@ -21,8 +21,6 @@ class EulerMovement(object):
 		assert self.world is not None, "Cannot run with no world set"
 		for position, movement in self.world.components.join(
 			self.position_component, self.movement_component):
-			position.last_xy = position.xy
-			position.xy += movement.velocity * dt
-			position.last_angle = position.angle
+			position.position += movement.velocity * dt
 			position.angle += movement.rotation * dt
 
