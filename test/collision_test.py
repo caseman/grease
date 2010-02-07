@@ -60,22 +60,22 @@ class PairTestCase(unittest.TestCase):
 	
 	def test_pair_repr(self):
 		from grease.controller.collision import Pair
-		self.assertEqual(repr(Pair(1,2)), "Pair(1, 2)")
+		self.assertEqual(repr(Pair(2,1)), "Pair(2, 1)")
 
 
-class SAPCollisionTestCase(unittest.TestCase):
+class BroadSweepAndPruneTestCase(unittest.TestCase):
 
 	def test_before_step(self):
 		# Queries should be well behaved even before the controller is run
-		from grease.controller.collision import SAPCollision
-		coll = SAPCollision()
+		from grease.controller.collision import BroadSweepAndPrune
+		coll = BroadSweepAndPrune()
 		self.assertEqual(coll.collision_pairs, set())
 		self.assertEqual(coll.query_point(0,0), set())
 	
 	def test_collision_pairs_no_collision(self):
-		from grease.controller.collision import SAPCollision
+		from grease.controller.collision import BroadSweepAndPrune
 		world = TestWorld()
-		coll = SAPCollision()
+		coll = BroadSweepAndPrune()
 		set_entity = world.collision.set
 		set_entity(1, 10, 10, 20, 20)
 		set_entity(2, 0, 0, 3, 3)
@@ -95,9 +95,9 @@ class SAPCollisionTestCase(unittest.TestCase):
 		
 	
 	def test_collision_pairs_static_collision(self):
-		from grease.controller.collision import SAPCollision, Pair
+		from grease.controller.collision import BroadSweepAndPrune, Pair
 		world = TestWorld()
-		coll = SAPCollision()
+		coll = BroadSweepAndPrune()
 		coll.set_world(world)
 		set_entity = world.collision.set
 
@@ -125,9 +125,9 @@ class SAPCollisionTestCase(unittest.TestCase):
 		self.assertEqual(coll.collision_pairs, pairs)
 	
 	def test_collision_pairs_no_collide_then_collide(self):
-		from grease.controller.collision import SAPCollision, Pair
+		from grease.controller.collision import BroadSweepAndPrune, Pair
 		world = TestWorld()
-		coll = SAPCollision()
+		coll = BroadSweepAndPrune()
 		coll.set_world(world)
 		set_entity = world.collision.set
 
@@ -163,9 +163,9 @@ class SAPCollisionTestCase(unittest.TestCase):
 		self.assertPairs(coll.collision_pairs, Pair(1,3))
 	
 	def test_collision_pairs_new_entities(self):
-		from grease.controller.collision import SAPCollision, Pair
+		from grease.controller.collision import BroadSweepAndPrune, Pair
 		world = TestWorld()
-		coll = SAPCollision()
+		coll = BroadSweepAndPrune()
 		coll.set_world(world)
 		set_entity = world.collision.set
 
@@ -193,9 +193,9 @@ class SAPCollisionTestCase(unittest.TestCase):
 		self.assertPairs(coll.collision_pairs, Pair(1,3), Pair(4,5))
 	
 	def test_collision_pairs_deleted_entities(self):
-		from grease.controller.collision import SAPCollision, Pair
+		from grease.controller.collision import BroadSweepAndPrune, Pair
 		world = TestWorld()
-		coll = SAPCollision()
+		coll = BroadSweepAndPrune()
 		coll.set_world(world)
 		set_entity = world.collision.set
 
@@ -220,9 +220,9 @@ class SAPCollisionTestCase(unittest.TestCase):
 		self.assertPairs(coll.collision_pairs, Pair(4,2))
 	
 	def test_query_point(self):
-		from grease.controller.collision import SAPCollision, Pair
+		from grease.controller.collision import BroadSweepAndPrune, Pair
 		world = TestWorld()
-		coll = SAPCollision()
+		coll = BroadSweepAndPrune()
 		coll.set_world(world)
 		set_entity = world.collision.set
 
