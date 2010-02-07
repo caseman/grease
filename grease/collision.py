@@ -27,30 +27,18 @@ from bisect import bisect_right
 class Pair(tuple):
 	"""Collision pair. An ordered sequence of two entities, that
 	compares and hashes unordered.
-
-	Args:
-		entity1, entity2: Two entities marked as colliding.
-
-		point (Vec2d): Optional point of collision.
-
-		normal (Vec2d): Optional normal vector at 
-			the collision point of entity1.
 	
+	Also stores additional collision point and normal vectors
+	for each entity.
 	"""
-
-	point = None
-	"""The position of collision on entity1 or None"""
-
-	normal = None
-	"""The normal vector at the collision point of entity1 or None"""
+	info = None
+	"""A sequence of (entity, collision point, collision normal)
+	for each entity in the pair
+	"""
 
 	def __new__(cls, entity1, entity2, point=None, normal=None):
 		pair = tuple.__new__(cls, (entity1, entity2))
 		return pair
-	
-	def __init__(self, entity1, entity2, point=None, normal=None):
-		self.point = point
-		self.normal = normal
 	
 	def __hash__(self):
 		return hash(self[0]) ^ hash(self[1])
@@ -61,6 +49,13 @@ class Pair(tuple):
 	
 	def __repr__(self):
 		return '%s%r' % (self.__class__.__name__, tuple(self))
+	
+	def set_point_normal(self, point0, normal0, point1, normal1):
+		"""Set the collision point and normal for both entities"""
+		self.info = (
+			(self[0], point0, normal0),
+			(self[1], point1, normal1),
+		)
 
 
 class BroadSweepAndPrune(object):
@@ -359,11 +354,16 @@ class Circular(object):
 			pairs = self._collision_pairs = set()
 			for pair in self.broad_phase.collision_pairs:
 				entity1, entity2 = pair
-				separation = position[entity1].position - position[entity2].position
-				min_distance2 = collision[entity1].radius**2 + collision[entity2].radius**2
-				if separation.get_dist_sqrd() <= min_distance2:
-					pair.normal = separation.normalized()
-					pair.point = pair.normal * collision[entity1].radius
+				position1 = position[entity1].position
+				position2 = position[entity2].position
+				radius1 = collision[entity1].radius
+				radius2 = collision[entity2].radius
+				separation = position2 - position1
+				if separation.get_length_sqrd() <= (radius1 + radius2)**2:
+					normal = separation.normalized()
+					pair.set_point_normal(
+						normal * radius1 + position1, normal,
+						normal * -radius2 + position2, -normal)
 					pairs.add(pair)
 		return self._collision_pairs
 	
@@ -381,13 +381,13 @@ class Circular(object):
 		if y is None:
 			point = Vec2d(x_or_point)
 		else:
-			point = Vec2d(x, y)
+			point = Vec2d(x_or_point, y)
 		hits = set()
 		position = self.world.components[self.position_component]
 		collision = self.world.components[self.collision_component]
 		for entity in self.broad_phase.query_point(x_or_point, y):
 			separation = point - position[entity].position
-			if separation.get_dist_sqrd() <= collision[entity].radius**2:
+			if separation.get_length_sqrd() <= collision[entity].radius**2:
 				hits.add(entity)
 		return hits
 

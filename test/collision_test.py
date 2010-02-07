@@ -6,30 +6,58 @@ class TestCollisionComp(dict):
 		self.new_entities = set()
 		self.deleted_entities = set()
 
-	def set(self, entity, left, bottom, right, top, from_mask=0xffffffff, into_mask=0xffffffff):
+	def set(self, entity, left=0, bottom=0, right=0, top=0, radius=0,
+		from_mask=0xffffffff, into_mask=0xffffffff,):
 		if entity in self:
 			data = self[entity]
 		else:
 			data = self[entity] = Data()
 		data.entity = entity
 		data.AABB = Data(left=left, top=top, right=right, bottom=bottom)
+		data.radius = radius
 		data.from_mask = from_mask
 		data.into_mask = into_mask
+	
+class TestPositionComp(dict):
 
+	def set(self, entity, position):
+		from grease.geometry import Vec2d
+		if entity in self:
+			data = self[entity]
+		else:
+			data = self[entity] = Data()
+		data.entity = entity
+		data.position = Vec2d(position)
 
 class TestWorld(object):
 
 	def __init__(self):
-		self.components = self
-		self.collision = TestCollisionComp()
-
-	def __getitem__(self, name):
-		return self.collision
+		self.components = {
+			'collision': TestCollisionComp(),
+			'position': TestPositionComp(),
+		}
+	
+	def __getattr__(self, name):
+		return self.components[name]
 
 class Data(object):
 
 	def __init__(self, **kw):
 		self.__dict__.update(kw)
+
+class TestCollisionSys(object):
+
+	runtime = 0
+
+	def __init__(self, world=None):
+		self.collision_pairs = set()
+		self.world = world
+	
+	def step(self, dt):
+		self.runtime += dt
+
+	def query_point(self, x, y=None):
+		return set(self.world.collision)
 
 
 class PairTestCase(unittest.TestCase):
@@ -267,6 +295,136 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		self.assertEqual(coll.query_point(7, 10), set())
 		self.assertEqual(coll.query_point(7, -10), set())
 		self.assertEqual(coll.query_point(-200, 100), set())
+
+
+class CircularTestCase(unittest.TestCase):
+
+	def test_defaults(self):
+		from grease.collision import Circular, BroadSweepAndPrune
+		coll = Circular()
+		self.assertTrue(isinstance(coll.broad_phase, BroadSweepAndPrune))
+		self.assertEqual(coll.position_component, 'position')
+		self.assertEqual(coll.collision_component, 'collision')
+	
+	def test_overrides(self):
+		from grease.collision import Circular
+		broad = TestCollisionSys()
+		coll = Circular(broad_phase=broad, position_component='posi', collision_component='hal')
+		self.assertTrue(coll.broad_phase is broad)
+		self.assertEqual(coll.position_component, 'posi')
+		self.assertEqual(coll.collision_component, 'hal')
+	
+	def test_before_step(self):
+		# Queries should be well behaved even before the controller is run
+		from grease.collision import Circular
+		world = TestWorld()
+		broad = TestCollisionSys(world)
+		coll = Circular(broad_phase=broad)
+		coll.set_world(world)
+		self.assertEqual(coll.collision_pairs, set())
+		self.assertEqual(coll.query_point(0,0), set())
+
+	def test_step(self):
+		from grease.collision import Circular
+		# Stepping the circular collision system should also step the broad phase
+		broad = TestCollisionSys()
+		world = TestWorld()
+		coll = Circular(broad_phase=broad)
+		coll.set_world(world)
+		self.assertTrue(coll.world is world)
+		self.assertEqual(coll.collision_pairs, set())
+		self.assertEqual(broad.runtime, 0)
+		coll.step(2)
+		self.assertEqual(broad.runtime, 2)
+		coll.step(1)
+		self.assertEqual(broad.runtime, 3)
+		self.assertEqual(coll.collision_pairs, set())
+	
+	def test_collision_pairs(self):
+		from grease.collision import Circular, Pair
+		broad = TestCollisionSys()
+		world = TestWorld()
+		coll = Circular(broad_phase=broad)
+		coll.set_world(world)
+		pos_set = world.position.set
+		col_set = world.collision.set
+		pos_set(1, (0, 0))
+		col_set(1, radius=5)
+		pos_set(2, (3, 3))
+		col_set(2, radius=0)
+		pos_set(3, (6, 0))
+		col_set(3, radius=1)
+		pos_set(4, (-10, 4))
+		col_set(4, radius=2)
+		pos_set(5, (-13, 4))
+		col_set(5, radius=2)
+		pos_set(6, (0, 7))
+		col_set(6, radius=1.99)
+
+		# Pair everything and make sure the narrow phase sorts it out
+		broad.collision_pairs = set([
+			Pair(x+1, y+1) for x in range(6) for y in range(6) if x != y])
+		coll.step(0)
+		self.assertEqual(coll.collision_pairs, set([Pair(1,2), Pair(1, 3), Pair(4, 5)]))
+	
+	def test_collision_point_and_normal(self):
+		from grease.collision import Circular, Pair
+		broad = TestCollisionSys()
+		world = TestWorld()
+		coll = Circular(broad_phase=broad)
+		coll.set_world(world)
+		pos_set = world.position.set
+		col_set = world.collision.set
+		pos_set(1, (0, 0))
+		col_set(1, radius=2)
+		pos_set(2, (4, 0))
+		col_set(2, radius=3)
+		broad.collision_pairs = set([Pair(1,2)])
+		coll.step(0)
+		pair = list(coll.collision_pairs)[0]
+		(e1, p1, n1), (e2, p2, n2) = pair.info
+		self.assertEqual(e1, 1)
+		self.assertEqual(p1, (2, 0))
+		self.assertEqual(n1, (1, 0))
+		self.assertEqual(e2, 2)
+		self.assertEqual(p2, (1, 0))
+		self.assertEqual(n2, (-1, 0))
+
+		pos_set(2, (0, -5))
+		col_set(2, radius=3.5)
+		broad.collision_pairs = set([Pair(1,2)])
+		coll.step(0)
+		pair = list(coll.collision_pairs)[0]
+		(e1, p1, n1), (e2, p2, n2) = pair.info
+		self.assertEqual(e1, 1)
+		self.assertEqual(p1, (0, -2))
+		self.assertEqual(n1, (0, -1))
+		self.assertEqual(e2, 2)
+		self.assertEqual(p2, (0, -1.5))
+		self.assertEqual(n2, (0, 1))
+	
+	def test_query_point(self):
+		from grease.collision import Circular, Pair
+		world = TestWorld()
+		broad = TestCollisionSys(world)
+		coll = Circular(broad_phase=broad)
+		coll.set_world(world)
+		pos_set = world.position.set
+		col_set = world.collision.set
+		pos_set(1, (0, 0))
+		col_set(1, radius=1)
+		pos_set(2, (0, 2))
+		col_set(2, radius=1.5)
+		pos_set(3, (-4, 3))
+		col_set(3, radius=3)
+		coll.step(0)
+		self.assertEqual(coll.query_point(0,0), set([1]))
+		self.assertEqual(coll.query_point(0,1), set([1, 2]))
+		self.assertEqual(coll.query_point([0,1]), set([1, 2]))
+		self.assertEqual(coll.query_point(1, 0), set([1]))
+		self.assertEqual(coll.query_point(1.0001, 0), set())
+		self.assertEqual(coll.query_point(-1, 3), set([2,3]))
+		self.assertEqual(coll.query_point(-5, 3), set([3]))
 
 
 if __name__ == '__main__':
