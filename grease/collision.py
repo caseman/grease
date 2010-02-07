@@ -1,6 +1,5 @@
 """
-Grease collision detection systems
-----------------------------------
+**Grease collision detection systems**
 
 Grease uses two-phase broad and narrow collision detection. *Broad-phase*
 collision systems are used to efficiently identify pairs that may be colliding
@@ -75,7 +74,8 @@ class BroadSweepAndPrune(object):
 	specific space and body sizes.
 
 	Other algorithms may be more efficient for collision detection with
-	stationary bodies, or bodies that are always evenly distributed.
+	stationary bodies, bodies that are always evenly distributed, or ad-hoc
+	queries.
 	"""
 	world = None
 	""":class:`grease.World` object this system belongs to"""
@@ -165,7 +165,7 @@ class BroadSweepAndPrune(object):
 	
 	@property
 	def collision_pairs(self):
-		"""Return the current collision pairs, recalculating as needed"""
+		"""Candidate collision pairs for this timestep"""
 		if self._collision_pairs is None:
 			if self._by_x is None:
 				# Axis arrays not ready
@@ -352,7 +352,7 @@ class Circular(object):
 	
 	@property
 	def collision_pairs(self):
-		"""Return the set of entity collision pairs"""
+		"""The set of entity pairs in collision in this timestep"""
 		if self._collision_pairs is None:
 			position = self.world.components[self.position_component]
 			collision = self.world.components[self.collision_component]

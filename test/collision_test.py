@@ -35,21 +35,21 @@ class Data(object):
 class PairTestCase(unittest.TestCase):
 
 	def test_create_pair(self):
-		from grease.controller.collision import Pair
+		from grease.collision import Pair
 		p = Pair(3, 4)
 		self.assertEqual(sorted(p), [3, 4])
 		self.assertRaises(TypeError, p, 1, 2, 3)
 	
 	def test_symmetric_hash(self):
-		from grease.controller.collision import Pair
+		from grease.collision import Pair
 		self.assertEqual(hash(Pair('spam', 'eggs')), hash(Pair('eggs', 'spam')))
 	
 	def test_unordered_comparison(self):
-		from grease.controller.collision import Pair
+		from grease.collision import Pair
 		self.assertEqual(Pair(42, 24), Pair(24, 42))
 	
 	def test_pair_set(self):
-		from grease.controller.collision import Pair
+		from grease.collision import Pair
 		p1 = Pair(3,4)
 		p2 = Pair(4,5)
 		pairs = set([p1, p2])
@@ -59,7 +59,7 @@ class PairTestCase(unittest.TestCase):
 		self.assertTrue(Pair(5,4) in pairs)
 	
 	def test_pair_repr(self):
-		from grease.controller.collision import Pair
+		from grease.collision import Pair
 		self.assertEqual(repr(Pair(2,1)), "Pair(2, 1)")
 
 
@@ -67,13 +67,13 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 
 	def test_before_step(self):
 		# Queries should be well behaved even before the controller is run
-		from grease.controller.collision import BroadSweepAndPrune
+		from grease.collision import BroadSweepAndPrune
 		coll = BroadSweepAndPrune()
 		self.assertEqual(coll.collision_pairs, set())
 		self.assertEqual(coll.query_point(0,0), set())
 	
 	def test_collision_pairs_no_collision(self):
-		from grease.controller.collision import BroadSweepAndPrune
+		from grease.collision import BroadSweepAndPrune
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		set_entity = world.collision.set
@@ -95,7 +95,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		
 	
 	def test_collision_pairs_static_collision(self):
-		from grease.controller.collision import BroadSweepAndPrune, Pair
+		from grease.collision import BroadSweepAndPrune, Pair
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
@@ -125,7 +125,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		self.assertEqual(coll.collision_pairs, pairs)
 	
 	def test_collision_pairs_no_collide_then_collide(self):
-		from grease.controller.collision import BroadSweepAndPrune, Pair
+		from grease.collision import BroadSweepAndPrune, Pair
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
@@ -163,7 +163,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		self.assertPairs(coll.collision_pairs, Pair(1,3))
 	
 	def test_collision_pairs_new_entities(self):
-		from grease.controller.collision import BroadSweepAndPrune, Pair
+		from grease.collision import BroadSweepAndPrune, Pair
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
@@ -193,7 +193,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		self.assertPairs(coll.collision_pairs, Pair(1,3), Pair(4,5))
 	
 	def test_collision_pairs_deleted_entities(self):
-		from grease.controller.collision import BroadSweepAndPrune, Pair
+		from grease.collision import BroadSweepAndPrune, Pair
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
@@ -220,7 +220,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		self.assertPairs(coll.collision_pairs, Pair(4,2))
 	
 	def test_query_point(self):
-		from grease.controller.collision import BroadSweepAndPrune, Pair
+		from grease.collision import BroadSweepAndPrune, Pair
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
