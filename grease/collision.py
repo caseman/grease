@@ -175,16 +175,15 @@ class BroadSweepAndPrune(object):
 			xoverlaps = set()
 			add_xoverlap = xoverlaps.add
 			discard_xoverlap = xoverlaps.discard
-			open = set()
-			add_open = open.add
-			discard_open = open.discard
+			open = {}
 			for _, side, data in self._by_x:
 				if side is LEFT:
-					for open_entity in open:
-						add_xoverlap(Pair(data.entity, open_entity))
-					add_open(data.entity)
+					for open_entity, (from_mask, into_mask) in open.iteritems():
+						if data.from_mask & into_mask or from_mask & data.into_mask:
+							add_xoverlap(Pair(data.entity, open_entity))
+					open[data.entity] = (data.from_mask, data.into_mask)
 				elif side is RIGHT:
-					discard_open(data.entity)
+					del open[data.entity]
 
 			if len(xoverlaps) <= 10 and len(xoverlaps)*4 < len(self._by_y):
 				# few candidates were found, so just scan the x overlap candidates
@@ -204,7 +203,9 @@ class BroadSweepAndPrune(object):
 				by_y = self._by_y
 
 			# Now check the candidates along the y-axis
-			open.clear()
+			open = set()
+			add_open = open.add
+			discard_open = open.discard
 			self._collision_pairs = set()
 			add_pair = self._collision_pairs.add
 			for _, side, data in by_y:
@@ -222,7 +223,7 @@ class BroadSweepAndPrune(object):
 					discard_open(data.entity)
 		return self._collision_pairs
 	
-	def query_point(self, x_or_point, y=None):
+	def query_point(self, x_or_point, y=None, from_mask=0xffffffff):
 		"""Hit test at the point specified. Return a set of entities
 		where the point is inside their bounding boxes as of the last
 		time step.
@@ -231,6 +232,9 @@ class BroadSweepAndPrune(object):
 			x_or_point: x coordinate (float) or sequence of (x, y) floats.
 
 			y: y coordinate (float) if x is not a sequence
+
+			from_mask: Bit mask used to filter query results. Only entities
+				whos collision.into_mask bit 
 
 		"""
 		if self._by_x is None:

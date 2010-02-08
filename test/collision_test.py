@@ -247,6 +247,22 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		coll.step(0)
 		self.assertPairs(coll.collision_pairs, Pair(4,2))
 	
+	def test_collision_pairs_with_masks(self):
+		from grease.collision import BroadSweepAndPrune, Pair
+		world = TestWorld()
+		coll = BroadSweepAndPrune()
+		coll.set_world(world)
+		set_entity = world.collision.set
+
+		set_entity(1, 0, 0, 1, 1, from_mask=1, into_mask=0)
+		set_entity(2, 0, 0, 1, 1, from_mask=0, into_mask=2)
+		set_entity(3, 0, 0, 1, 1, from_mask=2, into_mask=1)
+		set_entity(4, 0, 0, 1, 1, from_mask=0, into_mask=0)
+		set_entity(5, 0, 0, 1, 1, from_mask=0xffffffff, into_mask=0xffffffff)
+		coll.step(0)
+		self.assertPairs(coll.collision_pairs, 
+			Pair(1,3), Pair(1,5), Pair(2,3), Pair(2,5), Pair(3,1), Pair(3,5))
+
 	def test_query_point(self):
 		from grease.collision import BroadSweepAndPrune, Pair
 		world = TestWorld()
