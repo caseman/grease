@@ -1,5 +1,4 @@
-from field import Schema
-from general import Component
+from grease.component.general import Component
 from grease.geometry import Vec2d, Vec2dArray, Rect
 from grease import color
 

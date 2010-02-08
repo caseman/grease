@@ -1,5 +1,5 @@
-import base
-import field
+from grease.component import base
+from grease.component import field
 from grease.entity import ComponentEntitySet
 
 class Component(dict):

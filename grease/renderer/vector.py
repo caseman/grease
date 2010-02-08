@@ -5,7 +5,7 @@ from math import sin, cos, radians
 import pyglet
 
 
-class VectorRenderer(object):
+class Vector(object):
 	"""Renders shapes in vector graphics style"""
 
 	CORNER_FILL_SCALE = 0.6

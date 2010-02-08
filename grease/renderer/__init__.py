@@ -1,1 +1,1 @@
-from vectorrenderer import VectorRenderer
+from grease.renderer.vector import Vector

@@ -81,7 +81,7 @@ class TestGL(object):
 		self.draw_indices = indices
 
 
-class VectorRendererTestCase(unittest.TestCase):
+class VectorTestCase(unittest.TestCase):
 
 	def assertArrayEqual(self, a1, a2):
 		for (x1, y1), (x2, y2) in zip(a1, a2):
@@ -110,8 +110,8 @@ class VectorRendererTestCase(unittest.TestCase):
 		return world
 
 	def test_defaults(self):
-		from grease.renderer import VectorRenderer
-		vr = VectorRenderer()
+		from grease.renderer import Vector
+		vr = Vector()
 		self.assertEqual(vr.scale, 1.0)
 		self.assertEqual(vr.line_width, None)
 		self.assertEqual(vr.corner_fill, True)
@@ -120,8 +120,8 @@ class VectorRendererTestCase(unittest.TestCase):
 		self.assertEqual(vr.renderable_component, 'renderable')
 
 	def test_overrides(self):
-		from grease.renderer import VectorRenderer
-		vr = VectorRenderer(scale=2.5, line_width=3.7, corner_fill=False,
+		from grease.renderer import Vector
+		vr = Vector(scale=2.5, line_width=3.7, corner_fill=False,
 			position_component='pos', shape_component='fit', renderable_component='drawme')
 		self.assertEqual(vr.scale, 2.5)
 		self.assertEqual(vr.line_width, 3.7)
@@ -131,9 +131,9 @@ class VectorRendererTestCase(unittest.TestCase):
 		self.assertEqual(vr.renderable_component, 'drawme')
 	
 	def test_set_world(self):
-		from grease.renderer import VectorRenderer
+		from grease.renderer import Vector
 		world = object()
-		vr = VectorRenderer()
+		vr = Vector()
 		vr.set_world(world)
 		self.assertTrue(vr.world is world)
 	
@@ -144,9 +144,9 @@ class VectorRendererTestCase(unittest.TestCase):
 		return [(i.color.r, i.color.g, i.color.b, i.color.a) for i in array]
 
 	def test_generate_verts_no_scale_or_angle(self):
-		from grease.renderer import VectorRenderer
+		from grease.renderer import Vector
 		world = self.make_world()
-		renderer = VectorRenderer()
+		renderer = Vector()
 		renderer.set_world(world)
 		v_array, i_size, i_array, i_count = renderer._generate_verts()
 		self.assertEqual(i_count, 20)
@@ -159,7 +159,7 @@ class VectorRendererTestCase(unittest.TestCase):
 		self.assertEqual(self.get_rgba(v_array[:11]), [(255,255,255,255)] * 11)
 
 	def test_generate_verts_with_color(self):
-		from grease.renderer import VectorRenderer
+		from grease.renderer import Vector
 		from grease.color import RGBA
 		world = self.make_world()
 		world.renderable = [
@@ -167,7 +167,7 @@ class VectorRendererTestCase(unittest.TestCase):
 			Data(color=RGBA(1,0,1,1)),
 			Data(color=RGBA(0,0,1,1)),
 		]
-		renderer = VectorRenderer()
+		renderer = Vector()
 		renderer.set_world(world)
 		v_array, i_size, i_array, i_count = renderer._generate_verts()
 		self.assertEqual(i_count, 20)
@@ -182,9 +182,9 @@ class VectorRendererTestCase(unittest.TestCase):
 		self.assertEqual(list(i_array[14:20]), [7, 8, 8, 9, 9, 10]) 
 
 	def test_generate_verts_with_scale(self):
-		from grease.renderer import VectorRenderer
+		from grease.renderer import Vector
 		world = self.make_world()
-		renderer = VectorRenderer(scale=10.0)
+		renderer = Vector(scale=10.0)
 		renderer.set_world(world)
 		self.assertTrue(renderer.world is world)
 		v_array, i_size, i_array, i_count = renderer._generate_verts()
@@ -198,10 +198,10 @@ class VectorRendererTestCase(unittest.TestCase):
 		self.assertEqual(self.get_rgba(v_array[:11]), [(255,255,255,255)] * 11)
 
 	def test_generate_verts_with_angle(self):
-		from grease.renderer import VectorRenderer
+		from grease.renderer import Vector
 		from grease.geometry import Vec2d, Vec2dArray
 		world = self.make_world()
-		renderer = VectorRenderer()
+		renderer = Vector()
 		renderer.set_world(world)
 		self.assertTrue(renderer.world is world)
 		world.shapes = [
@@ -229,11 +229,11 @@ class VectorRendererTestCase(unittest.TestCase):
 		self.assertEqual(self.get_rgba(v_array[:11]), [(255,255,255,255)] * 11)
 	
 	def test_draw_plain(self):
-		from grease.renderer import VectorRenderer
+		from grease.renderer import Vector
 		from grease.geometry import Vec2d, Vec2dArray
 		import pyglet
 		world = self.make_world()
-		renderer = VectorRenderer()
+		renderer = Vector()
 		renderer.set_world(world)
 		gl = TestGL()
 		renderer.draw(gl=gl)
@@ -250,11 +250,11 @@ class VectorRendererTestCase(unittest.TestCase):
 		self.assertFalse(hasattr(gl, 'line_width'))
 
 	def test_draw_line_width(self):
-		from grease.renderer import VectorRenderer
+		from grease.renderer import Vector
 		from grease.geometry import Vec2d, Vec2dArray
 		import pyglet
 		world = self.make_world()
-		renderer = VectorRenderer(line_width=3.0)
+		renderer = Vector(line_width=3.0)
 		renderer.set_world(world)
 		gl = TestGL()
 		renderer.draw(gl=gl)
