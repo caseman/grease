@@ -71,6 +71,12 @@ class BroadSweepAndPrune(object):
 	Other algorithms may be more efficient for collision detection with
 	stationary bodies, bodies that are always evenly distributed, or ad-hoc
 	queries.
+
+	Args:
+		collision_component: Name of the collision component used by this
+		system, defaults to 'collision'. This component supplies each
+		entities' AABB and collision masks.
+	
 	"""
 	world = None
 	""":class:`grease.World` object this system belongs to"""
@@ -315,7 +321,7 @@ class Circular(object):
 	Args:
 		collision_component: Name of collision component for this system,
 			defaults to 'collision'. This supplies each entity's collision
-			radius.
+			radius and masks.
 
 		position_component: Name of position component for this system,
 			defaults to 'position'. This supplies each entity's position.
