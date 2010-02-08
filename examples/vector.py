@@ -25,7 +25,7 @@ world.systems.add(
 	('movement', controller.EulerMovement()),
 )
 # The render pipeline determines the world presentation
-world.renderers = [renderer.VectorRenderer(line_width=2)]
+world.renderers = [renderer.Vector(line_width=2)]
 
 class Shape(grease.Entity):
 	"""Shape entity definition. 
