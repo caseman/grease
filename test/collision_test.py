@@ -48,6 +48,7 @@ class Data(object):
 class TestCollisionSys(object):
 
 	runtime = 0
+	last_from_mask = None
 
 	def __init__(self, world=None):
 		self.collision_pairs = set()
@@ -56,7 +57,8 @@ class TestCollisionSys(object):
 	def step(self, dt):
 		self.runtime += dt
 
-	def query_point(self, x, y=None):
+	def query_point(self, x, y=None, from_mask=None):
+		self.last_from_mask = from_mask
 		return set(self.world.collision)
 
 
@@ -311,6 +313,25 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		self.assertEqual(coll.query_point(7, 10), set())
 		self.assertEqual(coll.query_point(7, -10), set())
 		self.assertEqual(coll.query_point(-200, 100), set())
+	
+	def test_query_point_with_mask(self):
+		from grease.collision import BroadSweepAndPrune, Pair
+		world = TestWorld()
+		coll = BroadSweepAndPrune()
+		coll.set_world(world)
+		set_entity = world.collision.set
+		
+		set_entity(1, 0, 0, 2, 2, into_mask=1)
+		set_entity(2, 0, 0, 2, 2, into_mask=2)
+		set_entity(3, 0, 0, 2, 2, into_mask=5)
+		coll.step(0)
+		self.assertEqual(coll.query_point(1, 1), set([1, 2, 3]))
+		self.assertEqual(coll.query_point(1, 1, from_mask=1), set([1, 3]))
+		self.assertEqual(coll.query_point(1, 1, from_mask=2), set([2]))
+		self.assertEqual(coll.query_point(1, 1, from_mask=3), set([1, 2, 3]))
+		self.assertEqual(coll.query_point(1, 1, from_mask=4), set([3]))
+		self.assertEqual(coll.query_point(1, 1, from_mask=5), set([1, 3]))
+		self.assertEqual(coll.query_point(1, 1, from_mask=8), set())
 
 
 class CircularTestCase(unittest.TestCase):
@@ -434,6 +455,7 @@ class CircularTestCase(unittest.TestCase):
 		pos_set(3, (-4, 3))
 		col_set(3, radius=3)
 		coll.step(0)
+		self.assertEqual(broad.last_from_mask, None)
 		self.assertEqual(coll.query_point(0,0), set([1]))
 		self.assertEqual(coll.query_point(0,1), set([1, 2]))
 		self.assertEqual(coll.query_point([0,1]), set([1, 2]))
@@ -441,6 +463,9 @@ class CircularTestCase(unittest.TestCase):
 		self.assertEqual(coll.query_point(1.0001, 0), set())
 		self.assertEqual(coll.query_point(-1, 3), set([2,3]))
 		self.assertEqual(coll.query_point(-5, 3), set([3]))
+		self.assertEqual(broad.last_from_mask, 0xffffffff)
+		coll.query_point([0, 0], from_mask=0xff)
+		self.assertEqual(broad.last_from_mask, 0xff)
 
 
 if __name__ == '__main__':

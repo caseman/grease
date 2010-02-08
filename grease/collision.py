@@ -224,17 +224,22 @@ class BroadSweepAndPrune(object):
 		return self._collision_pairs
 	
 	def query_point(self, x_or_point, y=None, from_mask=0xffffffff):
-		"""Hit test at the point specified. Return a set of entities
-		where the point is inside their bounding boxes as of the last
-		time step.
+		"""Hit test at the point specified. 
 
 		Args:
 			x_or_point: x coordinate (float) or sequence of (x, y) floats.
 
 			y: y coordinate (float) if x is not a sequence
 
-			from_mask: Bit mask used to filter query results. Only entities
-				whos collision.into_mask bit 
+			from_mask: Bit mask used to filter query results. This value
+				is bit ANDed with candidate entities' `collision.into_mask`.
+				If the result is non-zero, then it is considered a hit. By
+				default all entities colliding with the input point are
+				returned.
+
+		Returns:
+			Return a set of entities where the point is inside their bounding
+			boxes as of the last time step.
 
 		"""
 		if self._by_x is None:
@@ -260,14 +265,14 @@ class BroadSweepAndPrune(object):
 				# Ensure we hit on exact left edge matches
 				x_index += 1
 			for _, side, data in self._by_x[:x_index]:
-				if side is LEFT:
+				if side is LEFT and from_mask & data.into_mask:
 					add_x_hit(data.entity)
 				else:
 					discard_x_hit(data.entity)
 		else:
 			# closer to the right
 			for _, side, data in reversed(self._by_x[x_index:]):
-				if side is RIGHT:
+				if side is RIGHT and from_mask & data.into_mask:
 					add_x_hit(data.entity)
 				else:
 					discard_x_hit(data.entity)
@@ -371,15 +376,23 @@ class Circular(object):
 					pairs.add(pair)
 		return self._collision_pairs
 	
-	def query_point(self, x_or_point, y=None):
-		"""Hit test at the point specified. Return a set of entities
-		where the point is inside their collision radii as of the last
-		time step.
+	def query_point(self, x_or_point, y=None, from_mask=0xffffffff):
+		"""Hit test at the point specified. 
 
 		Args:
 			x_or_point: x coordinate (float) or sequence of (x, y) floats.
 
 			y: y coordinate (float) if x is not a sequence
+
+			from_mask: Bit mask used to filter query results. This value
+				is bit ANDed with candidate entities' `collision.into_mask`.
+				If the result is non-zero, then it is considered a hit. By
+				default all entities colliding with the input point are
+				returned.
+
+		Returns:
+			Return a set of entities where the point is inside their collision
+			radii as of the last time step.
 
 		"""
 		if y is None:
@@ -389,7 +402,7 @@ class Circular(object):
 		hits = set()
 		position = self.world.components[self.position_component]
 		collision = self.world.components[self.collision_component]
-		for entity in self.broad_phase.query_point(x_or_point, y):
+		for entity in self.broad_phase.query_point(x_or_point, y, from_mask):
 			separation = point - position[entity].position
 			if separation.get_length_sqrd() <= collision[entity].radius**2:
 				hits.add(entity)
