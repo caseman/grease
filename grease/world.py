@@ -6,6 +6,9 @@ from grease.component import ComponentError
 
 
 class World(object):
+
+	running = False
+	"""Boolean: True if the world is scheduled to step periodically"""
 	
 	def __init__(self, window=None, step_rate=60, start=True, 
 		entity_types=entity.entity_types, clock=pyglet.clock):

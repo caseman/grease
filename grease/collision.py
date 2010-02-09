@@ -75,7 +75,7 @@ class BroadSweepAndPrune(object):
 	Args:
 		collision_component: Name of the collision component used by this
 		system, defaults to 'collision'. This component supplies each
-		entities' AABB and collision masks.
+		entities' aabb and collision masks.
 	
 	"""
 	world = None
@@ -119,18 +119,18 @@ class BroadSweepAndPrune(object):
 			by_y = self._by_y = []
 			append_y = by_y.append
 			for data in component.itervalues():
-				append_x([data.AABB.left, LEFT, data])
-				append_x([data.AABB.right, RIGHT, data])
-				append_y([data.AABB.bottom, BOTTOM, data])
-				append_y([data.AABB.top, TOP, data])
+				append_x([data.aabb.left, LEFT, data])
+				append_x([data.aabb.right, RIGHT, data])
+				append_y([data.aabb.bottom, BOTTOM, data])
+				append_y([data.aabb.top, TOP, data])
 		else:
 			by_x = self._by_x
 			by_y = self._by_y
 			removed = []
 			for entry in by_x:
-				entry[0] = getattr(entry[2].AABB, entry[1])
+				entry[0] = getattr(entry[2].aabb, entry[1])
 			for entry in by_y:
-				entry[0] = getattr(entry[2].AABB, entry[1])
+				entry[0] = getattr(entry[2].aabb, entry[1])
 			# Removing entities is inefficient, but expected to be rare
 			if component.deleted_entities:
 				deleted_entities = component.deleted_entities
@@ -151,10 +151,10 @@ class BroadSweepAndPrune(object):
 			# Tack on new entities
 			for entity in component.new_entities:
 				data = component[entity]
-				by_x.append([data.AABB.left, LEFT, data])
-				by_x.append([data.AABB.right, RIGHT, data])
-				by_y.append([data.AABB.bottom, BOTTOM, data])
-				by_y.append([data.AABB.top, TOP, data])
+				by_x.append([data.aabb.left, LEFT, data])
+				by_x.append([data.aabb.right, RIGHT, data])
+				by_y.append([data.aabb.bottom, BOTTOM, data])
+				by_y.append([data.aabb.top, TOP, data])
 				
 		# Tim-sort is highly efficient with mostly sorted lists.
 		# Because positions tend to change little each frame
@@ -202,8 +202,8 @@ class BroadSweepAndPrune(object):
 				for entity in entities:
 					data = component[entity]
 					# We can use tuples here, which are cheaper to create
-					by_y.append((data.AABB.bottom, BOTTOM, data))
-					by_y.append((data.AABB.top, TOP, data))
+					by_y.append((data.aabb.bottom, BOTTOM, data))
+					by_y.append((data.aabb.top, TOP, data))
 				by_y.sort()
 			else:
 				by_y = self._by_y
@@ -326,6 +326,11 @@ class Circular(object):
 		position_component: Name of position component for this system,
 			defaults to 'position'. This supplies each entity's position.
 
+		update_aabbs (bool): If True (the default), then the entities'
+			`collision.aabb` fields will be updated using their position
+			and collision radius before invoking the broad phase system. 
+			Set this False if another system updates the aabbs.
+
 		broad_phase: A broad-phase collision system to use as a source
 			for collision pairs. If not specified, a :class:`BroadSweepAndPrune`
 			system will be created automatically.
@@ -339,15 +344,21 @@ class Circular(object):
 	collision_component = None
 	"""Name of world's collision component used by this system"""
 
+	update_aabbs = True
+	"""Flag to indicate whether the system updates the entities' `collision.aabb`
+	field before invoking the broad phase collision system
+	"""
+
 	broad_phase = None
 	"""Broad phase collision system used as a source for collision pairs"""
 
 	def __init__(self, position_component='position', collision_component='collision', 
-		broad_phase=None):
+		update_aabbs=True, broad_phase=None):
 		if broad_phase is None:
 			broad_phase = BroadSweepAndPrune(collision_component)
 		self.collision_component = collision_component
 		self.position_component = position_component
+		self.update_aabbs = bool(update_aabbs)
 		self.broad_phase = broad_phase
 		self._collision_pairs = None
 	
@@ -357,6 +368,16 @@ class Circular(object):
 	
 	def step(self, dt):
 		"""Update the collision system for this time step"""
+		if self.update_aabbs:
+			for position, collision in self.world.components.join(
+				self.position_component, self.collision_component):
+				aabb = collision.aabb
+				x, y = position.position
+				radius = collision.radius
+				aabb.left = x - radius
+				aabb.right = x + radius
+				aabb.bottom = y - radius
+				aabb.top = y + radius
 		self.broad_phase.step(dt)
 		self._collision_pairs = None
 	

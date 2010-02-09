@@ -22,9 +22,25 @@ class KeyControls(object):
 	instance methods.
 	"""
 
+	world = None
+	""":mod:`grease.World` object this system is bound to"""
+
 	_cls_key_hold_map = {}
 	_cls_key_press_map = {}
 	_cls_key_release_map = {}
+
+	def __init__(self):
+		self.held_keys = set()
+
+	def set_world(self, world):
+		assert getattr(world, 'window', None) is not None, (
+			'To use % you must bind the world to a pyglet window' % self.__class__.__name__)
+		self.world = world
+		world.window.push_handlers(self)
+		# Copy the class key mappings to the instance and bind the methods
+		self._key_press_map = self._bind_mapped_methods(self._cls_key_press_map)
+		self._key_release_map = self._bind_mapped_methods(self._cls_key_release_map)
+		self._key_hold_map = self._bind_mapped_methods(self._cls_key_hold_map)
 
 	## decorator methods for binding methods to key input events ##
 
@@ -60,20 +76,8 @@ class KeyControls(object):
 		for key_mod, method in key_map.items():
 			bound_map[key_mod] = new.instancemethod(method, self, self.__class__)
 		return bound_map
-
-	def __init__(self, event_dispatcher=None):
-		"""Initialize the instance. If event_dispatcher is specified,
-		the instance's handlers will be pushed onto it so it will
-		receive events. Passing a Pyglet window here is a convenient
-		way to bind the controls to the window
-		"""
-		if event_dispatcher is not None:
-			event_dispatcher.push_handlers(self)
-		self.held_keys = set()
-		# Copy the class key mappings to the instance and bind the methods
-		self._key_press_map = self._bind_mapped_methods(self._cls_key_press_map)
-		self._key_release_map = self._bind_mapped_methods(self._cls_key_release_map)
-		self._key_hold_map = self._bind_mapped_methods(self._cls_key_hold_map)
+	
+	## runtime binding methods ##
 	
 	def bind_key_hold(self, method, key, modifiers=0):
 		"""Bind a method to a key at runtime to be invoked when the key is held down,
@@ -114,8 +118,8 @@ class KeyControls(object):
 			except KeyError:
 				pass
 
-	def run(self, dt):
-		"""Schedule periodically to invoke held key functions"""
+	def step(self, dt):
+		"""invoke held key functions"""
 		already_run = set()
 		for key in self.held_keys:
 			func = self._key_hold_map.get(key)

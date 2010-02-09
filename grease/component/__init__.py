@@ -49,7 +49,7 @@ class Collision(Component):
 
 	Fields:
 
-	AABB (Rect) -- The axis-aligned bounding box for the entity.
+	aabb (Rect) -- The axis-aligned bounding box for the entity.
 	This is used for broad-phase collision detection.
 
 	radius (float) -- The collision radius of the entity, used for narrow-phase
@@ -75,7 +75,7 @@ class Collision(Component):
 	all entities will collide with each other by default.
 	"""
 	def __init__(self):
-		Component.__init__(self, AABB=Rect, radius=float, from_mask=int, into_mask=int)
+		Component.__init__(self, aabb=Rect, radius=float, from_mask=int, into_mask=int)
 		self.fields['into_mask'].default = lambda: 0xffffffff
 		self.fields['from_mask'].default = lambda: 0xffffffff
 

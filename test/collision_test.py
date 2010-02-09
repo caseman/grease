@@ -13,7 +13,7 @@ class TestCollisionComp(dict):
 		else:
 			data = self[entity] = Data()
 		data.entity = entity
-		data.AABB = Data(left=left, top=top, right=right, bottom=bottom)
+		data.aabb = Data(left=left, top=top, right=right, bottom=bottom)
 		data.radius = radius
 		data.from_mask = from_mask
 		data.into_mask = into_mask
@@ -29,21 +29,31 @@ class TestPositionComp(dict):
 		data.entity = entity
 		data.position = Vec2d(position)
 
-class TestWorld(object):
+class TestWorld(dict):
 
 	def __init__(self):
-		self.components = {
-			'collision': TestCollisionComp(),
-			'position': TestPositionComp(),
-		}
+		self.components = self
+		self['collision'] = TestCollisionComp()
+		self['position'] = TestPositionComp()
 	
-	def __getattr__(self, name):
-		return self.components[name]
+	def join(self, *names):
+		for entity in self[names[0]]:
+			try:
+				yield tuple(self[name][entity] for name in names)
+			except KeyError:
+				pass
+	
 
 class Data(object):
 
 	def __init__(self, **kw):
 		self.__dict__.update(kw)
+	
+	def __eq__(self, other):
+		return self.__class__ is other.__class__ and self.__dict__ == other.__dict__
+	
+	def __repr__(self):
+		return "Data(%r)" % self.__dict__
 
 class TestCollisionSys(object):
 
@@ -59,7 +69,7 @@ class TestCollisionSys(object):
 
 	def query_point(self, x, y=None, from_mask=None):
 		self.last_from_mask = from_mask
-		return set(self.world.collision)
+		return set(self.world['collision'])
 
 
 class PairTestCase(unittest.TestCase):
@@ -106,7 +116,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		from grease.collision import BroadSweepAndPrune
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
-		set_entity = world.collision.set
+		set_entity = world['collision'].set
 		set_entity(1, 10, 10, 20, 20)
 		set_entity(2, 0, 0, 3, 3)
 		set_entity(3, 11, 21, 15, 40)
@@ -129,7 +139,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world.collision.set
+		set_entity = world['collision'].set
 
 		set_entity(1, 10, 10, 20, 20)
 		set_entity(2, 15, 15, 25, 25)
@@ -159,7 +169,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world.collision.set
+		set_entity = world['collision'].set
 
 		# Start with no collisions
 		set_entity(1, 0, 0, 10, 10)
@@ -197,7 +207,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world.collision.set
+		set_entity = world['collision'].set
 
 		# Start with a couple not colliding
 		set_entity(1, 1, 1, 3, 3)
@@ -208,8 +218,8 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		# Add one that collides, one that doesn't
 		set_entity(3, 2, 2, 4, 4)
 		set_entity(4, 20, 5, 25, 7)
-		world.collision.new_entities.add(3)
-		world.collision.new_entities.add(4)
+		world['collision'].new_entities.add(3)
+		world['collision'].new_entities.add(4)
 		coll.step(0)
 		self.assertPairs(coll.collision_pairs, Pair(1,3), Pair(3, 2))
 
@@ -217,8 +227,8 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		set_entity(5, 19, 8, 21, 14)
 		set_entity(4, 20, 6, 25, 8)
 		set_entity(2, 5, 0, 11, 3)
-		world.collision.new_entities.clear()
-		world.collision.new_entities.add(5)
+		world['collision'].new_entities.clear()
+		world['collision'].new_entities.add(5)
 		coll.step(0)
 		self.assertPairs(coll.collision_pairs, Pair(1,3), Pair(4,5))
 	
@@ -227,7 +237,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world.collision.set
+		set_entity = world['collision'].set
 
 		# Add some colliding pairs
 		set_entity(1, 1, 1, 5, 2)
@@ -238,13 +248,13 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		self.assertPairs(coll.collision_pairs, Pair(1,2), Pair(1,3), Pair(2,3), Pair(1,4))
 
 		# Remove one
-		world.collision.deleted_entities.add(3)
+		world['collision'].deleted_entities.add(3)
 		coll.step(0)
 		self.assertPairs(coll.collision_pairs, Pair(1,2), Pair(1,4))
 
 		# Remove another and move one into collision
-		world.collision.deleted_entities.clear()
-		world.collision.deleted_entities.add(1)
+		world['collision'].deleted_entities.clear()
+		world['collision'].deleted_entities.add(1)
 		set_entity(2, 4, 0, 5, 5)
 		coll.step(0)
 		self.assertPairs(coll.collision_pairs, Pair(4,2))
@@ -254,7 +264,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world.collision.set
+		set_entity = world['collision'].set
 
 		set_entity(1, 0, 0, 1, 1, from_mask=1, into_mask=0)
 		set_entity(2, 0, 0, 1, 1, from_mask=0, into_mask=2)
@@ -270,7 +280,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world.collision.set
+		set_entity = world['collision'].set
 
 		set_entity(1, -1, -1, 3, 1)
 		set_entity(2, 4, 4, 8, 8)
@@ -284,8 +294,8 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 
 		set_entity(2, 4, 4, 8, 8)
 		set_entity(3, 6, 6, 9, 9)
-		world.collision.new_entities.add(2)
-		world.collision.new_entities.add(3)
+		world['collision'].new_entities.add(2)
+		world['collision'].new_entities.add(3)
 		coll.step(0)
 		self.assertEqual(coll.query_point(0, 0), set([1]))
 		self.assertEqual(coll.query_point([0, 0]), set([1]))
@@ -319,7 +329,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world.collision.set
+		set_entity = world['collision'].set
 		
 		set_entity(1, 0, 0, 2, 2, into_mask=1)
 		set_entity(2, 0, 0, 2, 2, into_mask=2)
@@ -342,14 +352,17 @@ class CircularTestCase(unittest.TestCase):
 		self.assertTrue(isinstance(coll.broad_phase, BroadSweepAndPrune))
 		self.assertEqual(coll.position_component, 'position')
 		self.assertEqual(coll.collision_component, 'collision')
+		self.assertTrue(coll.update_aabbs)
 	
 	def test_overrides(self):
 		from grease.collision import Circular
 		broad = TestCollisionSys()
-		coll = Circular(broad_phase=broad, position_component='posi', collision_component='hal')
+		coll = Circular(broad_phase=broad, position_component='posi', collision_component='hal',
+			update_aabbs=False)
 		self.assertTrue(coll.broad_phase is broad)
 		self.assertEqual(coll.position_component, 'posi')
 		self.assertEqual(coll.collision_component, 'hal')
+		self.assertFalse(coll.update_aabbs)
 	
 	def test_before_step(self):
 		# Queries should be well behaved even before the controller is run
@@ -377,14 +390,56 @@ class CircularTestCase(unittest.TestCase):
 		self.assertEqual(broad.runtime, 3)
 		self.assertEqual(coll.collision_pairs, set())
 	
+	def test_update_aabbs(self):
+		from grease.collision import Circular
+		broad = TestCollisionSys()
+		world = TestWorld()
+		coll = Circular(broad_phase=broad)
+		coll.set_world(world)
+		pos = world['position']
+		col = world['collision']
+		pos.set(1, (0, 0))
+		col.set(1, radius=2)
+		pos.set(2, (2, -3))
+		col.set(2, radius=0.5)
+		pos.set(3, (-5, -2))
+		col.set(3, radius=10)
+		for i in range(3):
+			aabb = col[i + 1].aabb
+			self.assertTrue(aabb.left == aabb.top == aabb.right == aabb.bottom == 0, aabb)
+		coll.step(0)
+		self.assertEqual(col[1].aabb, Data(left=-2, top=2, right=2, bottom=-2))
+		self.assertEqual(col[2].aabb, Data(left=1.5, top=-2.5, right=2.5, bottom=-3.5))
+		self.assertEqual(col[3].aabb, Data(left=-15, top=8, right=5, bottom=-12))
+
+		pos.set(1, (2, 0))
+		pos.set(2, (0, 0))
+		col.set(3, radius=5)
+		coll.step(0)
+		self.assertEqual(col[1].aabb, Data(left=0, top=2, right=4, bottom=-2))
+		self.assertEqual(col[2].aabb, Data(left=-0.5, top=0.5, right=0.5, bottom=-0.5))
+		self.assertEqual(col[3].aabb, Data(left=-10, top=3, right=0, bottom=-7))
+
+		coll.update_aabbs = False
+		pos[1].position = (0, 0)
+		col[1].radius = 3
+		col[2].radius = 0.75
+		col[3].position = (-3, 0)
+		# aabbs should not change with update_aabbs set False
+		coll.step(0)
+		self.assertEqual(col[1].aabb, Data(left=0, top=2, right=4, bottom=-2))
+		self.assertEqual(col[2].aabb, Data(left=-0.5, top=0.5, right=0.5, bottom=-0.5))
+		self.assertEqual(col[3].aabb, Data(left=-10, top=3, right=0, bottom=-7))
+	
+	
 	def test_collision_pairs(self):
 		from grease.collision import Circular, Pair
 		broad = TestCollisionSys()
 		world = TestWorld()
 		coll = Circular(broad_phase=broad)
 		coll.set_world(world)
-		pos_set = world.position.set
-		col_set = world.collision.set
+		pos_set = world['position'].set
+		col_set = world['collision'].set
 		pos_set(1, (0, 0))
 		col_set(1, radius=5)
 		pos_set(2, (3, 3))
@@ -410,8 +465,8 @@ class CircularTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = Circular(broad_phase=broad)
 		coll.set_world(world)
-		pos_set = world.position.set
-		col_set = world.collision.set
+		pos_set = world['position'].set
+		col_set = world['collision'].set
 		pos_set(1, (0, 0))
 		col_set(1, radius=2)
 		pos_set(2, (4, 0))
@@ -446,8 +501,8 @@ class CircularTestCase(unittest.TestCase):
 		broad = TestCollisionSys(world)
 		coll = Circular(broad_phase=broad)
 		coll.set_world(world)
-		pos_set = world.position.set
-		col_set = world.collision.set
+		pos_set = world['position'].set
+		col_set = world['collision'].set
 		pos_set(1, (0, 0))
 		col_set(1, radius=1)
 		pos_set(2, (0, 2))
