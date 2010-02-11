@@ -60,8 +60,10 @@ class TestCollisionSys(object):
 	runtime = 0
 	last_from_mask = None
 
-	def __init__(self, world=None):
+	def __init__(self):
 		self.collision_pairs = set()
+	
+	def set_world(self, world):
 		self.world = world
 	
 	def step(self, dt):
@@ -132,7 +134,6 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		pairs = set(pairs)
 		self.assertEqual(set1, pairs,
 			"%r not found, %r not expected" % (tuple(pairs - set1), tuple(set1 - pairs)))
-		
 	
 	def test_collision_pairs_static_collision(self):
 		from grease.collision import BroadSweepAndPrune, Pair
@@ -368,7 +369,7 @@ class CircularTestCase(unittest.TestCase):
 		# Queries should be well behaved even before the controller is run
 		from grease.collision import Circular
 		world = TestWorld()
-		broad = TestCollisionSys(world)
+		broad = TestCollisionSys()
 		coll = Circular(broad_phase=broad)
 		coll.set_world(world)
 		self.assertEqual(coll.collision_pairs, set())
@@ -382,6 +383,7 @@ class CircularTestCase(unittest.TestCase):
 		coll = Circular(broad_phase=broad)
 		coll.set_world(world)
 		self.assertTrue(coll.world is world)
+		self.assertTrue(coll.broad_phase.world is world)
 		self.assertEqual(coll.collision_pairs, set())
 		self.assertEqual(broad.runtime, 0)
 		coll.step(2)
@@ -498,7 +500,7 @@ class CircularTestCase(unittest.TestCase):
 	def test_query_point(self):
 		from grease.collision import Circular, Pair
 		world = TestWorld()
-		broad = TestCollisionSys(world)
+		broad = TestCollisionSys()
 		coll = Circular(broad_phase=broad)
 		coll.set_world(world)
 		pos_set = world['position'].set

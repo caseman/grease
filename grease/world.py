@@ -36,7 +36,8 @@ class World(object):
 		except KeyError:
 			raise AttributeError(name)
 		wrapped_type = type(name, (_WorldWrappedEntity, entity_type), 
-			{'world': self, 'entities': set(), '__register__': False})
+			{'world': self, 'entities': set(), '__register__': False,
+			 '__baseclass__': entity_type}) # XXX This is a 2AM hack
 		setattr(self, name, wrapped_type)
 		return wrapped_type
 	
@@ -52,6 +53,7 @@ class World(object):
 		"""
 		dt = min(dt, 10.0 / self.step_rate)
 		self.time += dt
+		self.components.step(dt)
 		self.systems.step(dt)
 	
 	def _set_renderers(self, renderers):
@@ -103,7 +105,10 @@ class _WorldWrappedEntity(object):
 	def __init__(self, *args, **kw):
 		super(_WorldWrappedEntity, self).__init__(*args, **kw)
 		self.world.entities.add(self)
-		self.entities.add(self)
+		for clsname in self.world.entity_types:
+			cls = getattr(self.world, clsname)
+			if issubclass(self.__baseclass__, cls.__baseclass__):
+				cls.entities.add(self)
 
 	@classmethod
 	def from_existing_id(cls, entity_id):
@@ -153,11 +158,20 @@ class ComponentMapper(dict):
 		"""
 		if component_names:
 			components = [self[name] for name in component_names]
-			entities = components[0].entities
-			for comp in components[1:]:
-				entities &= comp.entities
+			if len(components) > 1:
+				entities = components[0].entities & components[1].entities
+				for comp in components[2:]:
+					entities &= comp.entities
+			else:
+				entities = components[0].entities
 			for entity in entities:
 				yield tuple(comp[entity] for comp in components)
+	
+	def step(self, dt):
+		"""Update components for the next time step"""
+		for component in self.itervalues():
+			if hasattr(component, 'step'):
+				component.step(dt)
 
 
 class SystemMap(object):

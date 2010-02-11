@@ -19,126 +19,240 @@ class Schema(dict):
 			assert ftype in types, fname + " has an illegal field type"
 		self.update(fields)
 
+
 class FieldAccessor(object):
 	"""Facade for manipulating a field for a set of entities"""
 
-	def __init__(self, field, entities):
-		self.field = field
-		self.entities = entities
+	__field = None
+	__entities = None
+	__attrs = None
+	__getter = None
+	__parent_getters = ()
+
+	def __init__(self, field, entities, attrs=()):
+		self.__field = field
+		self.__entities = entities
+		field_getter = operator.attrgetter(field.name)
+		self.__attrs = attrs
+		if attrs:
+			getters = [field_getter] + [operator.attrgetter(attr) for attr in attrs]
+			def get(entity):
+				value = entity
+				for getter in getters:
+					value = getter(value)
+				return value
+			self.__getter = get
+			self.__parent_getters = getters[:-1]
+		else:
+			self.__getter = field_getter
+	
+	def __getattr__(self, name):
+		"""Return a FieldAccessor for the child attribute"""
+		return self.__class__(self.__field, self.__entities, self.__attrs + (name,))
+	
+	def __setattr__(self, name, value):
+		if value is self:
+			return # returned by mutators
+		if hasattr(self.__class__, name):
+			# Set local attr
+			self.__dict__[name] = value
+		elif not name.startswith('_'):
+			getattr(self, name).__set__(value)
+		else:
+			raise AttributeError("Cannot set field attribute: %s" % name)
+	
+	@property
+	def __setter(self):
+		"""Return the proper setter function for setting the field value"""
+		if not self.__attrs:
+			return setattr
+		else:
+			parent_getters = self.__parent_getters
+			def setter(data, name, value):
+				for getter in parent_getters:
+					data = getter(data)
+				setattr(data, name, value)
+			self.__setter = setter
+			return setter
+	
+	def __set__(self, value):
+		"""Set field values en masse"""
+		# Mass set field attr
+		setter = self.__setter
+		component = self.__field.component
+		if self.__attrs:
+			name = self.__attrs[-1]
+		else:
+			name = self.__field.name
+		if isinstance(value, FieldAccessor):
+			# Join set between two entity sets
+			if not self.__attrs:
+				cast = self.__field.cast
+			else: 
+				cast = lambda x: x
+			for entity in self.__entities:
+				try:
+					setter(component[entity], name, cast(value[entity]))
+				except KeyError:
+					pass
+		else:
+			if not self.__attrs:
+				value = self.__field.cast(value)
+			for entity in self.__entities:
+				try:
+					setter(component[entity], name, value)
+				except KeyError:
+					pass
+	
+	def __getitem__(self, entity):
+		"""Return the field value for a single entity (used for joins)"""
+		if entity in self.__entities:
+			return self.__getter(self.__field.component[entity])
+		raise KeyError(entity)
+	
+	def __contains__(self, entity):
+		return entity in self.__entities
+
+	def __repr__(self):
+		return '<%s %s @ %x>' % (
+			self.__class__.__name__, 
+			'.'.join((self.__field.name,) + self.__attrs), id(self))
+	
+	def __nonzero__(self):
+		return bool(self.__entities)
 	
 	def __iter__(self):
 		"""Return an iterator of all field values in the set"""
-		component = self.field.component
-		name = self.field.name
-		for entity in self.entities:
+		component = self.__field.component
+		getter = self.__getter
+		for entity in self.__entities:
 			try:
 				data = component[entity]
 			except KeyError:
 				continue
-			yield getattr(data, name)
+			yield getter(data)
 	
-	def _match(self, value, op):
-		value = self.field.cast(value)
-		component = self.field.component
-		name = self.field.name
+	## batch comparison operators ##
+	
+	def __match(self, value, op):
+		component = self.__field.component
+		getter = self.__getter
 		matches = set()
 		add = matches.add
-		for entity in self.entities:
-			try:
-				data = component[entity]
-			except KeyError:
-				continue
-			if op(getattr(data, name), value):
-				add(entity)
+		if isinstance(value, FieldAccessor):
+			# Join match between entity sets
+			for entity in self.__entities:
+				try:
+					data = component[entity]
+					other = value[entity]
+				except KeyError:
+					continue
+				if op(getter(data), other):
+					add(entity)
+		else:
+			for entity in self.__entities:
+				try:
+					data = component[entity]
+				except KeyError:
+					continue
+				if op(getter(data), value):
+					add(entity)
 		return matches
 	
 	def __eq__(self, value):
 		"""Return an entity set of all entities with a matching field value"""
-		return self._match(value, operator.eq)
-	
-	where_equals = __eq__
+		return self.__match(value, operator.eq)
 	
 	def __ne__(self, value):
 		"""Return an entity set of all entities not matching field value"""
-		return self._match(value, operator.ne)
-	
-	where_not_equals = __ne__
+		return self.__match(value, operator.ne)
 	
 	def __gt__(self, value):
 		"""Return an entity set of all entities with a greater field value"""
-		return self._match(value, operator.gt)
-	
-	where_greater = __gt__
+		return self.__match(value, operator.gt)
 	
 	def __ge__(self, value):
 		"""Return an entity set of all entities with a greater or equal field value"""
-		return self._match(value, operator.ge)
-	
-	where_equal_or_greater = __ge__
+		return self.__match(value, operator.ge)
 	
 	def __lt__(self, value):
 		"""Return an entity set of all entities with a lesser field value"""
-		return self._match(value, operator.lt)
-	
-	where_less = __lt__
+		return self.__match(value, operator.lt)
 	
 	def __le__(self, value):
 		"""Return an entity set of all entities with a lesser or equal field value"""
-		return self._match(value, operator.le)
+		return self.__match(value, operator.le)
 	
-	where_less_or_equal = __le__
-	
-	def where_in(self, values):
+	def _contains(self, values):
 		"""Return an entity set of all entities with a field value contained in values"""
-		return self._match(values, operator.contains)
+		return self.__match(values, operator.contains)
 	
-	## Batch mutator methods
+	## Batch in-place mutator methods
 
-	def set_all(self, value):
-		"""Set the value of the field for all entities"""
-		self.field.set(value, self.entity_id_set)
+	def __mutate(self, value, op):
+		component = self.__field.component
+		if self.__attrs:
+			name = self.__attrs[-1]
+		else:
+			name = self.__field.name
+		getter = self.__getter
+		setter = self.__setter
+		if isinstance(value, FieldAccessor):
+			# Join between entity sets
+			for entity in self.__entities:
+				try:
+					data = component[entity]
+					other = value[entity]
+				except KeyError:
+					continue
+				setter(data, name, op(getter(data), other))
+		else:
+			for entity in self.__entities:
+				try:
+					data = component[entity]
+				except KeyError:
+					continue
+				setter(data, name, op(getter(data), value))
+		return self
+	
+	def __iadd__(self, value):
+		return self.__mutate(value, operator.iadd)
+	
+	def __isub__(self, value):
+		return self.__mutate(value, operator.isub)
+	
+	def __imul__(self, value):
+		return self.__mutate(value, operator.imul)
+	
+	def __idiv__(self, value):
+		return self.__mutate(value, operator.idiv)
+	
+	def __itruediv__(self, value):
+		return self.__mutate(value, operator.itruediv)
+	
+	def __ifloordiv__(self, value):
+		return self.__mutate(value, operator.ifloordiv)
 
-	def _do_all(self, value, op):
-		value = self.field.cast(value)
-		component = self.field.component
-		name = self.field.name
-		for entity_id in self.entity_ids:
-			try:
-				data = component[entity_id]
-			except KeyError:
-				continue
-			setattr(data, name, op(getattr(data, name), value))
-	
-	def add_all(self, value):
-		"""Add all entity values of this field by value in-place"""
-		self._do_all(value, operator.iadd)
-	
-	__iadd__ = add_all
+	def __imod__(self, value):
+		return self.__mutate(value, operator.imod)
 
-	def subtract_all(self, value):
-		"""Subtract value from all entity values of this field in-place"""
-		self._do_all(value, operator.isub)
-	
-	__isub__ = subtract_all
-	
-	def multiply_all(self, value):
-		"""Multiply all entity values of this field by value in-place"""
-		self._do_all(value, operator.imul)
-	
-	__imul__ = multiply_all
-	
-	def divide_all(self, value):
-		"""Divide all entity values of this field by value in-place"""
-		self._do_all(value, operator.idiv)
-	
-	__idiv__ = divide_all
+	def __ipow__(self, value):
+		return self.__mutate(value, operator.ipow)
 
-	def mod_all(self, value):
-		"""Compute the modulo by value for all entity values of this field in-place"""
-		self._do_all(value, operator.imod)
-	
-	__imod__ = mod_all
+	def __ilshift__(self, value):
+		return self.__mutate(value, operator.ilshift)
 
+	def __irshift__(self, value):
+		return self.__mutate(value, operator.irshift)
+
+	def __iand__(self, value):
+		return self.__mutate(value, operator.iand)
+
+	def __ior__(self, value):
+		return self.__mutate(value, operator.ior)
+
+	def __ixor__(self, value):
+		return self.__mutate(value, operator.ixor)
 
 
 class Field(object):
@@ -154,31 +268,14 @@ class Field(object):
 	def cast(self, value):
 		"""Cast value to the appropriate type for thi field"""
 		return self.type(value)
-	
-	def set(self, value, entity_id_set=None):
-		"""Set the value for this component field for all entities in the component,
-		or all entities in the id set specified that are also in the component
-		"""
-		value = self.cast(value)
-		component = self.component
-		name = self.name
-		component_entity_ids = component.entity_id_set
-		if entity_id_set is None or entity_id_set is component_entity_ids:
-			entity_ids = component_entity_ids
-		else:
-			entity_ids = entity_id_set & component_entity_ids
-		for entity_id in entity_ids:
-			setattr(component[entity_id], name, value)
-	
-	def accessor(self, entity_id_set=None):
+			
+	def accessor(self, entities=None):
 		"""Return the field accessor for the entities in the component,
-		or all entities in the id set specified that are also in the component
+		or all entities in the set specified that are also in the component
 		"""
-		component_entity_ids = self.component.entity_id_set
-		if entity_id_set is None or entity_id_set is component_entity_ids:
-			entity_ids = component_entity_ids
+		if entities is None or entities is self.component.entities:
+			entities = self.component.entities
 		else:
-			entity_ids = entity_id_set & component_entity_ids
-		return self.accessor_factory(self, entity_ids)
-		
+			entities = entities & self.component.entities
+		return self.accessor_factory(self, entities)
 

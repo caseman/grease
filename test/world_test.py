@@ -3,6 +3,7 @@ import unittest
 class TestComponent(dict):
 	
 	world = None
+	runtime = 0
 
 	def __init__(self):
 		self.entities = set()
@@ -13,6 +14,9 @@ class TestComponent(dict):
 	def add(self, entity, data=None):
 		self[entity] = data
 		self.entities.add(entity)
+	
+	def step(self, dt):
+		self.runtime += dt
 
 class TestSystem(object):
 	
@@ -115,13 +119,16 @@ class WorldTestCase(unittest.TestCase):
 			def __init__(self, stuff):
 				stuffs.append(stuff)
 		class Another(object): pass
-		world = World(entity_types={'MyEntity': MyEntity, 'Another': Another})
+		class Subclass(Another, MyEntity): pass
+		world = World(entity_types={
+			'MyEntity': MyEntity, 'Another': Another, 'Subclass':Subclass})
 		entity = world.MyEntity('abc')
 		self.assertTrue(isinstance(entity, MyEntity))
 		self.assertTrue(entity.entity_id > 0)
 		self.assertTrue(entity in world.entities)
 		self.assertTrue(entity in world.MyEntity.entities)
 		self.assertTrue(entity not in world.Another.entities)
+		self.assertTrue(entity not in world.Subclass.entities)
 		self.assertEqual(stuffs, ['abc'])
 		
 		another = world.Another()
@@ -130,6 +137,7 @@ class WorldTestCase(unittest.TestCase):
 		self.assertTrue(another in world.entities)
 		self.assertTrue(another not in world.MyEntity.entities)
 		self.assertTrue(another in world.Another.entities)
+		self.assertTrue(another not in world.Subclass.entities)
 		self.assertEqual(stuffs, ['abc'])
 
 		yetanother = world.Another()
@@ -139,6 +147,14 @@ class WorldTestCase(unittest.TestCase):
 		self.assertTrue(yetanother in world.entities)
 		self.assertTrue(yetanother not in world.MyEntity.entities)
 		self.assertTrue(yetanother in world.Another.entities)
+
+		sub = world.Subclass('123')
+		self.assertTrue(sub.entity_id > 0)
+		self.assertTrue(sub in world.entities)
+		self.assertTrue(sub in world.MyEntity.entities)
+		self.assertTrue(sub in world.Another.entities)
+		self.assertTrue(sub in world.Subclass.entities)
+		self.assertEqual(stuffs, ['abc', '123'])
 	
 	def test_entities_set(self):
 		from grease import World
@@ -210,6 +226,20 @@ class WorldTestCase(unittest.TestCase):
 		world.components['baz'] = comp3
 		self.assertEqual(sorted(list(world.components)), sorted([comp1, comp2, comp3]))
 	
+	def test_step_components(self):
+		from grease import World
+		comp1 = TestComponent()
+		comp2 = TestComponent()
+		world = World()
+		world.components.map(foo=comp1, bar=comp2)
+		self.assertTrue(comp1.runtime == comp2.runtime == 0, comp1.runtime)
+		world.components.step(0.5)
+		self.assertEqual(comp1.runtime, 0.5)
+		self.assertEqual(comp2.runtime, 0.5)
+		world.components.step(0.75)
+		self.assertEqual(comp1.runtime, 1.25)
+		self.assertEqual(comp2.runtime, 1.25)
+
 	def test_join_components(self):
 		from grease import World
 		comp1 = TestComponent()
@@ -283,7 +313,7 @@ class WorldTestCase(unittest.TestCase):
 		world.systems.insert('another', another, before=world.systems.inserted)
 		systems.insert(1, ('another', another))
 		self.assertEqual(list(world.systems), [sys[1] for sys in systems])
-
+	
 	def test_system_step_order(self):
 		from grease import World
 		sys1 = TestSystem()
@@ -336,9 +366,12 @@ class WorldTestCase(unittest.TestCase):
 	def test_step_max_dt(self):
 		from grease import World
 		sys1 = TestSystem()
+		comp1 = TestComponent()
 		world = World()
+		world.components.map(foo=comp1)
 		world.systems.add(('sys', sys1))
 		world.step(10000)
+		self.assertEqual(comp1.runtime, 10.0 / world.step_rate)
 		self.assertEqual(sys1.runtime, 10.0 / world.step_rate)
 	
 	def test_get_set_renderers(self):

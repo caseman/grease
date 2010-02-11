@@ -265,8 +265,8 @@ class Vec2d(ctypes.Structure):
     length = property(get_length, __setlength, doc = """Gets or sets the magnitude of the vector""")
        
     def rotate(self, angle_degrees):
-        """Rotate the vector by angle_degrees degrees."""
-        radians = math.radians(angle_degrees)
+        """Rotate the vector by angle_degrees degrees clockwise."""
+        radians = -math.radians(angle_degrees)
         cos = math.cos(radians)
         sin = math.sin(radians)
         x = self.x*cos - self.y*sin
@@ -276,11 +276,11 @@ class Vec2d(ctypes.Structure):
  
     def rotated(self, angle_degrees):
         """Create and return a new vector by rotating this vector by 
-        angle_degrees degrees.
+        angle_degrees degrees clockwise.
         
-        :return: Rotade vector
+        :return: Rotated vector
         """
-        radians = math.radians(angle_degrees)
+        radians = -math.radians(angle_degrees)
         cos = math.cos(radians)
         sin = math.sin(radians)
         x = self.x*cos - self.y*sin

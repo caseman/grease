@@ -2,8 +2,15 @@ from grease.component import base
 from grease.component import field
 from grease.entity import ComponentEntitySet
 
+
 class Component(dict):
 	"""General component with a configurable schema"""
+
+	deleted_entities = ()
+	"""List of entities deleted from the component since the last time step"""
+
+	new_entities = ()
+	"""List of entities added to the component since the last time step"""
 
 	def __init__(self, **fields):
 		"""Initialize the component
@@ -16,9 +23,18 @@ class Component(dict):
 			assert ftype in field.types, fname + " has an illegal field type"
 			self.fields[fname] = field.Field(self, fname, ftype)
 		self.entities = ComponentEntitySet(self)
+		self._added = []
+		self._deleted = []
 	
 	def set_world(self, world):
 		self.world = world
+	
+	def step(self, dt):
+		"""Update the component for the next timestep"""
+		self.new_entities = self._added
+		self.deleted_entities = self._deleted
+		self._added = []
+		self._deleted = []
 	
 	def set(self, entity, data=None, **data_kw):
 		"""Set the component data for an entity, adding it to the
@@ -39,11 +55,14 @@ class Component(dict):
 	
 	def __setitem__(self, entity, data):
 		assert entity.world is self.world, "Entity not in component's world"
-		self.entities.add(entity)
+		if entity not in self.entities:
+			self._added.append(entity)
+			self.entities.add(entity)
 		super(Component, self).__setitem__(entity, data)
 	
 	def remove(self, entity):
 		if entity in self.entities:
+			self._deleted.append(entity)
 			self.entities.remove(entity)
 			super(Component, self).__delitem__(entity)
 			return True
@@ -88,6 +107,9 @@ class Data(object):
 			self.__dict__[name] = self.__fields[name].cast(value)
 		else:
 			raise AttributeError("Invalid data field: " + name)
+	
+	def __repr__(self):
+		return '<%s(%r)>' % (self.__class__.__name__, self.__dict__)
 
 			
 

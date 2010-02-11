@@ -365,6 +365,7 @@ class Circular(object):
 	def set_world(self, world):
 		"""Bind the system to a world"""
 		self.world = world
+		self.broad_phase.set_world(world)
 	
 	def step(self, dt):
 		"""Update the collision system for this time step"""

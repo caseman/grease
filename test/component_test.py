@@ -95,6 +95,32 @@ class GeneralTestCase(unittest.TestCase):
 		self.assertEqual(ed.accel, (0,0))
 		self.assertEqual(ed.state, "uber")
 	
+	def test_step_updates_new_and_deleted_lists(self):
+		from grease.component import Component
+		c = Component(x=float, y=float)
+		c.set_world(world)
+		self.assertEqual(list(c.new_entities), [])
+		self.assertEqual(list(c.deleted_entities), [])
+		e1 = TestEntity()
+		e2 = TestEntity()
+		c.set(e1)
+		c.set(e2)
+		self.assertEqual(list(c.new_entities), [])
+		self.assertEqual(list(c.deleted_entities), [])
+		c.step(0)
+		self.assertEqual(list(c.new_entities), [e1, e2])
+		self.assertEqual(list(c.deleted_entities), [])
+		c.step(0)
+		self.assertEqual(list(c.new_entities), [])
+		self.assertEqual(list(c.deleted_entities), [])
+		del c[e1]
+		del c[e2]
+		self.assertEqual(list(c.new_entities), [])
+		self.assertEqual(list(c.deleted_entities), [])
+		c.step(0)
+		self.assertEqual(list(c.new_entities), [])
+		self.assertEqual(list(c.deleted_entities), [e1, e2])
+	
 	def test_getitem(self):
 		from grease.component import Component
 		c = Component()

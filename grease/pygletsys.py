@@ -34,7 +34,7 @@ class KeyControls(object):
 
 	def set_world(self, world):
 		assert getattr(world, 'window', None) is not None, (
-			'To use % you must bind the world to a pyglet window' % self.__class__.__name__)
+			'To use %s you must bind the world to a pyglet window' % self.__class__.__name__)
 		self.world = world
 		world.window.push_handlers(self)
 		# Copy the class key mappings to the instance and bind the methods

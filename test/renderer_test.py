@@ -30,7 +30,12 @@ class TestGL(object):
 	GL_ALIASED_LINE_WIDTH_RANGE = 7
 	GL_POINT_SMOOTH = 8
 	GL_POINTS = 9
-
+	GL_LINE_SMOOTH = 10
+	GL_LINE_SMOOTH_HINT = 11
+	GL_NICEST = 12
+	GL_BLEND = 13
+	GL_SRC_ALPHA = 14
+	GL_ONE_MINUS_SRC_ALPHA = 15
 
 	def __init__(self):
 		self.enabled = []
@@ -47,6 +52,12 @@ class TestGL(object):
 		self.enabled.append(what)
 	
 	glEnable = glEnableClientState
+
+	def glHint(self, who, what):
+		self.hint = who, what
+	
+	def glBlendFunc(self, what, func):
+		self.blend_func = what, func
 
 	def glLineWidth(self, width):
 		self.line_width = width
@@ -115,17 +126,19 @@ class VectorTestCase(unittest.TestCase):
 		self.assertEqual(vr.scale, 1.0)
 		self.assertEqual(vr.line_width, None)
 		self.assertEqual(vr.corner_fill, True)
+		self.assertEqual(vr.anti_alias, True)
 		self.assertEqual(vr.position_component, 'position')
 		self.assertEqual(vr.shape_component, 'shape')
 		self.assertEqual(vr.renderable_component, 'renderable')
 
 	def test_overrides(self):
 		from grease.renderer import Vector
-		vr = Vector(scale=2.5, line_width=3.7, corner_fill=False,
+		vr = Vector(scale=2.5, line_width=3.7, corner_fill=False, anti_alias=False,
 			position_component='pos', shape_component='fit', renderable_component='drawme')
 		self.assertEqual(vr.scale, 2.5)
 		self.assertEqual(vr.line_width, 3.7)
 		self.assertEqual(vr.corner_fill, False)
+		self.assertEqual(vr.anti_alias, False)
 		self.assertEqual(vr.position_component, 'pos')
 		self.assertEqual(vr.shape_component, 'fit')
 		self.assertEqual(vr.renderable_component, 'drawme')
@@ -228,6 +241,18 @@ class VectorTestCase(unittest.TestCase):
 		self.assertEqual(list(i_array[14:20]), [7, 8, 8, 9, 9, 10]) 
 		self.assertEqual(self.get_rgba(v_array[:11]), [(255,255,255,255)] * 11)
 	
+	def test_draw_empty(self):
+		from grease.renderer import Vector
+		world = TestWorld()
+		world.shapes = []
+		world.positions = []
+		world.renderable = []
+		renderer = Vector()
+		renderer.set_world(world)
+		gl = TestGL()
+		# Renderer should run without complaint with no verts
+		renderer.draw(gl=gl)
+
 	def test_draw_plain(self):
 		from grease.renderer import Vector
 		from grease.geometry import Vec2d, Vec2dArray
@@ -271,6 +296,26 @@ class VectorTestCase(unittest.TestCase):
 		self.assertTrue(gl.draw_count < 65536)
 		self.assertEqual(gl.draw_type, pyglet.gl.GL_UNSIGNED_SHORT)
 		self.assertTrue(gl.state_reset)
+	
+	def test_anti_alias_on(self):
+		from grease.renderer import Vector
+		world = self.make_world()
+		renderer = Vector()
+		renderer.set_world(world)
+		gl = TestGL()
+		renderer.draw(gl=gl)
+		self.assertTrue(gl.GL_LINE_SMOOTH in gl.enabled)
+		self.assertTrue(gl.GL_BLEND in gl.enabled)
+	
+	def test_anti_alias_off(self):
+		from grease.renderer import Vector
+		world = self.make_world()
+		renderer = Vector(anti_alias=False)
+		renderer.set_world(world)
+		gl = TestGL()
+		renderer.draw(gl=gl)
+		self.assertTrue(gl.GL_LINE_SMOOTH not in gl.enabled)
+		self.assertTrue(gl.GL_BLEND not in gl.enabled)
 
 
 if __name__ == '__main__':

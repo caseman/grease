@@ -6,7 +6,11 @@ class RGBA(object):
 			assert g is b is a is None, "Ambiguous color arguments" 
 			self.r, self.g, self.b, self.a = self._parse_colorstr(r_or_colorstr)
 		elif g is b is a is None:
-			self.r, self.g, self.b, self.a = r_or_colorstr
+			try:
+				self.r, self.g, self.b, self.a = r_or_colorstr
+			except ValueError:
+				self.r, self.g, self.b = r_or_colorstr
+				self.a = 1.0
 		else:
 			self.r = r_or_colorstr
 			self.g = g

@@ -29,7 +29,7 @@ class EntityTypeRegistrar(type):
 			component = cls.world.components[name]
 		except KeyError:
 			raise AttributeError("No such component: %s" % name)
-		return ComponentEntitySet(cls.entities & component.entities)
+		return ComponentEntitySet(component, cls.entities & component.entities)
 		
 
 class Entity(object):
@@ -157,6 +157,6 @@ class ComponentEntitySet(set):
 	
 	def __setattr__(self, name, value):
 		if self._component is not None and name in self._component.fields:
-			self._component.fields[name].set(value, self)
+			self._component.fields[name].accessor(self).__set__(value)
 		raise AttributeError(name)
 
