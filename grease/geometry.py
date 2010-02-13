@@ -423,6 +423,19 @@ class Rect(ctypes.Structure):
 		('bottom', ctypes.c_double),
 	]
 
+	def __init__(self, rect_or_left, bottom=None, right=None, top=None):
+		if bottom is not None:
+			assert right is not None and top is not None, "No enough arguments to Rect"
+			self.left = rect_or_left
+			self.bottom = bottom
+			self.right = right
+			self.top = top
+		else:
+			self.left = rect_or_left.left
+			self.bottom = rect_or_left.bottom
+			self.right = rect_or_left.right
+			self.top = rect_or_left.top
+
 	@property
 	def width(self):
 		return self.right - self.left
