@@ -11,9 +11,14 @@ including collision point and normal vector for use in collision response.
 
 A typical collision detection system consists of a narrow-phase system that
 contains a broad-phased system. The narrow-phase system is usually the only
+
 one that the application directly interacts with, though the application is
 free to use the broad-phased system directly if desired. This could be
 useful in cases where speed, rather than precision is paramount.
+
+The narrow-phase system can be assigned handler objects to run after
+collision detection. These can perform tasks like handling collision response
+or dispatching collision events to application handlers.
 
 Note that broad-phase systems can return false positives, though they should
 never return false negatives. Do not assume that all pairs returned by a
@@ -25,8 +30,8 @@ from bisect import bisect_right
 
 
 class Pair(tuple):
-	"""Collision pair. An ordered sequence of two entities, that
-	compares and hashes unordered.
+	"""Pair of entities in collision. This is an ordered sequence of two
+	entities, that compares and hashes unordered.
 	
 	Also stores additional collision point and normal vectors
 	for each entity.
@@ -59,7 +64,7 @@ class Pair(tuple):
 
 
 class BroadSweepAndPrune(object):
-	"""2D Broad-phase sweep and prune bounding box collision detection
+	"""2D Broad-phase sweep and prune bounding box collision detector
 
 	This algorithm is efficient for collision detection between many
 	moving bodies. It has linear algorithmic complexity and takes
@@ -315,23 +320,26 @@ class BroadSweepAndPrune(object):
 
 
 class Circular(object):
-	"""Basic narrow-phase collision detection system which treats all entities as
+	"""Basic narrow-phase collision detector which treats all entities as
 	circles with their radius defined in the collision component.
 
 	Args:
-		collision_component: Name of collision component for this system,
+		`handlers`: A sequence of collision handler functions that are invoked
+		after collision detection.
+		
+		`collision_component`: Name of collision component for this system,
 			defaults to 'collision'. This supplies each entity's collision
 			radius and masks.
 
-		position_component: Name of position component for this system,
+		`position_component`: Name of position component for this system,
 			defaults to 'position'. This supplies each entity's position.
 
-		update_aabbs (bool): If True (the default), then the entities'
+		`update_aabbs` (bool): If True (the default), then the entities'
 			`collision.aabb` fields will be updated using their position
 			and collision radius before invoking the broad phase system. 
 			Set this False if another system updates the aabbs.
 
-		broad_phase: A broad-phase collision system to use as a source
+		`broad_phase`: A broad-phase collision system to use as a source
 			for collision pairs. If not specified, a :class:`BroadSweepAndPrune`
 			system will be created automatically.
 	"""
@@ -348,12 +356,18 @@ class Circular(object):
 	"""Flag to indicate whether the system updates the entities' `collision.aabb`
 	field before invoking the broad phase collision system
 	"""
+	
+	handlers = None
+	"""A sequence of collision handler functions invoke after collision
+	detection
+	"""
 
 	broad_phase = None
 	"""Broad phase collision system used as a source for collision pairs"""
 
-	def __init__(self, position_component='position', collision_component='collision', 
-		update_aabbs=True, broad_phase=None):
+	def __init__(self, handlers=(), position_component='position', 
+		collision_component='collision', update_aabbs=True, broad_phase=None):
+		self.handlers = tuple(handlers)
 		if broad_phase is None:
 			broad_phase = BroadSweepAndPrune(collision_component)
 		self.collision_component = collision_component
@@ -366,9 +380,14 @@ class Circular(object):
 		"""Bind the system to a world"""
 		self.world = world
 		self.broad_phase.set_world(world)
+		for handler in self.handlers:
+			if hasattr(handler, 'set_world'):
+				handler.set_world(world)
 	
 	def step(self, dt):
-		"""Update the collision system for this time step"""
+		"""Update the collision system for this time step and invoke
+		the handlers
+		"""
 		if self.update_aabbs:
 			for position, collision in self.world.components.join(
 				self.position_component, self.collision_component):
@@ -381,6 +400,8 @@ class Circular(object):
 				aabb.top = y + radius
 		self.broad_phase.step(dt)
 		self._collision_pairs = None
+		for handler in self.handlers:
+			handler(self)
 	
 	@property
 	def collision_pairs(self):
@@ -435,4 +456,58 @@ class Circular(object):
 			if separation.get_length_sqrd() <= collision[entity].radius**2:
 				hits.add(entity)
 		return hits
+
+
+def dispatch_events(collision_system):
+	"""Collision handler that dispatches `on_collide()` events to entities
+	marked for collision by the specified collision system. The `on_collide()`
+	event handler methods are defined by the application on the desired entity
+	classes. These methods should have the following signature::
+
+		def on_collide(self, other_entity, collision_point, collision_normal):
+			'''Handle A collision between this entity and `other_entity`
+
+			Args:
+				`other_entity` (Entity): The other entity in collision with
+				`self`
+
+				`collision_point` (Vec2d): The point on this entity (`self`)
+				where the collision occurred. Note this may be `None` for some
+				collision systems that do not report it.
+
+				`collision_normal` (Vec2d): The normal vector at the point of
+				collision. As with `collision_point`, this may be None for
+				some collision systems.
+			'''
+
+	Note the arguments to `on_collide()` are always passed positionally, so you
+	can use different argument names than above if desired.
+
+	If a pair of entities are in collision, then the event will be dispatched
+	to both objects in arbitrary order if all of their collision masks align.
+	"""
+	collision = collision_system.world.components[collision_system.collision_component]
+	for pair in collision_system.collision_pairs:
+		entity1, entity2 = pair
+		if pair.info is not None:
+			args1, args2 = pair.info
+		else:
+			args1 = entity1, None, None
+			args2 = entity2, None, None
+		try:
+			on_collide = entity1.on_collide
+			masks_align = collision[entity2].from_mask & collision[entity1].into_mask
+		except (AttributeError, KeyError):
+			pass
+		else:
+			if masks_align:
+				on_collide(*args2)
+		try:
+			on_collide = entity2.on_collide
+			masks_align = collision[entity1].from_mask & collision[entity2].into_mask
+		except (AttributeError, KeyError):
+			pass
+		else:
+			if masks_align:
+				on_collide(*args1)
 

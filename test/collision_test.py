@@ -17,6 +17,7 @@ class TestCollisionComp(dict):
 		data.radius = radius
 		data.from_mask = from_mask
 		data.into_mask = into_mask
+		return entity
 	
 class TestPositionComp(dict):
 
@@ -42,7 +43,6 @@ class TestWorld(dict):
 				yield tuple(self[name][entity] for name in names)
 			except KeyError:
 				pass
-	
 
 class Data(object):
 
@@ -57,11 +57,13 @@ class Data(object):
 
 class TestCollisionSys(object):
 
+	collision_component = 'collision'
+
 	runtime = 0
 	last_from_mask = None
 
-	def __init__(self):
-		self.collision_pairs = set()
+	def __init__(self, pairs=()):
+		self.collision_pairs = pairs or set()
 	
 	def set_world(self, world):
 		self.world = world
@@ -350,6 +352,7 @@ class CircularTestCase(unittest.TestCase):
 	def test_defaults(self):
 		from grease.collision import Circular, BroadSweepAndPrune
 		coll = Circular()
+		self.assertEqual(tuple(coll.handlers), ())
 		self.assertTrue(isinstance(coll.broad_phase, BroadSweepAndPrune))
 		self.assertEqual(coll.position_component, 'position')
 		self.assertEqual(coll.collision_component, 'collision')
@@ -358,8 +361,10 @@ class CircularTestCase(unittest.TestCase):
 	def test_overrides(self):
 		from grease.collision import Circular
 		broad = TestCollisionSys()
+		handlers = (object(), object())
 		coll = Circular(broad_phase=broad, position_component='posi', collision_component='hal',
-			update_aabbs=False)
+			update_aabbs=False, handlers=handlers)
+		self.assertEqual(tuple(coll.handlers), handlers)
 		self.assertTrue(coll.broad_phase is broad)
 		self.assertEqual(coll.position_component, 'posi')
 		self.assertEqual(coll.collision_component, 'hal')
@@ -392,6 +397,26 @@ class CircularTestCase(unittest.TestCase):
 		self.assertEqual(broad.runtime, 3)
 		self.assertEqual(coll.collision_pairs, set())
 	
+	def test_handlers(self):
+		from grease.collision import Circular
+		world = TestWorld()
+		handler_calls = [0, 0]
+		def handler1(system):
+			self.assertTrue(system is coll, system)
+			handler_calls[0] += 1
+		def handler2(system):
+			self.assertTrue(system is coll, system)
+			handler_calls[1] += 1
+		coll = Circular(handlers=(handler1, handler2))
+		coll.set_world(world)
+		coll.step(0)
+		self.assertEqual(handler_calls, [1, 1])
+		coll.step(0)
+		self.assertEqual(handler_calls, [2, 2])
+		coll.handlers = (handler2,)
+		coll.step(0)
+		self.assertEqual(handler_calls, [2, 3])
+
 	def test_update_aabbs(self):
 		from grease.collision import Circular
 		broad = TestCollisionSys()
@@ -523,6 +548,89 @@ class CircularTestCase(unittest.TestCase):
 		self.assertEqual(broad.last_from_mask, 0xffffffff)
 		coll.query_point([0, 0], from_mask=0xff)
 		self.assertEqual(broad.last_from_mask, 0xff)
+
+
+class TestEntity(object):
+
+	def __init__(self):
+		self.collisions = set()
+
+	def on_collide(self, other, point, normal):
+		self.collisions.add((other, point, normal))
+
+
+class CollisionHandlerTestCase(unittest.TestCase):
+
+	def test_dispatch_events_all_pairs(self):
+		from grease.collision import dispatch_events, Pair
+		world = TestWorld()
+		col = world['collision']
+		entities = [col.set(TestEntity()) for i in range(4)]
+		system = TestCollisionSys(pairs=[
+			Pair(entities[0], entities[1]),
+			Pair(entities[1], entities[2]),
+			Pair(entities[0], entities[2]),
+		])
+		system.set_world(world)
+		dispatch_events(system)
+		self.assertEqual(entities[0].collisions, 
+			set([(entities[1], None, None), (entities[2], None, None)]))
+		self.assertEqual(entities[1].collisions, 
+			set([(entities[0], None, None), (entities[2], None, None)]))
+		self.assertEqual(entities[2].collisions,
+			set([(entities[0], None, None), (entities[1], None, None)]))
+		self.assertEqual(entities[3].collisions, set())
+
+		# The handler should tolerate an entity missing from
+		# the collision component without complaint
+		del col[entities[1]]
+		for entity in entities:
+			entity.collisions.clear()
+		dispatch_events(system)
+		self.assertEqual(entities[0].collisions, set([(entities[2], None, None)]))
+		self.assertEqual(entities[1].collisions, set([]))
+		self.assertEqual(entities[2].collisions, set([(entities[0], None, None)]))
+		self.assertEqual(entities[3].collisions, set())
+
+	
+	def test_dispatch_events_missing_method(self):
+		from grease.collision import dispatch_events, Pair
+		world = TestWorld()
+		col = world['collision']
+		class NoEventEntity(object):
+			pass
+		entities = [col.set(NoEventEntity()) for i in range(4)]
+		system = TestCollisionSys(pairs=[
+			Pair(entities[0], entities[1]),
+			Pair(entities[1], entities[2]),
+			Pair(entities[0], entities[2]),
+		])
+		system.set_world(world)
+		dispatch_events(system)
+	
+	def test_dispatch_events_respects_masks(self):
+		from grease.collision import dispatch_events, Pair
+		world = TestWorld()
+		col = world['collision']
+		masks = [
+			(1, 1),
+			(3, 0),
+			(2, 7),
+			(0, 0),
+		]
+		entities = [col.set(TestEntity(), from_mask=frmask, into_mask=inmask) 
+			for frmask, inmask in masks]
+		# Create all possible pairs
+		pairs = [Pair(entities[i], entities[j]) for i in range(len(masks)) 
+					for j in range(len(masks)) if i != j]
+		system = TestCollisionSys(pairs=pairs)
+		system.set_world(world)
+		dispatch_events(system)
+		self.assertEqual(entities[0].collisions, set([(entities[1], None, None)]))
+		self.assertEqual(entities[1].collisions, set())
+		self.assertEqual(entities[2].collisions, 
+			set([(entities[0], None, None), (entities[1], None, None)]))
+		self.assertEqual(entities[3].collisions, set())
 
 
 if __name__ == '__main__':

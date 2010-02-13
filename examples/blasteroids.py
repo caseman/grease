@@ -27,7 +27,7 @@ world.components.map(
 )
 world.systems.add(
 	('movement', controller.EulerMovement()),
-	('collision', collision.Circular()),
+	('collision', collision.Circular(handlers=[collision.dispatch_events])),
 )
 world.renderers = (
 	renderer.Camera(position=(window.width / 2, window.height / 2)),
