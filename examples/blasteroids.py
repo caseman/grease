@@ -40,12 +40,16 @@ world.renderers = (
 class PlayerShip(grease.Entity):
 	"""Thrust ship piloted by the player"""
 
+	COLLIDE_INTO_MASK = 0x1
+
 	def __init__(self):
 		self.player.thrust_accel = 75
 		self.player.turn_rate = 240
 		verts = [(0, -8), (9, -12), (0, 12), (-8, -12)]
 		self.shape.verts = verts
 		self.renderable.color = (0.5, 1, 0.5)
+		self.collision.radius = 7.5
+		self.collision.into_mask = self.COLLIDE_INTO_MASK
 		self.reset()
 	
 	def reset(self):
@@ -53,10 +57,15 @@ class PlayerShip(grease.Entity):
 		self.position.angle = 0
 		self.movement.velocity = (0, 0)
 		self.movement.rotation = 0
+	
+	def on_collide(self, other, point, normal):
+		self.reset()
 
 
 class Asteroid(grease.Entity):
 	"""Big floating space rock"""
+
+	COLLIDE_INTO_MASK = 0x2
 
 	UNIT_CIRCLE = [(math.sin(math.radians(a)), math.cos(math.radians(a))) 
 		for a in range(0, 360, 18)]
@@ -71,7 +80,13 @@ class Asteroid(grease.Entity):
 		verts = [(random.gauss(x*radius, deviation), random.gauss(y*radius, deviation))
 			for x, y in self.UNIT_CIRCLE]
 		self.shape.verts = verts
+		self.collision.radius = 42
+		self.collision.from_mask = PlayerShip.COLLIDE_INTO_MASK
+		self.collision.into_mask = self.COLLIDE_INTO_MASK
 		self.renderable.color = (0.75, 0.75, 0.75)
+
+	def on_collide(self, other, point, normal):
+		self.delete()
 
 
 ## Define game systems ##

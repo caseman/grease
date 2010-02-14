@@ -30,7 +30,7 @@ class EntityTypeRegistrar(type):
 		except KeyError:
 			raise AttributeError("No such component: %s" % name)
 		return ComponentEntitySet(component, cls.entities & component.entities)
-		
+
 
 class Entity(object):
 	"""Base class for grease entities.
@@ -57,15 +57,25 @@ class Entity(object):
 	# namespace pollution
 	__register__ = True
 
-	# world is set by the registrar
+	# class attributes set by the metaclass
 	world = None
+	__baseclass__ = None
 
 	def __new__(cls, *args, **kw):
-		"""Enforces instantiation only within the context of a world"""
-		raise RuntimeError(
-			"Cannot instantiate %s outside of a world. Try using world.%s(...)" 
-			% (cls.__name__, cls.__name__))
-
+		"""Create a new entity and add it to the world"""
+		if cls.world is None:
+			raise RuntimeError(
+				"Cannot instantiate %s outside of a world. Try using world.%s(...)" 
+				% (cls.__name__, cls.__name__))
+		entity = object.__new__(cls)
+		entity.entity_id = cls.world.new_entity_id()
+		cls.world.entities.add(entity)
+		for clsname in cls.world.entity_types:
+			entity_cls = getattr(cls.world, clsname)
+			if issubclass(cls.__baseclass__, entity_cls.__baseclass__):
+				entity_cls.entities.add(entity)
+		return entity
+	
 	def __getattr__(self, name):
 		"""Return a component accessor for this entity"""
 		try:
@@ -102,6 +112,27 @@ class Entity(object):
 		return "<%s id: %s of %s %x>" % (
 			self.__class__.__name__, self.entity_id,
 			self.world.__class__.__name__, id(self.world))
+
+	def delete(self):
+		"""Delete the entity from its world. If then entity has already
+		been deleted, this call does nothing
+		"""
+		for clsname in self.world.entity_types:
+			cls = getattr(self.world, clsname)
+			if issubclass(self.__baseclass__, cls.__baseclass__):
+				try:
+					cls.entities.remove(self)
+				except KeyError:
+					pass
+		try:
+			self.world.entities.remove(self)
+		except KeyError:
+			pass
+
+	@property
+	def exists(self):
+		"""Return true if the entity still exists in the world"""
+		return self in self.world.entities
 
 
 class EntityComponentAccessor(object):

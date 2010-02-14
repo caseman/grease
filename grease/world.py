@@ -17,7 +17,7 @@ class World(object):
 		self._renderers = ()
 		self.new_entity_id = itertools.count().next
 		self.new_entity_id() # skip id 0
-		self.entities = set()
+		self.entities = WorldEntities(self)
 		self.window = window
 		if window is not None:
 			self.window.on_draw = self.on_draw
@@ -35,9 +35,9 @@ class World(object):
 			entity_type = self.entity_types[name]
 		except KeyError:
 			raise AttributeError(name)
-		wrapped_type = type(name, (_WorldWrappedEntity, entity_type), 
-			{'world': self, 'entities': set(), '__register__': False,
-			 '__baseclass__': entity_type}) # XXX This is a 2AM hack
+		wrapped_type = type(name, (entity_type,), 
+			{'world': self, 'entities': set(), '__slots__': ['entity_id'],
+			 '__register__': False, '__baseclass__': entity_type})
 		setattr(self, name, wrapped_type)
 		return wrapped_type
 	
@@ -65,7 +65,7 @@ class World(object):
 	def _get_renderers(self):
 		return self._renderers
 	
-	renderers = property(_get_renderers, _set_renderers, None, 'World entity pipeline')
+	renderers = property(_get_renderers, _set_renderers, None, 'World renderer pipeline')
 	
 	def on_draw(self, gl=pyglet.gl):
 		"""On draw handler for this world's window"""
@@ -87,42 +87,20 @@ class World(object):
 		self.running = False
 
 
-class _WorldWrappedEntity(object):
-	"""Entity type in world-context. This fronts for a user-defined 
-	Entity class and ensures new instances are added to the world
-	automatically
-	"""
+class WorldEntities(set):
+	"""Entity set for a :class:`World`"""
 
-	__slots__ = ['entity_id']
+	def __init__(self, world):
+		self.world = world
 
-	entities = None # Replaced by an entity set during wrapping
-	
-	def __new__(cls, *args, **kw):
-		entity = object.__new__(cls)
-		entity.entity_id = cls.world.new_entity_id()
-		return entity
-	
-	def __init__(self, *args, **kw):
-		super(_WorldWrappedEntity, self).__init__(*args, **kw)
-		self.world.entities.add(self)
-		for clsname in self.world.entity_types:
-			cls = getattr(self.world, clsname)
-			if issubclass(self.__baseclass__, cls.__baseclass__):
-				cls.entities.add(self)
-
-	@classmethod
-	def from_existing_id(cls, entity_id):
-		"""Return an entity facade for an existing entity_id"""
-		assert cls.world is not None, (
-			"%(__name__)s cannot be created outside of a world." % cls.__dict__)
-		entity = object.__new__(cls)
-		entity.entity_id = entity_id
-		return entity
-	
-	@property
-	def exists(self):
-		"""Return true if the entity still exists in the world"""
-		return self in self.world.entities
+	def remove(self, entity):
+		"""Remove the entity from the set and all world components"""
+		super(WorldEntities, self).remove(entity)
+		for component in self.world.components.itervalues():
+			try:
+				del component[entity]
+			except KeyError:
+				pass
 
 
 class ComponentMapper(dict):

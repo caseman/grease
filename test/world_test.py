@@ -118,60 +118,33 @@ class WorldTestCase(unittest.TestCase):
 		class MyEntity(object):
 			def __init__(self, stuff):
 				stuffs.append(stuff)
-		class Another(object): pass
-		class Subclass(Another, MyEntity): pass
-		world = World(entity_types={
-			'MyEntity': MyEntity, 'Another': Another, 'Subclass':Subclass})
+		world = World(entity_types={'MyEntity': MyEntity})
 		entity = world.MyEntity('abc')
 		self.assertTrue(isinstance(entity, MyEntity))
-		self.assertTrue(entity.entity_id > 0)
-		self.assertTrue(entity in world.entities)
-		self.assertTrue(entity in world.MyEntity.entities)
-		self.assertTrue(entity not in world.Another.entities)
-		self.assertTrue(entity not in world.Subclass.entities)
+		self.assertTrue(entity.world is world)
 		self.assertEqual(stuffs, ['abc'])
-		
-		another = world.Another()
-		self.assertTrue(another.entity_id > 0)
-		self.assertNotEqual(another.entity_id, entity.entity_id)
-		self.assertTrue(another in world.entities)
-		self.assertTrue(another not in world.MyEntity.entities)
-		self.assertTrue(another in world.Another.entities)
-		self.assertTrue(another not in world.Subclass.entities)
-		self.assertEqual(stuffs, ['abc'])
-
-		yetanother = world.Another()
-		self.assertTrue(yetanother.entity_id > 0)
-		self.assertNotEqual(yetanother.entity_id, entity.entity_id)
-		self.assertNotEqual(yetanother.entity_id, another.entity_id)
-		self.assertTrue(yetanother in world.entities)
-		self.assertTrue(yetanother not in world.MyEntity.entities)
-		self.assertTrue(yetanother in world.Another.entities)
-
-		sub = world.Subclass('123')
-		self.assertTrue(sub.entity_id > 0)
-		self.assertTrue(sub in world.entities)
-		self.assertTrue(sub in world.MyEntity.entities)
-		self.assertTrue(sub in world.Another.entities)
-		self.assertTrue(sub in world.Subclass.entities)
-		self.assertEqual(stuffs, ['abc', '123'])
 	
-	def test_entities_set(self):
+	def test_remove_entities(self):
 		from grease import World
-		class Entity1(object): pass
-		class Entity2(object): pass
-		class Entity3(object): pass
-		world = World(entity_types={'Entity1': Entity1, 'Entity2': Entity2, 'Entity3': Entity3})
-		self.assertEqual(world.entities, set())
-		self.assertEqual(world.Entity1.entities, set())
-		self.assertEqual(world.Entity2.entities, set())
-		self.assertEqual(world.Entity3.entities, set())
-		test_entities = (world.Entity1(), world.Entity1(), world.Entity2())
-		self.assertEqual(world.entities, set(test_entities))
-		self.assertEqual(world.Entity1.entities, set(test_entities[:2]))
-		self.assertEqual(world.Entity2.entities, set(test_entities[2:]))
-		self.assertEqual(world.Entity3.entities, set())
-	
+		class MyEntity(object):
+			pass
+		comp1 = TestComponent()
+		comp2 = TestComponent()
+		comp3 = TestComponent()
+		world = World(entity_types={'MyEntity': MyEntity})
+		world.components.map(one=comp1, two=comp2, three=comp3)
+		entity = world.MyEntity()
+		world.entities.add(entity)
+		comp1.add(entity)
+		comp2.add(entity)
+		self.assertTrue(entity in world.entities)
+		self.assertTrue(entity in comp1)
+		self.assertTrue(entity in comp2)
+		world.entities.remove(entity)
+		self.assertFalse(entity in world.entities)
+		self.assertFalse(entity in comp1)
+		self.assertFalse(entity in comp2)
+
 	def test_map_components(self):
 		from grease import World
 		comp1 = TestComponent()
