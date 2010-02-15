@@ -1,5 +1,6 @@
 """Basic vector graphics arcade game built with Grease"""
 
+import os
 import math
 import random
 import pyglet
@@ -24,7 +25,7 @@ world.components.map(
 	collision=component.Collision(),
 	# Custom components
 	player=component.Component(thrust_accel=float, turn_rate=float),
-	gun=component.Component(firing=bool, last_fire_time=float, cool_down=float),
+	gun=component.Component(firing=bool, last_fire_time=float, cool_down=float, sound=object),
 )
 world.systems.add(
 	('movement', controller.EulerMovement()),
@@ -35,6 +36,17 @@ world.renderers = (
 	renderer.Vector(line_width=1.5),
 )
 
+## Helper functions ##
+
+def load_sound(name, streaming=False):
+	return pyglet.media.load(
+		'%s/sfx/%s' % (os.path.dirname(__file__), name), streaming=streaming)
+
+def looping_sound(name):
+	player = pyglet.media.Player()
+	player.queue(load_sound(name, streaming=True))
+	player.eos_action = player.EOS_LOOP
+	return player
 
 ## Define entity classes ##
 
@@ -62,12 +74,16 @@ class PlayerShip(BlasteroidsEntity):
 	"""Thrust ship piloted by the player"""
 
 	GUN_COOL_DOWN = 0.5
+	GUN_SOUND = load_sound('pewpew.wav')
+	THRUST_SOUND = looping_sound('thrust.wav')
+	DEATH_SOUND = load_sound('dead.wav')
 	COLLIDE_INTO_MASK = 0x1
 
 	def __init__(self):
 		self.player.thrust_accel = 75
 		self.player.turn_rate = 240
 		self.gun.cool_down = self.GUN_COOL_DOWN
+		self.gun.sound = self.GUN_SOUND
 		verts = [
 			(-8, -12), (-4, -10), (0, -8), (4, -10), (8, -12), # flame
 			(0, 12), (-8, -12), (0, -8), (8, -12)]
@@ -88,6 +104,7 @@ class PlayerShip(BlasteroidsEntity):
 	
 	def on_collide(self, other, point, normal):
 		self.explode()
+		self.DEATH_SOUND.play()
 		del self.renderable
 		del self.collision
 		pyglet.clock.schedule_once(self.reset, 2.0)
@@ -97,6 +114,11 @@ class Asteroid(BlasteroidsEntity):
 	"""Big floating space rock"""
 
 	COLLIDE_INTO_MASK = 0x2
+	HIT_SOUNDS = [
+		load_sound('hit1.wav'),
+		load_sound('hit2.wav'),
+		load_sound('hit3.wav'),
+	]
 
 	UNIT_CIRCLE = [(math.sin(math.radians(a)), math.cos(math.radians(a))) 
 		for a in range(0, 360, 18)]
@@ -124,6 +146,7 @@ class Asteroid(BlasteroidsEntity):
 			chunk_size = self.collision.radius / 2.0
 			for i in range(2):
 				world.Asteroid(chunk_size, self.position.position)
+		random.choice(self.HIT_SOUNDS).play()
 		self.explode()
 		self.delete()	
 
@@ -188,6 +211,8 @@ class Gun(object):
 		for entity in world.Entity.gun.firing == True:
 			if world.time >= entity.gun.last_fire_time + entity.gun.cool_down:
 				world.Shot(entity, entity.position.angle)
+				if entity.gun.sound is not None:
+					entity.gun.sound.play()
 				entity.gun.last_fire_time = world.time
 
 
@@ -254,12 +279,14 @@ class Game(KeyControls):
 		thrust_vec.rotate(self.player_ship.position.angle)
 		self.player_ship.movement.accel = thrust_vec
 		self.player_ship.shape.verts[2] = geometry.Vec2d(0, -16 - random.random() * 16)
+		self.player_ship.THRUST_SOUND.play()
 	
 	@KeyControls.key_release(key.UP)
 	@KeyControls.key_release(key.W)
 	def stop_thrust(self):
 		self.player_ship.movement.accel = geometry.Vec2d(0, 0)
 		self.player_ship.shape.verts[2] = geometry.Vec2d(0, -8)
+		self.player_ship.THRUST_SOUND.pause()
 
 	@KeyControls.key_press(key.SPACE)
 	def start_firing(self):

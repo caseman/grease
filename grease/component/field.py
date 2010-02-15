@@ -7,6 +7,7 @@ types = {int:lambda: 0,
          float:lambda: 0.0, 
 		 bool:lambda: False,
 		 str:lambda:"", 
+		 object:lambda:None,
 		 Vec2d:lambda: Vec2d(0,0), 
 		 Vec2dArray:lambda: Vec2dArray(),
 		 color.RGBA: lambda: color.RGBA(0.0, 0.0, 0.0, 0.0),
@@ -268,7 +269,10 @@ class Field(object):
 	
 	def cast(self, value):
 		"""Cast value to the appropriate type for thi field"""
-		return self.type(value)
+		if self.type is not object:
+			return self.type(value)
+		else:
+			return value
 			
 	def accessor(self, entities=None):
 		"""Return the field accessor for the entities in the component,
