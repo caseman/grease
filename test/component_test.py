@@ -140,11 +140,15 @@ class GeneralTestCase(unittest.TestCase):
 		c.set(e1)
 		c.set(e2)
 		self.assertTrue(c.remove(e1))
+		self.assertTrue(e1 in c)
+		c.step(0)
 		self.assertFalse(e1 in c)
 		self.assertTrue(e2 in c)
 		self.assertFalse(c.remove(e1))
-		self.assertTrue(e2 in c)
+		c.step(0)
 		self.assertTrue(c.remove(e2))
+		self.assertTrue(e2 in c)
+		c.step(0)
 		self.assertFalse(e2 in c)
 		self.assertFalse(e2 in c)
 	
@@ -159,6 +163,9 @@ class GeneralTestCase(unittest.TestCase):
 		self.assertEqual(len(c), 50)
 		self.assertEqual(len(c.entities), 50)
 		[c.remove(e) for e in entities[:25]]
+		self.assertEqual(len(c.entities), 25)
+		self.assertEqual(len(c), 50)
+		c.step(0)
 		self.assertEqual(len(c), 25)
 		self.assertEqual(len(c.entities), 25)
 	

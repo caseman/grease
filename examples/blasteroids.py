@@ -3,6 +3,7 @@
 import os
 import math
 import random
+import itertools
 import pyglet
 from pyglet import gl
 from pyglet.window import key
@@ -24,7 +25,7 @@ world.components.map(
 	renderable=component.Renderable(),
 	collision=component.Collision(),
 	# Custom components
-	player=component.Component(thrust_accel=float, turn_rate=float),
+	player=component.Component(thrust_accel=float, turn_rate=float, invincible=int),
 	gun=component.Component(firing=bool, last_fire_time=float, cool_down=float, sound=object),
 )
 world.systems.add(
@@ -73,15 +74,18 @@ class Debris(BlasteroidsEntity):
 class PlayerShip(BlasteroidsEntity):
 	"""Thrust ship piloted by the player"""
 
+	COLOR = (0.5, 1, 0.5)
 	GUN_COOL_DOWN = 0.5
 	GUN_SOUND = load_sound('pewpew.wav')
 	THRUST_SOUND = looping_sound('thrust.wav')
 	DEATH_SOUND = load_sound('dead.wav')
+	COLLISION_RADIUS = 7.5
 	COLLIDE_INTO_MASK = 0x1
 
 	def __init__(self):
 		self.player.thrust_accel = 75
 		self.player.turn_rate = 240
+		self.player.invincible = 0
 		self.gun.cool_down = self.GUN_COOL_DOWN
 		self.gun.sound = self.GUN_SOUND
 		verts = [
@@ -89,25 +93,44 @@ class PlayerShip(BlasteroidsEntity):
 			(0, 12), (-8, -12), (0, -8), (8, -12)]
 		self.shape.verts = verts
 		self.shape.closed = False
+		self.collision.radius = 7.5
+		self.collision.into_mask = self.COLLIDE_INTO_MASK
 		self.reset()
 	
+	def blink(self, dt):
+		"""Blink the ship to show invincbility"""
+		self.player.invincible += 1
+		if self.player.invincible > 12:
+			self.player.invincible = 0
+			self.renderable.color = self.COLOR
+			self.collision.from_mask = 0xffffffff
+			self.collision.into_mask = self.COLLIDE_INTO_MASK
+			pyglet.clock.unschedule(self.blink)
+		elif self.player.invincible % 2 == 0:
+			del self.renderable
+		else:
+			self.renderable.color = self.COLOR
+	
 	def reset(self, dt=None):
+		"""Reset player ship for new life"""
 		self.position.position = (0, 0)
 		self.position.angle = 0
 		self.movement.velocity = (0, 0)
 		self.movement.rotation = 0
-		self.renderable.color = (0.5, 1, 0.5)
+		self.renderable.color = self.COLOR
 		self.gun.firing = False
 		self.gun.last_fire_time = 0
-		self.collision.radius = 7.5
-		self.collision.into_mask = self.COLLIDE_INTO_MASK
 	
 	def on_collide(self, other, point, normal):
-		self.explode()
-		self.DEATH_SOUND.play()
-		del self.renderable
-		del self.collision
-		pyglet.clock.schedule_once(self.reset, 2.0)
+		if not self.player.invincible:
+			self.explode()
+			self.DEATH_SOUND.play()
+			del self.renderable
+			self.collision.from_mask = 0
+			self.collision.into_mask = 0
+			self.player.invincible = 1
+			self.reset()
+			pyglet.clock.schedule_interval(self.blink, 0.3)
 
 
 class Asteroid(BlasteroidsEntity):
@@ -238,6 +261,13 @@ class Game(KeyControls):
 	directly to the game logic here
 	"""
 
+	CHIME_SOUNDS = [
+		load_sound('chime1.wav'), 
+		load_sound('chime2.wav'),
+	]
+	MAX_CHIME_TIME = 2.0
+	MIN_CHIME_TIME = 0.6
+
 	def __init__(self):
 		KeyControls.__init__(self)
 		self.level = 0
@@ -246,9 +276,21 @@ class Game(KeyControls):
 	
 	def start_level(self):
 		self.level += 1
-		self.player_ship.reset()
-		for i in range(self.level * 3 + 2):
+		for i in range(self.level * 3 + 1):
 			world.Asteroid()
+		self.chime_time = self.MAX_CHIME_TIME
+		self.chimes = itertools.cycle(self.CHIME_SOUNDS)
+		if self.level == 1:
+			self.chime()
+
+	def chime(self, dt=0):
+		"""Play tension building chime sounds"""
+		if world.running:
+			self.chimes.next().play()
+			self.chime_time = max(self.chime_time - dt * 0.01, self.MIN_CHIME_TIME)
+			if not world.Asteroid.entities:
+				self.start_level()
+		pyglet.clock.schedule_once(self.chime, self.chime_time)
 	
 	@KeyControls.key_press(key.LEFT)
 	@KeyControls.key_press(key.A)
