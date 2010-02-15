@@ -68,8 +68,11 @@ class PlayerShip(BlasteroidsEntity):
 		self.player.thrust_accel = 75
 		self.player.turn_rate = 240
 		self.gun.cool_down = self.GUN_COOL_DOWN
-		verts = [(0, -8), (9, -12), (0, 12), (-8, -12)]
+		verts = [
+			(-8, -12), (-4, -10), (0, -8), (4, -10), (8, -12), # flame
+			(0, 12), (-8, -12), (0, -8), (8, -12)]
 		self.shape.verts = verts
+		self.shape.closed = False
 		self.reset()
 	
 	def reset(self, dt=None):
@@ -250,11 +253,13 @@ class Game(KeyControls):
 		thrust_vec = geometry.Vec2d(0, self.player_ship.player.thrust_accel)
 		thrust_vec.rotate(self.player_ship.position.angle)
 		self.player_ship.movement.accel = thrust_vec
+		self.player_ship.shape.verts[2] = geometry.Vec2d(0, -16 - random.random() * 16)
 	
 	@KeyControls.key_release(key.UP)
 	@KeyControls.key_release(key.W)
 	def stop_thrust(self):
 		self.player_ship.movement.accel = geometry.Vec2d(0, 0)
+		self.player_ship.shape.verts[2] = geometry.Vec2d(0, -8)
 
 	@KeyControls.key_press(key.SPACE)
 	def start_firing(self):
