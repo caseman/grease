@@ -416,11 +416,11 @@ class Vec2dArray(list):
 	def transform(self, offset=Vec2d(0,0), angle=0, scale=1.0):
 		"""Return a new transformed Vec2dArray"""
 		offset = Vec2d(offset)
-		angle = radians(-position.angle)
+		angle = math.radians(-angle)
 		rot_vec = Vec2d(math.cos(angle), math.sin(angle))
 		xformed = Vec2dArray()
 		for vec in self:
-			xformed.append(vec.cpvrotate(angle) * scale + offset)
+			xformed.append(vec.cpvrotate(rot_vec) * scale + offset)
 		return xformed
 	
 	def segments(self, closed=True):

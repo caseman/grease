@@ -38,36 +38,58 @@ world.renderers = (
 
 ## Define entity classes ##
 
-class PlayerShip(grease.Entity):
+class BlasteroidsEntity(grease.Entity):
+	"""Entity base class"""
+
+	def explode(self):
+		"""Segment the entity shape into itty bits"""
+		shape = self.shape.verts.transform(angle=self.position.angle)
+		for segment in shape.segments():
+			debris = world.Debris()
+			debris.shape.verts = segment
+			debris.position.position = self.position.position
+			debris.movement.velocity = segment[0].normalized() * random.gauss(50, 20)
+			debris.movement.rotation = random.gauss(0, 45)
+			debris.renderable.color = self.renderable.color
+
+
+class Debris(BlasteroidsEntity):
+	"""Floating space junk"""
+
+
+class PlayerShip(BlasteroidsEntity):
 	"""Thrust ship piloted by the player"""
 
-	COLLIDE_INTO_MASK = 0x1
 	GUN_COOL_DOWN = 0.75
+	COLLIDE_INTO_MASK = 0x1
 
 	def __init__(self):
 		self.player.thrust_accel = 75
 		self.player.turn_rate = 240
+		self.gun.cool_down = self.GUN_COOL_DOWN
 		verts = [(0, -8), (9, -12), (0, 12), (-8, -12)]
 		self.shape.verts = verts
-		self.renderable.color = (0.5, 1, 0.5)
-		self.collision.radius = 7.5
-		self.collision.into_mask = self.COLLIDE_INTO_MASK
 		self.reset()
 	
-	def reset(self):
+	def reset(self, dt=None):
 		self.position.position = (0, 0)
 		self.position.angle = 0
 		self.movement.velocity = (0, 0)
 		self.movement.rotation = 0
+		self.renderable.color = (0.5, 1, 0.5)
 		self.gun.firing = False
 		self.gun.last_fire_time = 0
-		self.gun.cool_down = self.GUN_COOL_DOWN
+		self.collision.radius = 7.5
+		self.collision.into_mask = self.COLLIDE_INTO_MASK
 	
 	def on_collide(self, other, point, normal):
-		self.reset()
+		self.explode()
+		del self.renderable
+		del self.collision
+		pyglet.clock.schedule_once(self.reset, 2.0)
 
 
-class Asteroid(grease.Entity):
+class Asteroid(BlasteroidsEntity):
 	"""Big floating space rock"""
 
 	COLLIDE_INTO_MASK = 0x2
@@ -95,10 +117,11 @@ class Asteroid(grease.Entity):
 
 	def on_collide(self, other, point, normal):
 		if self.collision.radius > 10:
-			debris_size = self.collision.radius / 1.6
-			debris_count = 2 if self.collision.radius > 20 else 3
-			for i in range(debris_count):
-				world.Asteroid(debris_size, self.position.position)
+			chunk_size = self.collision.radius / 1.6
+			chunk_count = 2 if self.collision.radius > 20 else 3
+			for i in range(chunk_count):
+				world.Asteroid(chunk_size, self.position.position)
+		self.explode()
 		self.delete()	
 
 
@@ -163,7 +186,22 @@ class Gun(object):
 			if world.time >= entity.gun.last_fire_time + entity.gun.cool_down:
 				world.Shot(entity, entity.position.angle)
 				entity.gun.last_fire_time = world.time
-		
+
+
+class Sweeper(object):
+	"""Clears out space debris"""
+
+	SWEEP_TIME = 2.0
+
+	def step(self, dt):
+		fade = dt / self.SWEEP_TIME
+		for entity in tuple(world.Debris.entities):
+			color = entity.renderable.color
+			if color.a > 0.2:
+				color.a = max(color.a - fade, 0)
+			else:
+				entity.delete()
+
 
 class Game(KeyControls):
 	"""Main game logic system
@@ -235,7 +273,8 @@ class Game(KeyControls):
 
 world.systems.add(
 	('wrapper', PositionWrapper()),
-	('guh', Gun()),
+	('gun', Gun()),
+	('sweeper', Sweeper()),
 	('game', Game()),
 )
 pyglet.app.run()
