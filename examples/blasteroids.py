@@ -27,14 +27,11 @@ world.components.map(
 	# Custom components
 	player=component.Component(thrust_accel=float, turn_rate=float, invincible=int),
 	gun=component.Component(firing=bool, last_fire_time=float, cool_down=float, sound=object),
+	award=component.Component(points=int),
 )
 world.systems.add(
 	('movement', controller.EulerMovement()),
 	('collision', collision.Circular(handlers=[collision.dispatch_events])),
-)
-world.renderers = (
-	renderer.Camera(position=(window.width / 2, window.height / 2)),
-	renderer.Vector(line_width=1.5),
 )
 
 ## Helper functions ##
@@ -74,6 +71,9 @@ class Debris(BlasteroidsEntity):
 class PlayerShip(BlasteroidsEntity):
 	"""Thrust ship piloted by the player"""
 
+	SHAPE_VERTS = [
+		(-8, -12), (-4, -10), (0, -8), (4, -10), (8, -12), # flame
+		(0, 12), (-8, -12), (0, -8), (8, -12)]
 	COLOR = (0.5, 1, 0.5)
 	GUN_COOL_DOWN = 0.5
 	GUN_SOUND = load_sound('pewpew.wav')
@@ -88,10 +88,7 @@ class PlayerShip(BlasteroidsEntity):
 		self.player.invincible = 0
 		self.gun.cool_down = self.GUN_COOL_DOWN
 		self.gun.sound = self.GUN_SOUND
-		verts = [
-			(-8, -12), (-4, -10), (0, -8), (4, -10), (8, -12), # flame
-			(0, 12), (-8, -12), (0, -8), (8, -12)]
-		self.shape.verts = verts
+		self.shape.verts = self.SHAPE_VERTS
 		self.shape.closed = False
 		self.collision.radius = 7.5
 		self.collision.into_mask = self.COLLIDE_INTO_MASK
@@ -121,16 +118,20 @@ class PlayerShip(BlasteroidsEntity):
 		self.gun.firing = False
 		self.gun.last_fire_time = 0
 	
+	def respawn(self, dt=None):
+		"""Rise to fly again, with temporary invincibility"""
+		self.player.invincible = 1
+		self.reset()
+		pyglet.clock.schedule_interval(self.blink, 0.3)
+	
 	def on_collide(self, other, point, normal):
 		if not self.player.invincible:
 			self.explode()
 			self.DEATH_SOUND.play()
-			del self.renderable
 			self.collision.from_mask = 0
 			self.collision.into_mask = 0
-			self.player.invincible = 1
-			self.reset()
-			pyglet.clock.schedule_interval(self.blink, 0.3)
+			del self.renderable
+			world.systems.game.player_died()
 
 
 class Asteroid(BlasteroidsEntity):
@@ -146,7 +147,7 @@ class Asteroid(BlasteroidsEntity):
 	UNIT_CIRCLE = [(math.sin(math.radians(a)), math.cos(math.radians(a))) 
 		for a in range(0, 360, 18)]
 	
-	def __init__(self, radius=45, position=None):
+	def __init__(self, radius=45, position=None, points=25):
 		if position is None:
 			self.position.position = (
 				random.choice([-1, 1]) * random.randint(50, window.width / 2), 
@@ -163,12 +164,13 @@ class Asteroid(BlasteroidsEntity):
 		self.collision.from_mask = PlayerShip.COLLIDE_INTO_MASK
 		self.collision.into_mask = self.COLLIDE_INTO_MASK
 		self.renderable.color = (0.75, 0.75, 0.75)
+		self.award.points = points
 
 	def on_collide(self, other, point, normal):
 		if self.collision.radius > 15:
 			chunk_size = self.collision.radius / 2.0
 			for i in range(2):
-				world.Asteroid(chunk_size, self.position.position)
+				world.Asteroid(chunk_size, self.position.position, self.award.points * 2)
 		random.choice(self.HIT_SOUNDS).play()
 		self.explode()
 		self.delete()	
@@ -201,10 +203,14 @@ class Shot(grease.Entity):
 		pyglet.clock.schedule_once(self.expire, self.TIME_TO_LIVE)
 
 	def on_collide(self, other, point, normal):
+		world.systems.game.award_points(other)
 		self.delete()
 	
 	def expire(self, dt):
 		self.delete()
+
+class HudEntity(grease.Entity):
+	"""Entities used by the HUD"""
 
 
 ## Define game systems ##
@@ -271,6 +277,8 @@ class Game(KeyControls):
 	def __init__(self):
 		KeyControls.__init__(self)
 		self.level = 0
+		self.lives = 3
+		self.score = 0
 		self.player_ship = world.PlayerShip()
 		self.start_level()
 	
@@ -282,10 +290,20 @@ class Game(KeyControls):
 		self.chimes = itertools.cycle(self.CHIME_SOUNDS)
 		if self.level == 1:
 			self.chime()
+	
+	def award_points(self, entity):
+		"""Get points for destroying stuff"""
+		if hasattr(entity.award, 'points'):
+			self.score += entity.award.points
+	
+	def player_died(self):
+		self.lives -= 1
+		if self.lives:
+			pyglet.clock.schedule_once(self.player_ship.respawn, 3.0)
 
 	def chime(self, dt=0):
 		"""Play tension building chime sounds"""
-		if world.running:
+		if world.running and self.lives:
 			self.chimes.next().play()
 			self.chime_time = max(self.chime_time - dt * 0.01, self.MIN_CHIME_TIME)
 			if not world.Asteroid.entities:
@@ -345,11 +363,67 @@ class Game(KeyControls):
 		else:
 			self.world.start()
 
+
+class Hud(object):
+	"""Heads-up display renderer"""
+	
+	pyglet.font.add_file(os.path.dirname(__file__) + '/font/Vectorb.ttf')
+	HUD_FONT = pyglet.font.load('Vector Battle')
+
+	def __init__(self):
+		self.last_lives = 0
+		self.last_score = None
+		self.game_over_label = None
+		self.create_lives_entities()
+
+	def draw(self):
+		game = world.systems.game
+		if self.last_lives != game.lives:
+			for i, entity in self.lives:
+				if game.lives > i:
+					entity.renderable.color = (0.8,0.8,0.8)
+				else:
+					entity.renderable.color = (0,0,0,0)
+			self.last_lives = game.lives
+		if self.last_score != game.score:
+			self.score_label = pyglet.text.Label(
+				str(game.score),
+				font_name='Vector Battle', font_size=14, bold=True,
+				x=window.width // 2 - 25, y=window.height // 2 - 25, 
+				anchor_x='right', anchor_y='center')
+			self.last_score = game.score
+		if game.lives == 0:
+			if self.game_over_label is None:
+				self.game_over_label = pyglet.text.Label(
+					"GAME OVER",
+					font_name='Vector Battle', font_size=36,
+					x = 0, y = 0, anchor_x='center', anchor_y='center')
+			self.game_over_label.draw()
+		self.score_label.draw()
+	
+	def create_lives_entities(self):
+		"""Create entities to represent the remaining lives"""
+		self.lives = []
+		verts = geometry.Vec2dArray(PlayerShip.SHAPE_VERTS[3:])
+		left = -window.width // 2 + 25
+		top = window.height // 2 - 25
+		for i in range(20):
+			entity = world.HudEntity()
+			entity.shape.verts = verts.transform(scale=0.75)
+			entity.position.position = (i * 20 + left, top)
+			self.lives.append((i, entity))
+
+
 world.systems.add(
 	('wrapper', PositionWrapper()),
 	('gun', Gun()),
 	('sweeper', Sweeper()),
 	('game', Game()),
+)
+world.renderers = (
+	renderer.Camera(position=(window.width / 2, window.height / 2)),
+	renderer.Vector(line_width=1.5),
+	Hud(),
 )
 pyglet.app.run()
 
