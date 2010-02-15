@@ -5,6 +5,7 @@ from grease import color
 # Allowed field types -> default values
 types = {int:lambda: 0, 
          float:lambda: 0.0, 
+		 bool:lambda: False,
 		 str:lambda:"", 
 		 Vec2d:lambda: Vec2d(0,0), 
 		 Vec2dArray:lambda: Vec2dArray(),

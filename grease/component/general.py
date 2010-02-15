@@ -31,6 +31,9 @@ class Component(dict):
 	
 	def step(self, dt):
 		"""Update the component for the next timestep"""
+		delitem = super(Component, self).__delitem__
+		for entity in self._deleted:
+			delitem(entity)
 		self.new_entities = self._added
 		self.deleted_entities = self._deleted
 		self._added = []
@@ -64,7 +67,6 @@ class Component(dict):
 		if entity in self.entities:
 			self._deleted.append(entity)
 			self.entities.remove(entity)
-			super(Component, self).__delitem__(entity)
 			return True
 		return False
 	

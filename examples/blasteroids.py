@@ -24,6 +24,7 @@ world.components.map(
 	collision=component.Collision(),
 	# Custom components
 	player=component.Component(thrust_accel=float, turn_rate=float),
+	gun=component.Component(firing=bool, last_fire_time=float, cool_down=float),
 )
 world.systems.add(
 	('movement', controller.EulerMovement()),
@@ -41,6 +42,7 @@ class PlayerShip(grease.Entity):
 	"""Thrust ship piloted by the player"""
 
 	COLLIDE_INTO_MASK = 0x1
+	GUN_COOL_DOWN = 0.75
 
 	def __init__(self):
 		self.player.thrust_accel = 75
@@ -57,6 +59,9 @@ class PlayerShip(grease.Entity):
 		self.position.angle = 0
 		self.movement.velocity = (0, 0)
 		self.movement.rotation = 0
+		self.gun.firing = False
+		self.gun.last_fire_time = 0
+		self.gun.cool_down = self.GUN_COOL_DOWN
 	
 	def on_collide(self, other, point, normal):
 		self.reset()
@@ -70,22 +75,63 @@ class Asteroid(grease.Entity):
 	UNIT_CIRCLE = [(math.sin(math.radians(a)), math.cos(math.radians(a))) 
 		for a in range(0, 360, 18)]
 	
-	def __init__(self, radius=45):
-		self.position.position = (
-			random.choice([-1, 1]) * random.randint(50, window.width / 2), 
-			random.choice([-1, 1]) * random.randint(50, window.height / 2))
-		deviation = radius / 8
-		self.movement.velocity = (random.gauss(0, 600 / radius), random.gauss(0, 600 / radius))
+	def __init__(self, radius=45, position=None):
+		if position is None:
+			self.position.position = (
+				random.choice([-1, 1]) * random.randint(50, window.width / 2), 
+				random.choice([-1, 1]) * random.randint(50, window.height / 2))
+		else:
+			self.position.position = position
+		deviation = radius / 7
+		self.movement.velocity = (random.gauss(0, 600 / radius), random.gauss(0, 700 / radius))
 		self.movement.rotation = random.gauss(0, 15)
 		verts = [(random.gauss(x*radius, deviation), random.gauss(y*radius, deviation))
 			for x, y in self.UNIT_CIRCLE]
 		self.shape.verts = verts
-		self.collision.radius = 42
+		self.collision.radius = radius * 0.8
 		self.collision.from_mask = PlayerShip.COLLIDE_INTO_MASK
 		self.collision.into_mask = self.COLLIDE_INTO_MASK
 		self.renderable.color = (0.75, 0.75, 0.75)
 
 	def on_collide(self, other, point, normal):
+		if self.collision.radius > 10:
+			debris_size = self.collision.radius / 1.6
+			debris_count = 2 if self.collision.radius > 20 else 3
+			for i in range(debris_count):
+				world.Asteroid(debris_size, self.position.position)
+		self.delete()	
+
+
+class Shot(grease.Entity):
+	"""Pew Pew!
+	
+	Args:
+		`shooter` (Entity): entity that is shooting the shot. Used
+		to determine the collision mask, position and velocity 
+		so the shot doesn't hit the shooter.
+		
+		`angle` (float): Angle of the shot trajectory in degrees.
+	"""
+
+	SPEED = 300
+	TIME_TO_LIVE = 0.75 # seconds
+	
+	def __init__(self, shooter, angle):
+		offset = geometry.Vec2d(0, shooter.collision.radius)
+		offset.rotate(angle)
+		self.position.position = shooter.position.position + offset
+		self.movement.velocity = (
+			offset.normalized() * self.SPEED + shooter.movement.velocity)
+		self.shape.verts = [(0, 1.5), (1.5, -1.5), (-1.5, -1.5)]
+		self.collision.radius = 2.0
+		self.collision.from_mask = ~shooter.collision.into_mask
+		self.renderable.color = (1.0, 1.0, 1.0)
+		pyglet.clock.schedule_once(self.expire, self.TIME_TO_LIVE)
+
+	def on_collide(self, other, point, normal):
+		self.delete()
+	
+	def expire(self, dt):
 		self.delete()
 
 
@@ -107,6 +153,16 @@ class PositionWrapper(object):
 			entity.position.position.y += window.height + self.MARGIN * 2
 		for entity in world.Entity.position.position.y > self.HALF_HEIGHT:
 			entity.position.position.y -= window.height + self.MARGIN * 2
+
+
+class Gun(object):
+	"""Fires Shot entities"""
+
+	def step(self, dt):
+		for entity in world.Entity.gun.firing == True:
+			if world.time >= entity.gun.last_fire_time + entity.gun.cool_down:
+				world.Shot(entity, entity.position.angle)
+				entity.gun.last_fire_time = world.time
 		
 
 class Game(KeyControls):
@@ -161,6 +217,14 @@ class Game(KeyControls):
 	@KeyControls.key_release(key.W)
 	def stop_thrust(self):
 		self.player_ship.movement.accel = geometry.Vec2d(0, 0)
+
+	@KeyControls.key_press(key.SPACE)
+	def start_firing(self):
+		self.player_ship.gun.firing = True
+
+	@KeyControls.key_release(key.SPACE)
+	def stop_firing(self):
+		self.player_ship.gun.firing = False
 	
 	@KeyControls.key_press(key.P)
 	def pause(self):
@@ -171,6 +235,7 @@ class Game(KeyControls):
 
 world.systems.add(
 	('wrapper', PositionWrapper()),
+	('guh', Gun()),
 	('game', Game()),
 )
 pyglet.app.run()

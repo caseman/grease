@@ -412,6 +412,31 @@ class Vec2dArray(list):
 	
 	def insert(self, index, value):
 		list.insert(self, index, Vec2d(value))
+	
+	def transform(self, offset=Vec2d(0,0), angle=0, scale=1.0):
+		"""Return a new transformed Vec2dArray"""
+		offset = Vec2d(offset)
+		angle = radians(-position.angle)
+		rot_vec = Vec2d(math.cos(angle), math.sin(angle))
+		xformed = Vec2dArray()
+		for vec in self:
+			xformed.append(vec.cpvrotate(angle) * scale + offset)
+		return xformed
+	
+	def segments(self, closed=True):
+		"""Generate arrays of line segments connecting adjacent vetices
+		in this array, exploding the shape into it's constituent segments
+		"""
+		if len(self) >= 2:
+			last = self[0]
+			for vert in self[1:]:
+				yield Vec2dArray((last, vert))
+				last = vert
+			if closed:
+				yield Vec2dArray((last, self[0]))
+		elif self and closed:
+			yield Vec2dArray((self[0], self[0]))
+
 
 
 class Rect(ctypes.Structure):
