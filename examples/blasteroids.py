@@ -48,7 +48,8 @@ class BlasteroidsEntity(grease.Entity):
 			debris = world.Debris()
 			debris.shape.verts = segment
 			debris.position.position = self.position.position
-			debris.movement.velocity = segment[0].normalized() * random.gauss(50, 20)
+			debris.movement.velocity = self.movement.velocity
+			debris.movement.velocity += segment[0].normalized() * random.gauss(50, 20)
 			debris.movement.rotation = random.gauss(0, 45)
 			debris.renderable.color = self.renderable.color
 
@@ -60,7 +61,7 @@ class Debris(BlasteroidsEntity):
 class PlayerShip(BlasteroidsEntity):
 	"""Thrust ship piloted by the player"""
 
-	GUN_COOL_DOWN = 0.75
+	GUN_COOL_DOWN = 0.5
 	COLLIDE_INTO_MASK = 0x1
 
 	def __init__(self):
@@ -110,16 +111,15 @@ class Asteroid(BlasteroidsEntity):
 		verts = [(random.gauss(x*radius, deviation), random.gauss(y*radius, deviation))
 			for x, y in self.UNIT_CIRCLE]
 		self.shape.verts = verts
-		self.collision.radius = radius * 0.8
+		self.collision.radius = radius
 		self.collision.from_mask = PlayerShip.COLLIDE_INTO_MASK
 		self.collision.into_mask = self.COLLIDE_INTO_MASK
 		self.renderable.color = (0.75, 0.75, 0.75)
 
 	def on_collide(self, other, point, normal):
-		if self.collision.radius > 10:
-			chunk_size = self.collision.radius / 1.6
-			chunk_count = 2 if self.collision.radius > 20 else 3
-			for i in range(chunk_count):
+		if self.collision.radius > 15:
+			chunk_size = self.collision.radius / 2.0
+			for i in range(2):
 				world.Asteroid(chunk_size, self.position.position)
 		self.explode()
 		self.delete()	
