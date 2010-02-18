@@ -226,6 +226,16 @@ class EntityComponentAccessorTestCase(unittest.TestCase):
 		self.assertTrue(entity in component)
 		self.assertEqual(accessor.baz, 1000)
 		self.assertEqual(component[entity].baz, 1000)
+	
+	def test_truthiness(self):
+		from grease.entity import EntityComponentAccessor
+		world = TestWorld()
+		entity = TestEntity(world)
+		component = TestComponent()
+		accessor = EntityComponentAccessor(component, entity)
+		self.assertFalse(accessor)
+		component[entity] = 456
+		self.assertTrue(accessor)
 
 
 if __name__ == '__main__':

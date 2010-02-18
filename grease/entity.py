@@ -152,6 +152,12 @@ class EntityComponentAccessor(object):
 		self.__dict__['_%s__component' % clsname] = component
 		self.__dict__['_%s__entity' % clsname] = entity
 	
+	def __nonzero__(self):
+		"""The accessor is True if the entity is in the component,
+		False if not, for convenient membership tests
+		"""
+		return self.__entity in self.__component
+	
 	def __getattr__(self, name):
 		if self.__data is None:
 			try:
