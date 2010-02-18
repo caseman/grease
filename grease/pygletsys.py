@@ -12,9 +12,10 @@
 #############################################################################
 """Grease systems specific to Pyglet"""
 
+import grease
 import new
 
-class KeyControls(object):
+class KeyControls(grease.System):
 	"""Maps subclass-defined action methods to keys. 
 
 	Keys may be mapped in the subclass definition using decorators

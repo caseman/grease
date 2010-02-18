@@ -55,7 +55,7 @@ class BlasteroidsEntity(grease.Entity):
 		"""Segment the entity shape into itty bits"""
 		shape = self.shape.verts.transform(angle=self.position.angle)
 		for segment in shape.segments():
-			debris = world.Debris()
+			debris = self.world.Debris()
 			debris.shape.verts = segment
 			debris.position.position = self.position.position
 			debris.movement.velocity = self.movement.velocity
@@ -131,7 +131,7 @@ class PlayerShip(BlasteroidsEntity):
 			self.collision.from_mask = 0
 			self.collision.into_mask = 0
 			del self.renderable
-			world.systems.game.player_died()
+			self.world.systems.game.player_died()
 
 
 class Asteroid(BlasteroidsEntity):
@@ -147,7 +147,7 @@ class Asteroid(BlasteroidsEntity):
 	UNIT_CIRCLE = [(math.sin(math.radians(a)), math.cos(math.radians(a))) 
 		for a in range(0, 360, 18)]
 	
-	def __init__(self, radius=45, position=None, points=25):
+	def __init__(self, radius=45, position=None, parent_velocity=None, points=25):
 		if position is None:
 			self.position.position = (
 				random.choice([-1, 1]) * random.randint(50, window.width / 2), 
@@ -156,6 +156,8 @@ class Asteroid(BlasteroidsEntity):
 			self.position.position = position
 		deviation = radius / 7
 		self.movement.velocity = (random.gauss(0, 600 / radius), random.gauss(0, 700 / radius))
+		if parent_velocity is not None:
+			self.movement.velocity += parent_velocity
 		self.movement.rotation = random.gauss(0, 15)
 		verts = [(random.gauss(x*radius, deviation), random.gauss(y*radius, deviation))
 			for x, y in self.UNIT_CIRCLE]
@@ -170,7 +172,8 @@ class Asteroid(BlasteroidsEntity):
 		if self.collision.radius > 15:
 			chunk_size = self.collision.radius / 2.0
 			for i in range(2):
-				world.Asteroid(chunk_size, self.position.position, self.award.points * 2)
+				self.world.Asteroid(chunk_size, self.position.position, 
+					self.movement.velocity, self.award.points * 2)
 		random.choice(self.HIT_SOUNDS).play()
 		self.explode()
 		self.delete()	
@@ -203,7 +206,7 @@ class Shot(grease.Entity):
 		pyglet.clock.schedule_once(self.expire, self.TIME_TO_LIVE)
 
 	def on_collide(self, other, point, normal):
-		world.systems.game.award_points(other)
+		self.world.systems.game.award_points(other)
 		self.delete()
 	
 	def expire(self, dt):
@@ -215,37 +218,36 @@ class HudEntity(grease.Entity):
 
 ## Define game systems ##
 
-class PositionWrapper(object):
+class PositionWrapper(grease.System):
 	"""Wrap positions around when they go off the edge of the window"""
 
-	MARGIN = 60
-	HALF_WIDTH = window.width / 2 + MARGIN
-	HALF_HEIGHT = window.height / 2 + MARGIN
+	HALF_WIDTH = window.width / 2
+	HALF_HEIGHT = window.height / 2
 
 	def step(self, dt):
-		for entity in world.Entity.position.position.x < -self.HALF_WIDTH:
-			entity.position.position.x += window.width + self.MARGIN * 2
-		for entity in world.Entity.position.position.x > self.HALF_WIDTH:
-			entity.position.position.x -= window.width + self.MARGIN * 2
-		for entity in world.Entity.position.position.y < -self.HALF_HEIGHT:
-			entity.position.position.y += window.height + self.MARGIN * 2
-		for entity in world.Entity.position.position.y > self.HALF_HEIGHT:
-			entity.position.position.y -= window.height + self.MARGIN * 2
+		for entity in self.world.Entity.collision.aabb.right < -self.HALF_WIDTH:
+			entity.position.position.x += window.width + entity.collision.aabb.width
+		for entity in self.world.Entity.collision.aabb.left > self.HALF_WIDTH:
+			entity.position.position.x -= window.width + entity.collision.aabb.width
+		for entity in self.world.Entity.collision.aabb.top < -self.HALF_HEIGHT:
+			entity.position.position.y += window.height + entity.collision.aabb.height 
+		for entity in self.world.Entity.collision.aabb.bottom > self.HALF_HEIGHT:
+			entity.position.position.y -= window.height + entity.collision.aabb.height
 
 
-class Gun(object):
+class Gun(grease.System):
 	"""Fires Shot entities"""
 
 	def step(self, dt):
-		for entity in world.Entity.gun.firing == True:
-			if world.time >= entity.gun.last_fire_time + entity.gun.cool_down:
-				world.Shot(entity, entity.position.angle)
+		for entity in self.world.Entity.gun.firing == True:
+			if self.world.time >= entity.gun.last_fire_time + entity.gun.cool_down:
+				self.world.Shot(entity, entity.position.angle)
 				if entity.gun.sound is not None:
 					entity.gun.sound.play()
-				entity.gun.last_fire_time = world.time
+				entity.gun.last_fire_time = self.world.time
 
 
-class Sweeper(object):
+class Sweeper(grease.System):
 	"""Clears out space debris"""
 
 	SWEEP_TIME = 2.0
@@ -274,18 +276,18 @@ class Game(KeyControls):
 	MAX_CHIME_TIME = 2.0
 	MIN_CHIME_TIME = 0.6
 
-	def __init__(self):
-		KeyControls.__init__(self)
+	def set_world(self, world):
+		KeyControls.set_world(self, world)
 		self.level = 0
 		self.lives = 3
 		self.score = 0
-		self.player_ship = world.PlayerShip()
+		self.player_ship = self.world.PlayerShip()
 		self.start_level()
 	
 	def start_level(self):
 		self.level += 1
 		for i in range(self.level * 3 + 1):
-			world.Asteroid()
+			self.world.Asteroid()
 		self.chime_time = self.MAX_CHIME_TIME
 		self.chimes = itertools.cycle(self.CHIME_SOUNDS)
 		if self.level == 1:
@@ -303,10 +305,10 @@ class Game(KeyControls):
 
 	def chime(self, dt=0):
 		"""Play tension building chime sounds"""
-		if world.running and self.lives:
+		if self.world.running and self.lives:
 			self.chimes.next().play()
 			self.chime_time = max(self.chime_time - dt * 0.01, self.MIN_CHIME_TIME)
-			if not world.Asteroid.entities:
+			if not self.world.Asteroid.entities:
 				self.start_level()
 		pyglet.clock.schedule_once(self.chime, self.chime_time)
 	
@@ -364,20 +366,21 @@ class Game(KeyControls):
 			self.world.start()
 
 
-class Hud(object):
+class Hud(grease.Renderer):
 	"""Heads-up display renderer"""
 	
 	pyglet.font.add_file(os.path.dirname(__file__) + '/font/Vectorb.ttf')
 	HUD_FONT = pyglet.font.load('Vector Battle')
 
-	def __init__(self):
+	def set_world(self, world):
+		self.world = world
 		self.last_lives = 0
 		self.last_score = None
 		self.game_over_label = None
 		self.create_lives_entities()
 
 	def draw(self):
-		game = world.systems.game
+		game = self.world.systems.game
 		if self.last_lives != game.lives:
 			for i, entity in self.lives:
 				if game.lives > i:
@@ -408,7 +411,7 @@ class Hud(object):
 		left = -window.width // 2 + 25
 		top = window.height // 2 - 25
 		for i in range(20):
-			entity = world.HudEntity()
+			entity = self.world.HudEntity()
 			entity.shape.verts = verts.transform(scale=0.75)
 			entity.position.position = (i * 20 + left, top)
 			self.lives.append((i, entity))
