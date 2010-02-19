@@ -295,7 +295,6 @@ class Game(KeyControls):
 		self.lives -= 1
 		self.player_ship.THRUST_SOUND.pause()
 		self.player_ship.delete()
-		self.player_ship = None
 		if self.lives:
 			pyglet.clock.schedule_once(self.player_respawn, 3.0)
 		
@@ -315,31 +314,31 @@ class Game(KeyControls):
 	@KeyControls.key_press(key.LEFT)
 	@KeyControls.key_press(key.A)
 	def start_turn_left(self):
-		if self.player_ship is not None:
+		if self.player_ship.exists:
 			self.player_ship.movement.rotation = -self.player_ship.player.turn_rate
 
 	@KeyControls.key_release(key.LEFT)
 	@KeyControls.key_release(key.A)
 	def stop_turn_left(self):
-		if self.player_ship is not None and self.player_ship.movement.rotation < 0:
+		if self.player_ship.exists and self.player_ship.movement.rotation < 0:
 			self.player_ship.movement.rotation = 0
 
 	@KeyControls.key_press(key.RIGHT)
 	@KeyControls.key_press(key.D)
 	def start_turn_left(self):
-		if self.player_ship is not None:
+		if self.player_ship.exists:
 			self.player_ship.movement.rotation = self.player_ship.player.turn_rate
 
 	@KeyControls.key_release(key.RIGHT)
 	@KeyControls.key_release(key.D)
 	def stop_turn_left(self):
-		if self.player_ship is not None and self.player_ship.movement.rotation > 0:
+		if self.player_ship.exists and self.player_ship.movement.rotation > 0:
 			self.player_ship.movement.rotation = 0
 	
 	@KeyControls.key_hold(key.UP)
 	@KeyControls.key_hold(key.W)
 	def thrust(self, dt):
-		if self.player_ship is not None:
+		if self.player_ship.exists:
 			thrust_vec = geometry.Vec2d(0, self.player_ship.player.thrust_accel)
 			thrust_vec.rotate(self.player_ship.position.angle)
 			self.player_ship.movement.accel = thrust_vec
@@ -349,19 +348,19 @@ class Game(KeyControls):
 	@KeyControls.key_release(key.UP)
 	@KeyControls.key_release(key.W)
 	def stop_thrust(self):
-		if self.player_ship is not None:
+		if self.player_ship.exists:
 			self.player_ship.movement.accel = geometry.Vec2d(0, 0)
 			self.player_ship.shape.verts[2] = geometry.Vec2d(0, -8)
 			self.player_ship.THRUST_SOUND.pause()
 
 	@KeyControls.key_press(key.SPACE)
 	def start_firing(self):
-		if self.player_ship is not None:
+		if self.player_ship.exists:
 			self.player_ship.gun.firing = True
 
 	@KeyControls.key_release(key.SPACE)
 	def stop_firing(self):
-		if self.player_ship is not None:
+		if self.player_ship.exists:
 			self.player_ship.gun.firing = False
 	
 	@KeyControls.key_press(key.P)
