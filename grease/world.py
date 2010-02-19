@@ -6,28 +6,59 @@ from grease.component import ComponentError
 
 
 class World(object):
+	"""A coordinated collection of components, systems and entities"""
 
-	running = False
-	"""Boolean: True if the world is scheduled to step periodically"""
+	components = None
+	"""Map of world components by name. Components define and contain
+	all entity data
+	"""
+
+	systems = None
+	"""The world's systems are exposed as attributes of `World.systems`. 
+	Systems define entity behavior
+	"""
+
+	entities = None
+	"""Set of entities that exist in the world"""
+
+	clock = None
+	""":class:`pyglet.clock` interface for use by constituents
+	of the world for scheduling
+	"""
+
+	time = None
+	"""Total run time of the world"""
+
+	running = True
+	"""Flag to indicate that the world step kshould advance the time
+	This flag is also used by WorldMode objects to control the mode's
+	clock, so that scheduled tasks can be stopped and started with
+	the world.
+	"""
+		
+	def _set_renderers(self, renderers):
+		self._renderers = tuple(renderers)
+		for renderer in self._renderers:
+			if hasattr(renderer, 'set_world'):
+				renderer.set_world(self)
 	
-	def __init__(self, window=None, step_rate=60, start=True, 
-		entity_types=entity.entity_types, clock=pyglet.clock):
+	def _get_renderers(self):
+		return self._renderers
+	
+	renderers = property(_get_renderers, _set_renderers, None,
+		"""A sequence of renderers. Renderere define the presentation
+		of the world""")
+
+	def __init__(self, entity_types=entity.entity_types):
 		self.components = ComponentMapper(self)
 		self.systems = SystemMap(self)
 		self._renderers = ()
 		self.new_entity_id = itertools.count().next
 		self.new_entity_id() # skip id 0
 		self.entities = WorldEntities(self)
-		self.window = window
-		if window is not None:
-			self.window.on_draw = self.on_draw
-		self.step_rate = step_rate
 		self.entity_types = entity_types
+		self.clock = pyglet.clock
 		self.time = 0
-		self.running = False
-		self.clock = clock
-		if start:
-			self.start()
 	
 	def __getattr__(self, name):
 		"""Return a world-wrapped entity type for the given name"""
@@ -44,47 +75,15 @@ class World(object):
 	def step(self, dt):
 		"""Execute a time step for the world. Updates the world time
 		and invokes the world's systems.
-
-		Note that the specified time delta will be pinned to 10x the
-		configured step rate. For example if the step rate is 60,
-		then dt will be pinned at a maximum of 0.1666. This avoids 
-		pathological behavior when the time between steps goes
-		much longer than expected.
 		"""
-		dt = min(dt, 10.0 / self.step_rate)
 		self.time += dt
 		self.components.step(dt)
 		self.systems.step(dt)
 	
-	def _set_renderers(self, renderers):
-		self._renderers = tuple(renderers)
-		for renderer in self._renderers:
-			if hasattr(renderer, 'set_world'):
-				renderer.set_world(self)
-	
-	def _get_renderers(self):
-		return self._renderers
-	
-	renderers = property(_get_renderers, _set_renderers, None, 'World renderer pipeline')
-	
-	def on_draw(self, gl=pyglet.gl):
-		"""On draw handler for this world's window"""
-		if self.window is not None:
-			self.window.clear() # XXX this only clears color and depth buffers by default
-		gl.glLoadIdentity()
+	def draw(self):
+		"""Dispatch the renderers' `draw()` methods in order"""
 		for renderer in self.renderers:
 			renderer.draw()
-
-	def start(self):
-		"""Start stepping the world at the configured step rate"""
-		if not self.running:
-			self.clock.schedule_interval(self.step, 1.0 / self.step_rate)
-			self.running = True
-
-	def stop(self):
-		"""Stop stepping the world"""
-		self.clock.unschedule(self.step)
-		self.running = False
 
 
 class WorldEntities(set):

@@ -5,36 +5,12 @@ import math
 import random
 import itertools
 import pyglet
-from pyglet import gl
 from pyglet.window import key
 import grease
-from grease import component, controller, geometry, collision, renderer
+from grease import component, controller, geometry, collision, renderer, mode
 from grease.pygletsys import KeyControls
 
-window = pyglet.window.Window()
-window.clear()
-
-
-## Create and configure the game world ##
-
-world = grease.World(window)
-world.components.map(
-	position=component.Position(),
-	movement=component.Movement(),
-	shape=component.Shape(),
-	renderable=component.Renderable(),
-	collision=component.Collision(),
-	# Custom components
-	player=component.Component(thrust_accel=float, turn_rate=float, invincible=int),
-	gun=component.Component(firing=bool, last_fire_time=float, cool_down=float, sound=object),
-	award=component.Component(points=int),
-)
-world.systems.add(
-	('movement', controller.EulerMovement()),
-	('collision', collision.Circular(handlers=[collision.dispatch_events])),
-)
-
-## Helper functions ##
+## Utility functions ##
 
 def load_sound(name, streaming=False):
 	return pyglet.media.load(
@@ -87,7 +63,7 @@ class PlayerShip(BlasteroidsEntity):
 		self.player.turn_rate = 240
 		self.player.invincible = invincible
 		if invincible:
-			pyglet.clock.schedule_interval(self.blink, 0.3)
+			self.world.clock.schedule_interval(self.blink, 0.3)
 		self.shape.verts = self.SHAPE_VERTS
 		self.shape.closed = False
 		self.collision.radius = 7.5
@@ -102,7 +78,7 @@ class PlayerShip(BlasteroidsEntity):
 			self.renderable.color = self.COLOR
 			self.collision.from_mask = 0xffffffff
 			self.collision.into_mask = self.COLLIDE_INTO_MASK
-			pyglet.clock.unschedule(self.blink)
+			self.world.clock.unschedule(self.blink)
 		elif self.player.invincible % 2 == 0:
 			del self.renderable
 		else:
@@ -196,7 +172,7 @@ class Shot(grease.Entity):
 		self.collision.radius = 2.0
 		self.collision.from_mask = ~shooter.collision.into_mask
 		self.renderable.color = (1.0, 1.0, 1.0)
-		pyglet.clock.schedule_once(self.expire, self.TIME_TO_LIVE)
+		self.world.clock.schedule_once(self.expire, self.TIME_TO_LIVE)
 
 	def on_collide(self, other, point, normal):
 		self.world.systems.game.award_points(other)
@@ -205,26 +181,27 @@ class Shot(grease.Entity):
 	def expire(self, dt):
 		self.delete()
 
+
 class HudEntity(grease.Entity):
 	"""Entities used by the HUD"""
-
 
 ## Define game systems ##
 
 class PositionWrapper(grease.System):
 	"""Wrap positions around when they go off the edge of the window"""
 
-	HALF_WIDTH = window.width / 2
-	HALF_HEIGHT = window.height / 2
+	def __init__(self):
+		self.half_width = window.width / 2
+		self.half_height = window.height / 2
 
 	def step(self, dt):
-		for entity in self.world.Entity.collision.aabb.right < -self.HALF_WIDTH:
+		for entity in self.world.Entity.collision.aabb.right < -self.half_width:
 			entity.position.position.x += window.width + entity.collision.aabb.width
-		for entity in self.world.Entity.collision.aabb.left > self.HALF_WIDTH:
+		for entity in self.world.Entity.collision.aabb.left > self.half_width:
 			entity.position.position.x -= window.width + entity.collision.aabb.width
-		for entity in self.world.Entity.collision.aabb.top < -self.HALF_HEIGHT:
+		for entity in self.world.Entity.collision.aabb.top < -self.half_height:
 			entity.position.position.y += window.height + entity.collision.aabb.height 
-		for entity in self.world.Entity.collision.aabb.bottom > self.HALF_HEIGHT:
+		for entity in self.world.Entity.collision.aabb.bottom > self.half_height:
 			entity.position.position.y -= window.height + entity.collision.aabb.height
 
 
@@ -247,7 +224,7 @@ class Sweeper(grease.System):
 
 	def step(self, dt):
 		fade = dt / self.SWEEP_TIME
-		for entity in tuple(world.Debris.entities):
+		for entity in tuple(self.world.Debris.entities):
 			color = entity.renderable.color
 			if color.a > 0.2:
 				color.a = max(color.a - fade, 0)
@@ -296,7 +273,7 @@ class Game(KeyControls):
 		self.player_ship.THRUST_SOUND.pause()
 		self.player_ship.delete()
 		if self.lives:
-			pyglet.clock.schedule_once(self.player_respawn, 3.0)
+			self.world.clock.schedule_once(self.player_respawn, 3.0)
 		
 	def player_respawn(self, dt=None):
 		"""Rise to fly again, with temporary invincibility"""
@@ -304,12 +281,12 @@ class Game(KeyControls):
 
 	def chime(self, dt=0):
 		"""Play tension building chime sounds"""
-		if self.world.running and self.lives:
+		if self.lives:
 			self.chimes.next().play()
 			self.chime_time = max(self.chime_time - dt * 0.01, self.MIN_CHIME_TIME)
 			if not self.world.Asteroid.entities:
 				self.start_level()
-		pyglet.clock.schedule_once(self.chime, self.chime_time)
+			self.world.clock.schedule_once(self.chime, self.chime_time)
 	
 	@KeyControls.key_press(key.LEFT)
 	@KeyControls.key_press(key.A)
@@ -365,10 +342,7 @@ class Game(KeyControls):
 	
 	@KeyControls.key_press(key.P)
 	def pause(self):
-		if self.world.running:
-			self.world.stop()
-		else:
-			self.world.start()
+		self.world.running = not self.world.running
 
 
 class Hud(grease.Renderer):
@@ -422,16 +396,52 @@ class Hud(grease.Renderer):
 			self.lives.append((i, entity))
 
 
-world.systems.add(
-	('wrapper', PositionWrapper()),
-	('gun', Gun()),
-	('sweeper', Sweeper()),
-	('game', Game()),
-)
-world.renderers = (
-	renderer.Camera(position=(window.width / 2, window.height / 2)),
-	renderer.Vector(line_width=1.5),
-	Hud(),
-)
-pyglet.app.run()
+class GameMode(mode.WorldMode):
+
+	def create_world(self):
+		"""Construct the game world"""
+		world = grease.World()
+		world.components.map(
+			position=component.Position(),
+			movement=component.Movement(),
+			shape=component.Shape(),
+			renderable=component.Renderable(),
+			collision=component.Collision(),
+			# Custom components
+			player=component.Component(
+				thrust_accel=float, 
+				turn_rate=float, 
+				invincible=int),
+			gun=component.Component(
+				firing=bool, 
+				last_fire_time=float, 
+				cool_down=float, 
+				sound=object),
+			award=component.Component(points=int),
+		)
+		world.systems.add(
+			('movement', controller.EulerMovement()),
+			('collision', collision.Circular(
+				handlers=[collision.dispatch_events])),
+			('wrapper', PositionWrapper()),
+			('gun', Gun()),
+			('sweeper', Sweeper()),
+			('game', Game()),
+		)
+		world.renderers = (
+			renderer.Camera(position=(window.width / 2, window.height / 2)),
+			renderer.Vector(line_width=1.5),
+			Hud(),
+		)
+		return world
+
+def main():
+	global window
+	window = pyglet.window.Window()
+	modes = mode.Manager(window)
+	modes.push_mode(GameMode())
+	pyglet.app.run()
+
+if __name__ == '__main__':
+	main()
 

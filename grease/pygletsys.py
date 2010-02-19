@@ -34,10 +34,7 @@ class KeyControls(grease.System):
 		self.held_keys = set()
 
 	def set_world(self, world):
-		assert getattr(world, 'window', None) is not None, (
-			'To use %s you must bind the world to a pyglet window' % self.__class__.__name__)
 		self.world = world
-		world.window.push_handlers(self)
 		# Copy the class key mappings to the instance and bind the methods
 		self._key_press_map = self._bind_mapped_methods(self._cls_key_press_map)
 		self._key_release_map = self._bind_mapped_methods(self._cls_key_release_map)
