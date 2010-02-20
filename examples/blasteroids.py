@@ -124,7 +124,7 @@ class Asteroid(BlasteroidsEntity):
 		else:
 			self.position.position = position
 		deviation = radius / 7
-		self.movement.velocity = (random.gauss(0, 600 / radius), random.gauss(0, 700 / radius))
+		self.movement.velocity = (random.gauss(0, 700 / radius), random.gauss(0, 700 / radius))
 		if parent_velocity is not None:
 			self.movement.velocity += parent_velocity
 		self.movement.rotation = random.gauss(0, 15)
@@ -396,12 +396,11 @@ class Hud(grease.Renderer):
 			self.lives.append((i, entity))
 
 
-class GameMode(mode.WorldMode):
+class GameWorld(grease.World):
 
-	def create_world(self):
-		"""Construct the game world"""
-		world = grease.World()
-		world.components.map(
+	def configure(self):
+		"""Configure the game world's components, systems and renderers"""
+		self.components.map(
 			position=component.Position(),
 			movement=component.Movement(),
 			shape=component.Shape(),
@@ -419,7 +418,7 @@ class GameMode(mode.WorldMode):
 				sound=object),
 			award=component.Component(points=int),
 		)
-		world.systems.add(
+		self.systems.add(
 			('movement', controller.EulerMovement()),
 			('collision', collision.Circular(
 				handlers=[collision.dispatch_events])),
@@ -428,18 +427,16 @@ class GameMode(mode.WorldMode):
 			('sweeper', Sweeper()),
 			('game', Game()),
 		)
-		world.renderers = (
+		self.renderers = (
 			renderer.Camera(position=(window.width / 2, window.height / 2)),
 			renderer.Vector(line_width=1.5),
 			Hud(),
 		)
-		return world
 
 def main():
 	global window
-	window = pyglet.window.Window()
-	modes = mode.Manager(window)
-	modes.push_mode(GameMode())
+	window = mode.ManagerWindow()
+	window.push_mode(GameWorld())
 	pyglet.app.run()
 
 if __name__ == '__main__':

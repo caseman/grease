@@ -1,12 +1,23 @@
 import itertools
 import pyglet
 from pyglet import gl
-from grease import entity
+from grease import entity, mode
 from grease.component import ComponentError
 
 
-class World(object):
-	"""A coordinated collection of components, systems and entities"""
+class World(mode.Mode):
+	"""A coordinated collection of components, systems and entities
+	
+	A world is also a mode that may be pushed onto a 
+	:class:`grease.mode.Manager`
+
+	Args:
+		`step_rate`: The rate of `step()` calls per second. 
+
+		`master_clock`: The :class:`pyglet.clock.Clock` interface used
+			as the master clock that ticks the world's clock. This 
+			defaults to the main pyglet clock.
+	"""
 
 	components = None
 	"""Map of world components by name. Components define and contain
@@ -27,14 +38,32 @@ class World(object):
 	"""
 
 	time = None
-	"""Total run time of the world"""
+	"""Current clock time of the world"""
 
 	running = True
-	"""Flag to indicate that the world step kshould advance the time
-	This flag is also used by WorldMode objects to control the mode's
-	clock, so that scheduled tasks can be stopped and started with
-	the world.
+	"""Flag to indicate that the world clock is running, advancing time
+	and stepping the world. Set running to False to pause the world.
 	"""
+
+	def __init__(self, step_rate=60, master_clock=pyglet.clock, 
+		         entity_types=entity.entity_types):
+		super(World, self).__init__(step_rate, master_clock)
+		self.components = ComponentMapper(self)
+		self.systems = SystemMap(self)
+		self._renderers = ()
+		self.new_entity_id = itertools.count().next
+		self.new_entity_id() # skip id 0
+		self.entities = WorldEntities(self)
+		self.entity_types = entity_types
+		self.configure()
+
+	def configure(self):
+		"""Hook to configure the world after construction. Override
+		in a subclass to configure the world's components, systems,
+		and renderers.
+
+		The default implementation does nothing.
+		"""
 		
 	def _set_renderers(self, renderers):
 		self._renderers = tuple(renderers)
@@ -45,20 +74,9 @@ class World(object):
 	def _get_renderers(self):
 		return self._renderers
 	
-	renderers = property(_get_renderers, _set_renderers, None,
-		"""A sequence of renderers. Renderere define the presentation
+	renderers = property(_get_renderers, _set_renderers,
+		doc="""A sequence of renderers. Renderers define the presentation
 		of the world""")
-
-	def __init__(self, entity_types=entity.entity_types):
-		self.components = ComponentMapper(self)
-		self.systems = SystemMap(self)
-		self._renderers = ()
-		self.new_entity_id = itertools.count().next
-		self.new_entity_id() # skip id 0
-		self.entities = WorldEntities(self)
-		self.entity_types = entity_types
-		self.clock = pyglet.clock
-		self.time = 0
 	
 	def __getattr__(self, name):
 		"""Return a world-wrapped entity type for the given name"""
@@ -71,17 +89,52 @@ class World(object):
 			 '__register__': False, '__baseclass__': entity_type})
 		setattr(self, name, wrapped_type)
 		return wrapped_type
+		
+	def activate(self, manager):
+		"""Activate the mode for the given manager, if the mode is already active, 
+		do nothing
+
+		The systems of the world are pushed onto `manager.event_dispatcher`
+		"""
+		if not self.active:
+			for system in self.systems:
+				manager.event_dispatcher.push_handlers(system)
+		super(World, self).activate(manager)
+	
+	def deactivate(self, manager):
+		"""Deactivate the mode, if the mode is not active, do nothing
+
+		Removes the system handlers from the `manager.event_dispatcher`
+		"""
+		for system in self.systems:
+			manager.event_dispatcher.remove_handlers(system)
+		super(World, self).deactivate(manager)
+
+	def tick(self, dt):
+		"""Tick the mode's clock, but only if the world is currently running"""
+		if self.running:
+			super(World, self).tick(dt)
 	
 	def step(self, dt):
-		"""Execute a time step for the world. Updates the world time
+		"""Execute a time step for the world. Updates the world `time`
 		and invokes the world's systems.
+		
+		Note that the specified time delta will be pinned to 10x the
+		configured step rate. For example if the step rate is 60,
+		then dt will be pinned at a maximum of 0.1666. This avoids 
+		pathological behavior when the time between steps goes
+		much longer than expected.
 		"""
-		self.time += dt
+		dt = min(dt, 10.0 / self.step_rate)
 		self.components.step(dt)
 		self.systems.step(dt)
-	
-	def draw(self):
-		"""Dispatch the renderers' `draw()` methods in order"""
+
+	def on_draw(self, gl=pyglet.gl):
+		"""Clear the current OpenGL context, reset the model/view matrix and
+		invoke the `draw()` methods of the renderers in order
+		"""
+		gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+		gl.glLoadIdentity()
 		for renderer in self.renderers:
 			renderer.draw()
 
