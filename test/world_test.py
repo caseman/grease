@@ -266,6 +266,8 @@ class WorldTestCase(unittest.TestCase):
 		self.assertEqual(union_extent_1_2.entities, set(entities[:-1]))
 		union_extent_2_3 = world[Entity2, Entity3]
 		self.assertEqual(union_extent_2_3.entities, set(entities[1:]))
+		union_extent_1_3 = world[Entity1, Entity3]
+		self.assertEqual(union_extent_1_3.entities, set(entities))
 
 	def test_full_extent(self):
 		from grease import World, Entity
