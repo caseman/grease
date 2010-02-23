@@ -12,11 +12,17 @@ from grease.pygletsys import KeyControls
 
 ## Utility functions ##
 
+SCRIPT_DIR_PATH = os.path.dirname(__file__)
+
 def load_sound(name, streaming=False):
+	"""Load a sound from the `sfx` directory"""
 	return pyglet.media.load(
-		'%s/sfx/%s' % (os.path.dirname(__file__), name), streaming=streaming)
+		'%s/sfx/%s' % (SCRIPT_DIR_PATH, name), streaming=streaming)
 
 def looping_sound(name):
+	"""Load a sound from the `sfx` directory and configure it too loop
+	continuously
+	"""
 	player = pyglet.media.Player()
 	player.queue(load_sound(name, streaming=True))
 	player.eos_action = player.EOS_LOOP
@@ -31,7 +37,7 @@ class BlasteroidsEntity(grease.Entity):
 		"""Segment the entity shape into itty bits"""
 		shape = self.shape.verts.transform(angle=self.position.angle)
 		for segment in shape.segments():
-			debris = self.world.Debris()
+			debris = Debris(self.world)
 			debris.shape.verts = segment
 			debris.position.position = self.position.position
 			debris.movement.velocity = self.movement.velocity
@@ -47,6 +53,8 @@ class Debris(BlasteroidsEntity):
 class PlayerShip(BlasteroidsEntity):
 	"""Thrust ship piloted by the player"""
 
+	THRUST_ACCEL = 75
+	TURN_RATE = 240
 	SHAPE_VERTS = [
 		(-8, -12), (-4, -10), (0, -8), (4, -10), (8, -12), # flame
 		(0, 12), (-8, -12), (0, -8), (8, -12)]
@@ -58,49 +66,64 @@ class PlayerShip(BlasteroidsEntity):
 	COLLISION_RADIUS = 7.5
 	COLLIDE_INTO_MASK = 0x1
 
-	def __init__(self, invincible=False):
-		self.player.thrust_accel = 75
-		self.player.turn_rate = 240
-		self.player.invincible = invincible
-		if invincible:
-			self.world.clock.schedule_interval(self.blink, 0.3)
-		self.shape.verts = self.SHAPE_VERTS
-		self.shape.closed = False
-		self.collision.radius = 7.5
-		self.collision.into_mask = self.COLLIDE_INTO_MASK
-		self.reset()
-	
-	def blink(self, dt):
-		"""Blink the ship to show invincbility"""
-		self.player.invincible += 1
-		if self.player.invincible > 12:
-			self.player.invincible = 0
-			self.renderable.color = self.COLOR
-			self.collision.from_mask = 0xffffffff
-			self.collision.into_mask = self.COLLIDE_INTO_MASK
-			self.world.clock.unschedule(self.blink)
-		elif self.player.invincible % 2 == 0:
-			del self.renderable
-		else:
-			self.renderable.color = self.COLOR
-	
-	def reset(self, dt=None):
-		"""Reset player ship for new life"""
+	def __init__(self, world, invincible=False):
 		self.position.position = (0, 0)
 		self.position.angle = 0
 		self.movement.velocity = (0, 0)
 		self.movement.rotation = 0
+		self.shape.verts = self.SHAPE_VERTS
+		self.shape.closed = False
+		self.collision.radius = 7.5
 		self.renderable.color = self.COLOR
 		self.gun.firing = False
 		self.gun.last_fire_time = 0
 		self.gun.cool_down = self.GUN_COOL_DOWN
 		self.gun.sound = self.GUN_SOUND
+		self.set_invincible(invincible)
+	
+	def turn(self, direction):
+		self.movement.rotation = self.TURN_RATE * direction
+	
+	def thrust_on(self):
+		thrust_vec = geometry.Vec2d(0, self.THRUST_ACCEL)
+		thrust_vec.rotate(self.position.angle)
+		self.movement.accel = thrust_vec
+		self.shape.verts[2] = geometry.Vec2d(0, -16 - random.random() * 16)
+		self.THRUST_SOUND.play()
+	
+	def thrust_off(self):
+		self.movement.accel = geometry.Vec2d(0, 0)
+		self.shape.verts[2] = geometry.Vec2d(0, -8)
+		self.THRUST_SOUND.pause()
+	
+	def set_invincible(self, invincible):
+		"""Set the invincibility status of the ship. If invicible is
+		True then the ship will not collide with any obstacles and will
+		blink to indicate this. If False, then the normal collision 
+		behavior is restored
+		"""
+		if invincible:
+			self.collision.into_mask = 0
+			self.collision.from_mask = 0
+			self.world.clock.schedule_interval(self.blink, 0.15)
+			self.world.clock.schedule_once(lambda dt: self.set_invincible(False), 3)
+		else:
+			self.world.clock.unschedule(self.blink)
+			self.renderable.color = self.COLOR
+			self.collision.from_mask = 0xffffffff
+			self.collision.into_mask = self.COLLIDE_INTO_MASK
+	
+	def blink(self, dt):
+		"""Blink the ship to show invincbility"""
+		if self.renderable:
+			del self.renderable
+		else:
+			self.renderable.color = self.COLOR
 	
 	def on_collide(self, other, point, normal):
-		if not self.player.invincible:
-			self.explode()
-			self.DEATH_SOUND.play()
-			self.world.systems.game.player_died()
+		self.explode()
+		self.DEATH_SOUND.play()
+		self.world.systems.game.player_died()
 
 
 class Asteroid(BlasteroidsEntity):
@@ -116,7 +139,7 @@ class Asteroid(BlasteroidsEntity):
 	UNIT_CIRCLE = [(math.sin(math.radians(a)), math.cos(math.radians(a))) 
 		for a in range(0, 360, 18)]
 	
-	def __init__(self, radius=45, position=None, parent_velocity=None, points=25):
+	def __init__(self, world, radius=45, position=None, parent_velocity=None, points=25):
 		if position is None:
 			self.position.position = (
 				random.choice([-1, 1]) * random.randint(50, window.width / 2), 
@@ -141,7 +164,7 @@ class Asteroid(BlasteroidsEntity):
 		if self.collision.radius > 15:
 			chunk_size = self.collision.radius / 2.0
 			for i in range(2):
-				self.world.Asteroid(chunk_size, self.position.position, 
+				Asteroid(self.world, chunk_size, self.position.position, 
 					self.movement.velocity, self.award.points * 2)
 		random.choice(self.HIT_SOUNDS).play()
 		self.explode()
@@ -162,7 +185,7 @@ class Shot(grease.Entity):
 	SPEED = 300
 	TIME_TO_LIVE = 0.75 # seconds
 	
-	def __init__(self, shooter, angle):
+	def __init__(self, world, shooter, angle):
 		offset = geometry.Vec2d(0, shooter.collision.radius)
 		offset.rotate(angle)
 		self.position.position = shooter.position.position + offset
@@ -172,7 +195,7 @@ class Shot(grease.Entity):
 		self.collision.radius = 2.0
 		self.collision.from_mask = ~shooter.collision.into_mask
 		self.renderable.color = (1.0, 1.0, 1.0)
-		self.world.clock.schedule_once(self.expire, self.TIME_TO_LIVE)
+		world.clock.schedule_once(self.expire, self.TIME_TO_LIVE)
 
 	def on_collide(self, other, point, normal):
 		self.world.systems.game.award_points(other)
@@ -195,13 +218,13 @@ class PositionWrapper(grease.System):
 		self.half_height = window.height / 2
 
 	def step(self, dt):
-		for entity in self.world.Entity.collision.aabb.right < -self.half_width:
+		for entity in self.world[...].collision.aabb.right < -self.half_width:
 			entity.position.position.x += window.width + entity.collision.aabb.width
-		for entity in self.world.Entity.collision.aabb.left > self.half_width:
+		for entity in self.world[...].collision.aabb.left > self.half_width:
 			entity.position.position.x -= window.width + entity.collision.aabb.width
-		for entity in self.world.Entity.collision.aabb.top < -self.half_height:
+		for entity in self.world[...].collision.aabb.top < -self.half_height:
 			entity.position.position.y += window.height + entity.collision.aabb.height 
-		for entity in self.world.Entity.collision.aabb.bottom > self.half_height:
+		for entity in self.world[...].collision.aabb.bottom > self.half_height:
 			entity.position.position.y -= window.height + entity.collision.aabb.height
 
 
@@ -209,9 +232,9 @@ class Gun(grease.System):
 	"""Fires Shot entities"""
 
 	def step(self, dt):
-		for entity in self.world.Entity.gun.firing == True:
+		for entity in self.world[...].gun.firing == True:
 			if self.world.time >= entity.gun.last_fire_time + entity.gun.cool_down:
-				self.world.Shot(entity, entity.position.angle)
+				Shot(self.world, entity, entity.position.angle)
 				if entity.gun.sound is not None:
 					entity.gun.sound.play()
 				entity.gun.last_fire_time = self.world.time
@@ -224,7 +247,7 @@ class Sweeper(grease.System):
 
 	def step(self, dt):
 		fade = dt / self.SWEEP_TIME
-		for entity in tuple(self.world.Debris.entities):
+		for entity in tuple(self.world[Debris].entities):
 			color = entity.renderable.color
 			if color.a > 0.2:
 				color.a = max(color.a - fade, 0)
@@ -251,13 +274,13 @@ class Game(KeyControls):
 		self.level = 0
 		self.lives = 3
 		self.score = 0
-		self.player_ship = self.world.PlayerShip()
+		self.player_ship = PlayerShip(self.world)
 		self.start_level()
 	
 	def start_level(self):
 		self.level += 1
 		for i in range(self.level * 3 + 1):
-			self.world.Asteroid()
+			Asteroid(self.world)
 		self.chime_time = self.MAX_CHIME_TIME
 		self.chimes = itertools.cycle(self.CHIME_SOUNDS)
 		if self.level == 1:
@@ -277,14 +300,14 @@ class Game(KeyControls):
 		
 	def player_respawn(self, dt=None):
 		"""Rise to fly again, with temporary invincibility"""
-		self.player_ship = self.world.PlayerShip(invincible=True)
+		self.player_ship = PlayerShip(self.world, invincible=True)
 
 	def chime(self, dt=0):
 		"""Play tension building chime sounds"""
 		if self.lives:
 			self.chimes.next().play()
 			self.chime_time = max(self.chime_time - dt * 0.01, self.MIN_CHIME_TIME)
-			if not self.world.Asteroid.entities:
+			if not self.world[Asteroid].entities:
 				self.start_level()
 			self.world.clock.schedule_once(self.chime, self.chime_time)
 	
@@ -292,44 +315,38 @@ class Game(KeyControls):
 	@KeyControls.key_press(key.A)
 	def start_turn_left(self):
 		if self.player_ship.exists:
-			self.player_ship.movement.rotation = -self.player_ship.player.turn_rate
+			self.player_ship.turn(-1)
 
 	@KeyControls.key_release(key.LEFT)
 	@KeyControls.key_release(key.A)
 	def stop_turn_left(self):
 		if self.player_ship.exists and self.player_ship.movement.rotation < 0:
-			self.player_ship.movement.rotation = 0
+			self.player_ship.turn(0)
 
 	@KeyControls.key_press(key.RIGHT)
 	@KeyControls.key_press(key.D)
 	def start_turn_left(self):
 		if self.player_ship.exists:
-			self.player_ship.movement.rotation = self.player_ship.player.turn_rate
+			self.player_ship.turn(1)
 
 	@KeyControls.key_release(key.RIGHT)
 	@KeyControls.key_release(key.D)
 	def stop_turn_left(self):
 		if self.player_ship.exists and self.player_ship.movement.rotation > 0:
-			self.player_ship.movement.rotation = 0
+			self.player_ship.turn(0)
 	
 	@KeyControls.key_hold(key.UP)
 	@KeyControls.key_hold(key.W)
 	def thrust(self, dt):
 		if self.player_ship.exists:
-			thrust_vec = geometry.Vec2d(0, self.player_ship.player.thrust_accel)
-			thrust_vec.rotate(self.player_ship.position.angle)
-			self.player_ship.movement.accel = thrust_vec
-			self.player_ship.shape.verts[2] = geometry.Vec2d(0, -16 - random.random() * 16)
-			self.player_ship.THRUST_SOUND.play()
-	
+			self.player_ship.thrust_on()
+		
 	@KeyControls.key_release(key.UP)
 	@KeyControls.key_release(key.W)
 	def stop_thrust(self):
 		if self.player_ship.exists:
-			self.player_ship.movement.accel = geometry.Vec2d(0, 0)
-			self.player_ship.shape.verts[2] = geometry.Vec2d(0, -8)
-			self.player_ship.THRUST_SOUND.pause()
-
+			self.player_ship.thrust_off()
+			
 	@KeyControls.key_press(key.SPACE)
 	def start_firing(self):
 		if self.player_ship.exists:
@@ -348,7 +365,7 @@ class Game(KeyControls):
 class Hud(grease.Renderer):
 	"""Heads-up display renderer"""
 	
-	pyglet.font.add_file(os.path.dirname(__file__) + '/font/Vectorb.ttf')
+	pyglet.font.add_file(SCRIPT_DIR_PATH + '/font/Vectorb.ttf')
 	HUD_FONT = pyglet.font.load('Vector Battle')
 
 	def set_world(self, world):
@@ -390,7 +407,7 @@ class Hud(grease.Renderer):
 		left = -window.width // 2 + 25
 		top = window.height // 2 - 25
 		for i in range(20):
-			entity = self.world.HudEntity()
+			entity = HudEntity(self.world)
 			entity.shape.verts = verts.transform(scale=0.75)
 			entity.position.position = (i * 20 + left, top)
 			self.lives.append((i, entity))
@@ -407,10 +424,6 @@ class GameWorld(grease.World):
 			renderable=component.Renderable(),
 			collision=component.Collision(),
 			# Custom components
-			player=component.Component(
-				thrust_accel=float, 
-				turn_rate=float, 
-				invincible=int),
 			gun=component.Component(
 				firing=bool, 
 				last_fire_time=float, 
@@ -434,6 +447,7 @@ class GameWorld(grease.World):
 		)
 
 def main():
+	"""Initialize and run the game"""
 	global window
 	window = mode.ManagerWindow()
 	window.push_mode(GameWorld())

@@ -1,35 +1,24 @@
-import warnings
 
-# Mapping of defined entity types, managed by the EntityTypeRegistrar
-# and used by World objects
-entity_types = {}
+class EntityMeta(type):
+	"""The entity metaclass enforces fixed slots of `entity_id` and `world`
+	for all subclasses. This prevents accidental use of other entity instance 
+	attributes, which may not be saved. 
+	
+	Class attributes are not affected by this restriction, but subclasses
+	should be careful not to cause name collisions with world components,
+	which are exposed as entity attributes. Using a naming convention for
+	class attributes, such as UPPER_CASE_WITH_UNDERSCORES is recommended to
+	avoid name clashes.
 
-class EntityTypeRegistrar(type):
-	"""Simple entity metaclass that registers entity types
-	so they can be access from World instances for context
-	wrapping.
+	Note as a result of this, entity subclasses are not allowed to define
+	`__slots__`, and doing so will cause a `TypeError` to be raised.
 	"""
 
 	def __new__(cls, name, bases, clsdict):
-		newcls = type.__new__(cls, name, bases, clsdict)
-		if clsdict.get('__register__', True):
-			if name not in entity_types:
-				entity_types[name] = newcls
-			else:
-				warnings.warn("duplicate Entity class name: %s. "
-					"Only the original class with that name will be "
-					"available for instantiation via worlds." % name)
-		return newcls
-	
-	def __getattr__(cls, name):
-		"""Class getattr hook to provide access to components for
-		the extent of a given classes entities
-		"""
-		try:
-			component = cls.world.components[name]
-		except KeyError:
-			raise AttributeError("No such component: %s" % name)
-		return ComponentEntitySet(component, cls.entities & component.entities)
+		if '__slots__' in clsdict:
+			raise TypeError('__slots__ may not be defined in Entity subclasses')
+		clsdict['__slots__'] = ('world', 'entity_id')
+		return type.__new__(cls, name, bases, clsdict)
 
 
 class Entity(object):
@@ -39,41 +28,25 @@ class Entity(object):
 	of component data for a single entity, they do not contain any data
 	themselves other than an entity id.
 
-	You cannot instantiate an Entity class directly, entities must be
-	instantiated in the context of a world. Subclasses of Entity are
-	automatically registered with grease so that they can be accessed as
-	attributes of any World instance. When accessed as attributes of a world,
-	the Entity class is automatically put into the context of that world so
-	that it can be instantiated, e.g.:
+	Entities must be instantiated in the context of a world. To instantiate an
+	entity, you must pass the world as the first argument to the constructor.
+	Subclasses that implement the `__init__()` method, must accept the world
+	as their first argument (after `self`). Other constructor arguments can be
+	specified arbitarily by the subclass.
 
-	entity = my_world.Entity()
+	Attributes:
+		`world`: The :class:`grease.World` object that this entity belongs to
+
+		`entity_id`: Unique entity identifier
 	"""
+	__metaclass__ = EntityMeta
 
-	__metaclass__ = EntityTypeRegistrar
-
-	# Set this flag to False in a subclass to disable
-	# automatic registration for this entity type. This
-	# can be useful for abstract base classes to avoid
-	# namespace pollution
-	__register__ = True
-
-	# class attributes set by the metaclass
-	world = None
-	__baseclass__ = None
-
-	def __new__(cls, *args, **kw):
+	def __new__(cls, world, *args, **kw):
 		"""Create a new entity and add it to the world"""
-		if cls.world is None:
-			raise RuntimeError(
-				"Cannot instantiate %s outside of a world. Try using world.%s(...)" 
-				% (cls.__name__, cls.__name__))
 		entity = object.__new__(cls)
-		entity.entity_id = cls.world.new_entity_id()
-		cls.world.entities.add(entity)
-		for clsname in cls.world.entity_types:
-			entity_cls = getattr(cls.world, clsname)
-			if issubclass(cls.__baseclass__, entity_cls.__baseclass__):
-				entity_cls.entities.add(entity)
+		entity.world = world
+		entity.entity_id = world.new_entity_id()
+		world.entities.add(entity)
 		return entity
 	
 	def __getattr__(self, name):
@@ -85,7 +58,7 @@ class Entity(object):
 		return EntityComponentAccessor(component, self)
 	
 	def __setattr__(self, name, value):
-		if name == 'entity_id':
+		if name in self.__class__.__slots__:
 			super(Entity, self).__setattr__(name, value)
 		else:
 			try:
@@ -117,17 +90,7 @@ class Entity(object):
 		"""Delete the entity from its world. If then entity has already
 		been deleted, this call does nothing
 		"""
-		for clsname in self.world.entity_types:
-			cls = getattr(self.world, clsname)
-			if issubclass(self.__baseclass__, cls.__baseclass__):
-				try:
-					cls.entities.remove(self)
-				except KeyError:
-					pass
-		try:
-			self.world.entities.remove(self)
-		except KeyError:
-			pass
+		self.world.entities.discard(self)
 
 	@property
 	def exists(self):

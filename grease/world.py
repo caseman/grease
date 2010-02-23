@@ -1,8 +1,9 @@
 import itertools
 import pyglet
 from pyglet import gl
-from grease import entity, mode
+from grease import mode
 from grease.component import ComponentError
+from grease.entity import Entity, ComponentEntitySet
 
 
 class World(mode.Mode):
@@ -45,16 +46,17 @@ class World(mode.Mode):
 	and stepping the world. Set running to False to pause the world.
 	"""
 
-	def __init__(self, step_rate=60, master_clock=pyglet.clock, 
-		         entity_types=entity.entity_types):
-		super(World, self).__init__(step_rate, master_clock)
+	def __init__(self, step_rate=60, master_clock=pyglet.clock,
+		         clock_factory=pyglet.clock.Clock):
+		super(World, self).__init__(step_rate, master_clock, clock_factory)
 		self.components = ComponentMapper(self)
 		self.systems = SystemMap(self)
 		self._renderers = ()
 		self.new_entity_id = itertools.count().next
 		self.new_entity_id() # skip id 0
-		self.entities = WorldEntities(self)
-		self.entity_types = entity_types
+		self.entities = WorldEntitySet(self)
+		self._full_extent = EntityExtent(self, self.entities)
+		self._extents = {}
 		self.configure()
 
 	def configure(self):
@@ -78,17 +80,32 @@ class World(mode.Mode):
 		doc="""A sequence of renderers. Renderers define the presentation
 		of the world""")
 	
-	def __getattr__(self, name):
-		"""Return a world-wrapped entity type for the given name"""
+	def __getitem__(self, entity_class):
+		"""Return an entity extent for the given entity class. This extent
+		can be used to access the set of entities of that class in the world
+		or to query these entities via their components. 
+
+		`entity_class` may also be a tuple of entity classes, in which case
+		the extent returned contains union of all entities of the classes
+		in the world.
+
+		`entity_class` may also be the special value ellipsis (...), which
+		returns an extent containing all entities in the world.  This allows
+		you to conveniently query all entities using `world[...]`.
+		"""
+		if isinstance(entity_class, tuple):
+			entities = set()
+			for cls in entity_class:
+				if cls in self._extents:
+					entities |= self._extents[cls].entities
+			return EntityExtent(self, entities)
+		elif entity_class is Ellipsis:
+			return self._full_extent
 		try:
-			entity_type = self.entity_types[name]
+			return self._extents[entity_class]
 		except KeyError:
-			raise AttributeError(name)
-		wrapped_type = type(name, (entity_type,), 
-			{'world': self, 'entities': set(), '__slots__': ['entity_id'],
-			 '__register__': False, '__baseclass__': entity_type})
-		setattr(self, name, wrapped_type)
-		return wrapped_type
+			extent = self._extents[entity_class] = EntityExtent(self, set())
+			return extent
 		
 	def activate(self, manager):
 		"""Activate the mode for the given manager, if the mode is already active, 
@@ -139,20 +156,63 @@ class World(mode.Mode):
 			renderer.draw()
 
 
-class WorldEntities(set):
+class WorldEntitySet(set):
 	"""Entity set for a :class:`World`"""
 
 	def __init__(self, world):
 		self.world = world
+	
+	def add(self, entity):
+		"""Add the entity to the set and all necessary class sets
+		Return the unique entity id for the entity, creating one
+		as needed.
+		"""
+		super(WorldEntitySet, self).add(entity)
+		for cls in entity.__class__.__mro__:
+			if issubclass(cls, Entity):
+				self.world[cls].entities.add(entity)
 
 	def remove(self, entity):
-		"""Remove the entity from the set and all world components"""
-		super(WorldEntities, self).remove(entity)
+		"""Remove the entity from the set and, world components,
+		and all necessary class sets
+		"""
+		super(WorldEntitySet, self).remove(entity)
 		for component in self.world.components.itervalues():
 			try:
 				del component[entity]
 			except KeyError:
 				pass
+		for cls in entity.__class__.__mro__:
+			if issubclass(cls, Entity):
+				self.world[cls].entities.discard(entity)
+	
+	def discard(self, entity):
+		"""Remove the entity from the set if it exists, if not,
+		do nothing
+		"""
+		try:
+			self.remove(entity)
+		except KeyError:
+			pass
+
+
+class EntityExtent(object):
+	"""Encapsulates a set of entities queriable by component"""
+
+	entities = None
+	"""The full set of entities in the extent""" 
+
+	def __init__(self, world, entities):
+		self.__world = world
+		self.entities = entities
+
+	def __getattr__(self, name):
+		"""Access a component for the set of entities for querying"""
+		try:
+			component = self.__world.components[name]
+		except KeyError:
+			raise AttributeError("No such component: %s" % name)
+		return ComponentEntitySet(component, self.entities & component.entities)
 
 
 class ComponentMapper(dict):

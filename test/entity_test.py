@@ -1,18 +1,11 @@
 import unittest
 import itertools
 
-from grease import Entity
 
 
 class TestWorld(object):
-	entity_types = {'Entity': Entity}
 	
 	def __init__(self, **kw):
-		for ename, etype in self.entity_types.items():
-			wrapped = type(ename, (etype,), 
-				{'world': self, 'entities': set(), 
-				'__register__': False, '__baseclass__': etype})
-			setattr(self, ename, wrapped)
 		self.components = kw
 		self.entities = set()
 		self.new_entity_id = itertools.count().next
@@ -43,62 +36,56 @@ class TestData(object):
 		self.__dict__.update(kw)
 
 
-class TestEntity(Entity):
-	
-	def __new__(cls, world=None, id=1):
-		entity = object.__new__(cls)
-		entity.__dict__['world'] = world
-		entity.__dict__['entity_id'] = id
-		return entity
-	
-	def __init__(self, world=None, id=1):
-		super(TestEntity, self).__init__()
-
-TestEntity.__baseclass__ = TestEntity
-
-
-class EntityTest(unittest.TestCase):
+class EntityTestCase(unittest.TestCase):
 	
 	def test_repr(self):
-		entity = TestEntity(TestWorld(), 72)
-		self.assertTrue(repr(entity).startswith('<TestEntity id: 72 of TestWorld'), repr(entity))
+		from grease import Entity
+		entity = Entity(TestWorld())
+		self.assertTrue(repr(entity).startswith(
+			'<Entity id: %s of TestWorld' % entity.entity_id), 
+			('<Entity id: %s of TestWorld' % entity.entity_id, repr(entity)))
 	
 	def test_accessor_getattr_for_nonexistant_component(self):
+		from grease import Entity
 		comp = TestComponent()
 		world = TestWorld(test=comp)
-		entity = TestEntity(world, 72)
+		entity = Entity(world)
 		self.assertTrue(entity not in comp)
 		self.assertRaises(AttributeError, getattr, entity, 'foo')
 	
 	def test_accessor_getattr_for_non_member_entity(self):
+		from grease import Entity
 		comp = TestComponent()
 		world = TestWorld(test=comp)
-		entity = TestEntity(world, 96)
+		entity = Entity(world)
 		accessor = entity.test
 		self.assertFalse(entity in comp)
 		self.assertRaises(AttributeError, getattr, accessor, 'attr')
 	
 	def test_accessor_getattr_for_member_entity(self):
+		from grease import Entity
 		comp = TestComponent()
 		world = TestWorld(test=comp)
-		entity = TestEntity(world, 96)
+		entity = Entity(world)
 		comp.set(entity)
 		self.assertTrue(entity in comp)
 		self.assertEqual(entity.test.attr, 'deadbeef')
 	
 	def test_accessor_setattr_adds_non_member_entity(self):
+		from grease import Entity
 		comp = TestComponent()
 		world = TestWorld(test=comp)
-		entity = TestEntity(world, 101)
+		entity = Entity(world)
 		self.assertFalse(entity in comp)
 		entity.test.attr = 'foobar'
 		self.assertEqual(entity.test.attr, 'foobar')
 		self.assertTrue(entity in comp)
 
 	def test_accessor_setattr_for_member_entity(self):
+		from grease import Entity
 		comp = TestComponent()
 		world = TestWorld(test=comp)
-		entity = TestEntity(world, 999)
+		entity = Entity(world)
 		comp.set(entity)
 		self.assertNotEqual(entity.test.attr, 'spam')
 		entity.test.attr = 'spam'
@@ -106,34 +93,46 @@ class EntityTest(unittest.TestCase):
 		self.assertEqual(entity.test.attr, 'spam')
 	
 	def test_eq(self):
+		from grease import Entity
 		world = TestWorld()
-		self.assertEqual(TestEntity(world, 78), TestEntity(world, 78))
+		e1 = Entity(world)
+		e2 = Entity(world)
+		self.assertNotEqual(e1, e2)
+		e2.entity_id = e1.entity_id
+		self.assertEqual(e1, e2)
 		otherworld = TestWorld()
-		self.assertNotEqual(TestEntity(world, 8), TestEntity(otherworld, 8))
-		self.assertNotEqual(TestEntity(world, 51), TestEntity(world, 32))
+		e3 = Entity(otherworld)
+		self.assertNotEqual(e1, e3)
+		self.assertNotEqual(e2, e3)
+		e3.entity_id = e1.entity_id
+		self.assertNotEqual(e1, e3)
+		self.assertNotEqual(e2, e3)
 	
 	def test_delattr(self):
+		from grease import Entity
 		comp = TestComponent()
 		world = TestWorld(test=comp)
-		entity = TestEntity(world, 88)
+		entity = Entity(world)
 		comp.set(entity)
 		self.failUnless(entity in comp)
 		del entity.test
 		self.failIf(entity in comp)
 	
 	def test_entity_id(self):
+		from grease import Entity
 		world = TestWorld()
-		entity1 = world.Entity()
-		entity2 = world.Entity()
+		entity1 = Entity(world)
+		entity2 = Entity(world)
 		self.assertTrue(entity1.entity_id > 0)
 		self.assertTrue(entity2.entity_id > 0)
 		self.assertNotEqual(entity1.entity_id, entity2.entity_id)
 	
 	def test_delete_exists(self):
+		from grease import Entity
 		world = TestWorld()
 		self.assertEqual(world.entities, set())
-		entity1 = world.Entity()
-		entity2 = world.Entity()
+		entity1 = Entity(world)
+		entity2 = Entity(world)
 		self.assertEqual(world.entities, set([entity1, entity2]))
 		self.assertTrue(entity1.exists)
 		self.assertTrue(entity2.exists)
@@ -146,66 +145,53 @@ class EntityTest(unittest.TestCase):
 		self.assertFalse(entity1.exists)
 		self.assertFalse(entity2.exists)
 	
-	def test_entity_baseclass_sets(self):
-		class Foo(Entity):
+	def test_entity_subclass_slots(self):
+		from grease import Entity
+		class NewEntity(Entity):
 			pass
-
-		class Bar(Foo):
-			pass
-
-		class Baz(Entity):
-			pass
-
-		class World(TestWorld):
-			entity_types = {'Entity': Entity, 'Foo': Foo, 'Bar': Bar, 'Baz':Baz}
-		world = World()
-		foo = world.Foo()
-		self.assertTrue(foo in world.entities)
-		self.assertTrue(foo not in world.Bar.entities)
-		self.assertTrue(foo not in world.Baz.entities)
-		self.assertTrue(foo in world.Foo.entities)
-		self.assertTrue(foo in world.Entity.entities)
-		bar = world.Bar()
-		self.assertTrue(bar in world.entities)
-		self.assertTrue(bar in world.Bar.entities)
-		self.assertTrue(bar in world.Foo.entities)
-		self.assertTrue(bar not in world.Baz.entities)
-		self.assertTrue(bar in world.Entity.entities)
-		baz = world.Baz()
-		self.assertTrue(baz in world.entities)
-		self.assertTrue(baz not in world.Bar.entities)
-		self.assertTrue(baz not in world.Foo.entities)
-		self.assertTrue(baz in world.Baz.entities)
-		self.assertTrue(baz in world.Entity.entities)
-
-		bar.delete()
-		self.assertTrue(bar not in world.entities)
-		self.assertTrue(bar not in world.Bar.entities)
-		self.assertTrue(bar not in world.Foo.entities)
-		self.assertTrue(bar not in world.Baz.entities)
-		self.assertTrue(bar not in world.Entity.entities)
+		world = TestWorld()
+		entity = NewEntity(world)
+		self.assertRaises(AttributeError, setattr, entity, 'notanattr', 1234)
+	
+	def test_entity_subclass_cant_have_slots(self):
+		from grease import Entity
+		self.assertRaises(TypeError, 
+			type, 'Test', (Entity,), {'__slots__': ('foo', 'bar')})
+	
+	def test_entity_subclass_init(self):
+		from grease import Entity
+		stuff = []
+		class TestEntity(Entity):
+			def __init__(self, world, other):
+				stuff.append(world)
+				stuff.append(other)
+		world = TestWorld()
+		TestEntity(world, self)
+		self.assertEqual(stuff, [world, self])
 
 
 class EntityComponentAccessorTestCase(unittest.TestCase):
 
 	def test_getattr(self):
-		world = TestWorld()
 		from grease.entity import EntityComponentAccessor
-		entity = TestEntity(world, id=1)
+		from grease import Entity
+		world = TestWorld()
+		entity = Entity(world)
 		component = {entity: TestData(foo=5)}
 		accessor = EntityComponentAccessor(component, entity)
 		self.assertEqual(accessor.foo, 5)
 		self.assertRaises(AttributeError, getattr, accessor, 'bar')
 
-		entity2 = TestEntity(world, id=2)
+		entity2 = Entity(world)
 		accessor = EntityComponentAccessor(component, entity2)
 		self.assertRaises(AttributeError, getattr, accessor, 'foo')
 		self.assertRaises(AttributeError, getattr, accessor, 'bar')
 	
 	def test_setattr_member_entity(self):
 		from grease.entity import EntityComponentAccessor
+		from grease import Entity
 		world = TestWorld()
-		entity = TestEntity(world)
+		entity = Entity(world)
 		data = TestData(foo=5)
 		accessor = EntityComponentAccessor({entity: data}, entity)
 		self.assertEqual(data.foo, 5)
@@ -216,8 +202,9 @@ class EntityComponentAccessorTestCase(unittest.TestCase):
 	
 	def test_setattr_nonmember_entity(self):
 		from grease.entity import EntityComponentAccessor
+		from grease import Entity
 		world = TestWorld()
-		entity = TestEntity(world)
+		entity = Entity(world)
 		component = TestComponent()
 		accessor = EntityComponentAccessor(component, entity)
 		self.assertRaises(AttributeError, getattr, entity, 'baz')
@@ -229,8 +216,9 @@ class EntityComponentAccessorTestCase(unittest.TestCase):
 	
 	def test_truthiness(self):
 		from grease.entity import EntityComponentAccessor
+		from grease import Entity
 		world = TestWorld()
-		entity = TestEntity(world)
+		entity = Entity(world)
 		component = TestComponent()
 		accessor = EntityComponentAccessor(component, entity)
 		self.assertFalse(accessor)

@@ -128,12 +128,13 @@ class Mode(object):
 	manager = None
 	"""The :class:`BaseManager` that manages this mode"""
 
-	def __init__(self, step_rate=60, master_clock=pyglet.clock):
+	def __init__(self, step_rate=60, master_clock=pyglet.clock, 
+		         clock_factory=pyglet.clock.Clock):
 		self.step_rate = step_rate
 		self.active = False
 		self.time = 0.0
 		self.master_clock = master_clock
-		self.clock = pyglet.clock.Clock(time_function=lambda: self.time)
+		self.clock = clock_factory(time_function=lambda: self.time)
 		self.clock.schedule_interval(self.step, 1.0 / step_rate)
 	
 	def tick(self, dt):
