@@ -78,13 +78,13 @@ class BaseManager(object):
 		Returns:
 			`mode` (Mode): The mode object that was deactivated and replaced.
 		"""
-		mode = self.modes.pop()
-		mode.deactivate(self)
-		self.event_dispatcher.remove_handlers(mode)
+		old_mode = self.modes.pop()
+		old_mode.deactivate(self)
+		self.event_dispatcher.remove_handlers(old_mode)
 		self.modes.append(mode)
 		self.event_dispatcher.push_handlers(mode)
 		mode.activate(self)
-		return mode
+		return old_mode
 
 
 class Manager(BaseManager):
@@ -110,6 +110,15 @@ class ManagerWindow(BaseManager, pyglet.window.Window):
 		super(ManagerWindow, self).__init__(*args, **kw)
 		self.modes = []
 		self.event_dispatcher = self
+
+	def on_last_mode_pop(self, mode):
+		"""Hook executed when the last mode is popped from the manager.
+		When the last mode is popped from a window, the window is closed.
+
+		Args:
+			`mode` (Mode): The mode object just popped from the manager
+		"""
+		self.close()
 
 
 class Mode(object):

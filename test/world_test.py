@@ -74,6 +74,8 @@ class TestGL(object):
 class TestClock(object):
 	def __init__(self, time_function=None):
 		self.scheduled = []
+		self.time_func = time_function
+		self.ticks = 0
 
 	def schedule_interval(self, what, interval):
 		self.scheduled.append((what, interval))
@@ -86,6 +88,9 @@ class TestClock(object):
 			if self.scheduled[i][0] == what:
 				del self.scheduled[i]
 				return
+	
+	def tick(self, poll=True):
+		self.ticks += 1
 
 class TestModeManager(object):
 	def __init__(self):
@@ -105,7 +110,9 @@ class WorldTestCase(unittest.TestCase):
 		from grease import World
 		world = World(clock_factory=TestClock)
 		self.assertEqual(world.step_rate, 60)
+		self.assertFalse(world.active)
 		self.assertTrue(world.running)
+		self.assertEqual(world.time, 0)
 		self.assertTrue((world.step, 1.0/60) in world.clock.scheduled)
 	
 	def test_overrides(self):
@@ -493,13 +500,19 @@ class WorldTestCase(unittest.TestCase):
 	
 	def test_tick_increments_world_time(self):
 		from grease import World
-		world = World()
+		world = World(clock_factory=TestClock)
 		self.assertEqual(world.time, 0)
+		self.assertEqual(world.clock.ticks, 0)
+		self.assertEqual(world.clock.time_func(), world.time)
 		dt = 1.0/30.0
 		world.tick(dt)
 		self.assertAlmostEqual(world.time, dt)
+		self.assertEqual(world.clock.time_func(), world.time)
+		self.assertEqual(world.clock.ticks, 1)
 		world.tick(dt)
 		self.assertAlmostEqual(world.time, dt*2)
+		self.assertEqual(world.clock.time_func(), world.time)
+		self.assertEqual(world.clock.ticks, 2)
 	
 	def test_running(self):
 		from grease import World
