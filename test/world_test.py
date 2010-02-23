@@ -251,6 +251,21 @@ class WorldTestCase(unittest.TestCase):
 		self.assertFalse(subsub in sub_extent.entities)
 		self.assertFalse(subsub in subsub_extent.entities)
 		self.assertFalse(subsub in another_extent.entities)
+	
+	def test_union_extent(self):
+		from grease import World, Entity
+		class Entity1(Entity):
+			pass
+		class Entity2(Entity1):
+			pass
+		class Entity3(Entity):
+			pass
+		world = World()
+		entities = [Entity1(world), Entity2(world), Entity2(world), Entity3(world)]
+		union_extent_1_2 = world[Entity1, Entity2]
+		self.assertEqual(union_extent_1_2.entities, set(entities[:-1]))
+		union_extent_2_3 = world[Entity2, Entity3]
+		self.assertEqual(union_extent_2_3.entities, set(entities[1:]))
 
 	def test_full_extent(self):
 		from grease import World, Entity
