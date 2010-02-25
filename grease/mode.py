@@ -85,6 +85,19 @@ class BaseManager(object):
 		self.event_dispatcher.push_handlers(mode)
 		mode.activate(self)
 		return old_mode
+	
+	def remove_mode(self, mode):
+		"""Remove the specified mode. If the mode is at the top of the stack,
+		this is equivilant to :method:`pop_mode()`. If not, no other modes
+		are affected. If the mode is not in the manager, do nothing.
+		"""
+		if self.current_mode is mode:
+			self.pop_mode()
+		else:
+			try:
+				self.modes.remove(mode)
+			except ValueError:
+				pass
 
 
 class Manager(BaseManager):
@@ -111,20 +124,33 @@ class ManagerWindow(BaseManager, pyglet.window.Window):
 		self.modes = []
 		self.event_dispatcher = self
 
+	def on_key_press(self, symbol, modifiers):
+		"""Default on_key_press handler, pops the current mode on ESC"""
+		if symbol == pyglet.window.key.ESCAPE:
+			self.pop_mode()
+
 	def on_last_mode_pop(self, mode):
 		"""Hook executed when the last mode is popped from the manager.
-		When the last mode is popped from a window, the window is closed.
+		When the last mode is popped from a window, an `on_close` event
+		is dispatched.
 
 		Args:
 			`mode` (Mode): The mode object just popped from the manager
 		"""
-		self.close()
+		self.dispatch_event('on_close')
 
 
 class Mode(object):
 	"""Application mode abstract base class
 
 	Subclasses must implement the :method:`step()` method
+	
+	Args:
+		`step_rate`: The rate of `step()` calls per second. 
+
+		`master_clock`: The :class:`pyglet.clock.Clock` interface used
+			as the master clock that ticks the world's clock. This 
+			defaults to the main pyglet clock.
 	"""
 	__metaclass__ = abc.ABCMeta
 
@@ -175,4 +201,233 @@ class Mode(object):
 		"""
 		self.master_clock.unschedule(self.tick)
 		self.active = False
+
+
+class Multi(Mode):
+	"""A mode with multiple submodes. One submode is active at one time.
+	Submodes can be switched to directly or switched in sequence. If
+	the Multi is active, then one submode is always active.
+
+	Multis are useful when modes can switch in an order other than
+	a FIFO stack, such as in "hotseat" multiplayer games, or a
+	"wizard" style ui.
+
+	Note unlike a normal :class:`Mode`, a :class:`Multi` doesn't
+	have it's own `clock` and `step_rate`. The active submode's are
+	used instead.
+	"""
+	active_submode = None
+	"""The currently active submode"""
+
+	def __init__(self, *submodes):
+		# We do not invoke the superclass __init__ intentionally
+		self.time = 0.0
+		self.active = False
+		self.submodes = list(submodes)
+	
+	def add_submode(self, mode, before=None, index=None):
+		"""Add the submode, but do not make it active.
+
+		Args:
+			`mode`: The mode to add.
+
+			`before`: The existing mode to insert the mode before. 
+				If the mode specified is not a submode, raise
+				ValueError.
+
+			`index`: The place to insert the mode in the mode list.
+				Only one of `before` or `index` may be specified.
+
+			If neither `before` or `index` are specified, the
+			mode is appended to the end of the list.
+		"""
+		assert before is None or index is None, (
+			"Cannot specify both 'before' and 'index' arguments")
+		if before is not None:
+			index = self.submodes.index(mode)
+		if index is not None:
+			self.submodes.insert(index, mode)
+		else:
+			self.submodes.append(mode)
+	
+	def remove_submode(self, mode=None):
+		"""Remove the submode.
+
+		Args:
+			`mode`: The submode to remove, if omitted the active submode
+				is removed. If the mode is not present, do nothing.  If the
+				mode is active, it is deactivated, and the next mode, if any
+				is activated. If the last mode is removed, the :class:`Multi`
+				is removed from its manager. 
+		"""
+		# TODO handle multiple instances of the same subnode
+		if mode is None:
+			mode = self.active_submode
+		elif mode not in self.submodes:
+			return
+		next_mode = self.activate_next()
+		self.submodes.remove(mode)
+		if next_mode is mode:
+			if self.manager is not None:
+				self.manager.remove_mode(self)
+			self._deactivate_submode()
+				
+	def activate_subnode(self, mode, before=None, index=None):
+		"""Activate the specified mode, adding it as a subnode
+		if it is not already. If the mode is already the active
+		submode, do nothing.
+
+		Args:
+			`mode`: The mode to activate, and add as necesary.
+
+			`before`: The existing mode to insert the mode before
+				if it is not already a submode.  If the mode specified is not
+				a submode, raise ValueError.
+
+			`index`: The place to insert the mode in the mode list
+				if it is not already a submode.  Only one of `before` or
+				`index` may be specified.
+
+			If the mode is already a submode, the `before` and `index`
+			arguments are ignored.
+		"""
+		if mode not in self.submodes:
+			self.add_submode(mode, before, index)
+		if self.active_submode is not mode:
+			self._activate_submode(mode)
+	
+	def activate_next(self, loop=True):
+		"""Activate the submode after the current submode in order.  If there
+		is no current submode, the first submode is activated.
+
+		Note if there is only one submode, it's active, and `loop` is True
+		(the default), then this method does nothing and the subnode remains
+		active.
+
+		Args:
+			`loop` (bool): When :method:`activate_next()` is called 
+				when the last submode is active, a True value for `loop` will
+				cause the first submode to be activated.  Otherwise the
+				:class:`Multi` is removed from its manager.
+
+		Returns:
+			The submode that was activated or None if there is no
+			other submode to activate.
+		"""
+		assert self.submodes, "No submode to activate"
+		next_mode = None
+		if self.active_submode is None:
+			next_mode = self.submodes[0]
+		else:
+			last_mode = self.active_submode
+			index = self.submodes.index(last_mode) + 1
+			if index < len(self.submodes):
+				next_mode = self.submodes[index]
+			elif loop:
+				next_mode = self.submodes[0]
+		self._activate_submode(next_mode)
+		return next_mode
+
+	def activate_previous(self, loop=True):
+		"""Activate the submode before the current submode in order.  If there
+		is no current submode, the last submode is activated.
+
+		Note if there is only one submode, it's active, and `loop` is True
+		(the default), then this method does nothing and the subnode remains
+		active.
+		
+		Args:
+			`loop` (bool): When :method:`activate_previous()` is called 
+				when the first submode is active, a True value for `loop` will
+				cause the last submode to be activated.  Otherwise the
+				:class:`Multi` is removed from its manager.
+
+		Returns:
+			The submode that was activated or None if there is no
+			other submode to activate.
+		"""
+		assert self.submodes, "No submode to activate"
+		prev_mode = None
+		if self.active_submode is None:
+			prev_mode = self.submodes[-1]
+		else:
+			last_mode = self.active_submode
+			index = self.submodes.index(last_mode) - 1
+			if loop or index >= 0:
+				prev_mode = self.submodes[index]
+		self._activate_submode(prev_mode)
+		return prev_mode
+	
+	def _set_active_submode(self, submode):
+		self.active_submode = submode
+		self.master_clock = submode.master_clock
+		self.clock = submode.clock
+		self.step_rate = submode.step_rate
+
+	def _activate_submode(self, submode):
+		"""Activate a submode deactivating any current submode. If the Multi
+		itself is active, this happens immediately, otherwise the actual
+		activation is deferred until the Multi is activated. If the submode
+		is None, the Mulitmode is removed from its manager.
+
+		If submode is already the active submode, do nothing.
+		"""
+		if self.active_submode is submode:
+			return
+		assert submode in self.submodes, "Unknown submode"
+		self._deactivate_submode()
+		self._set_active_submode(submode)
+		if submode is not None:
+			if self.active:
+				self.manager.event_dispatcher.push_handlers(submode)
+				submode.activate(self.manager)
+		else:
+			if self.manager is not None:
+				self.manager.remove_mode(self)
+	
+	def _deactivate_submode(self, clear_subnode=True):
+		"""Deactivate the current submode, if any. if `clear_subnode` is
+		True, `active_submode` is always None when this method returns
+		"""
+		if self.active_submode is not None:
+			if self.active:
+				self.manager.event_dispatcher.remove_handlers(self.active_submode)
+				self.active_submode.deactivate(self.manager)
+			if clear_subnode:
+				self.active_submode = None
+				self.master_clock = None
+				self.clock = None
+				self.step_rate = None
+	
+	def activate(self, mode_manager):
+		"""Activate the :class:`Multi` for the specified manager. The
+		previously active submode of the :class:`Multi` is activated. If there
+		is no previously active submode, then the first submode is made active. 
+		A :class:`Multi` with no submodes cannot be activated
+		"""
+		assert self.submodes, "No submode to activate"
+		self.manager = mode_manager
+		if self.active_submode is None:
+			self._set_active_submode(self.submodes[0])
+		else:
+			self._set_active_submode(self.active_submode)
+		self.manager.event_dispatcher.push_handlers(self.active_submode)
+		self.active_submode.activate(self.manager)
+		super(Multi, self).activate(mode_manager)
+	
+	def deactivate(self, mode_manager):
+		"""Deactivate the :class:`Multi` for the specified manager.
+		The `active_submode`, if any, is deactivated.
+		"""
+		self._deactivate_submode(clear_subnode=False)
+		super(Multi, self).deactivate(mode_manager)
+	
+	def tick(self, dt):
+		"""Tick the active submode's clock."""
+		self.time += dt
+		if self.active_submode is not None:
+			self.active_submode.clock.tick(poll=False)
+	
+	def step(self, dt):
+		"""No-op, only the active submode is actually stepped"""
 

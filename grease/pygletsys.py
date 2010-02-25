@@ -13,7 +13,6 @@
 """Grease systems specific to Pyglet"""
 
 import grease
-import new
 
 class KeyControls(grease.System):
 	"""Maps subclass-defined action methods to keys. 
@@ -24,21 +23,24 @@ class KeyControls(grease.System):
 	"""
 
 	world = None
-	""":mod:`grease.World` object this system is bound to"""
-
-	_cls_key_hold_map = {}
-	_cls_key_press_map = {}
-	_cls_key_release_map = {}
+	""":class:`grease.World` object this system is bound to"""
 
 	def __init__(self):
+		self._key_press_map = {}
+		self._key_release_map = {}
+		self._key_hold_map = {}
+		for name in self.__class__.__dict__:
+			member = getattr(self, name)
+			if hasattr(member, '_grease_hold_key_binding'):
+				for binding in member._grease_hold_key_binding:
+					self.bind_key_hold(member, *binding)
+			if hasattr(member, '_grease_press_key_binding'):
+				for binding in member._grease_press_key_binding:
+					self.bind_key_press(member, *binding)
+			if hasattr(member, '_grease_release_key_binding'):
+				for binding in member._grease_release_key_binding:
+					self.bind_key_release(member, *binding)
 		self.held_keys = set()
-
-	def set_world(self, world):
-		self.world = world
-		# Copy the class key mappings to the instance and bind the methods
-		self._key_press_map = self._bind_mapped_methods(self._cls_key_press_map)
-		self._key_release_map = self._bind_mapped_methods(self._cls_key_release_map)
-		self._key_hold_map = self._bind_mapped_methods(self._cls_key_hold_map)
 
 	## decorator methods for binding methods to key input events ##
 
@@ -46,7 +48,9 @@ class KeyControls(grease.System):
 	def key_hold(cls, symbol, modifiers=0):
 		"""Bind a method to be executed where a key is held down"""
 		def bind(f):
-			cls._cls_key_hold_map[symbol, modifiers] = f
+			if not hasattr(f, '_grease_hold_key_binding'):
+				f._grease_hold_key_binding = []
+			f._grease_hold_key_binding.append((symbol, modifiers))
 			return f
 		return bind
 
@@ -54,7 +58,9 @@ class KeyControls(grease.System):
 	def key_press(cls, symbol, modifiers=0):
 		"""Bind a method to be executed where a key is initially depressed"""
 		def bind(f):
-			cls._cls_key_press_map[symbol, modifiers] = f
+			if not hasattr(f, '_grease_press_key_binding'):
+				f._grease_press_key_binding = []
+			f._grease_press_key_binding.append((symbol, modifiers))
 			return f
 		return bind
 
@@ -62,18 +68,11 @@ class KeyControls(grease.System):
 	def key_release(cls, symbol, modifiers=0):
 		"""Bind a method to be executed where a key is released"""
 		def bind(f):
-			cls._cls_key_release_map[symbol, modifiers] = f
+			if not hasattr(f, '_grease_release_key_binding'):
+				f._grease_release_key_binding = []
+			f._grease_release_key_binding.append((symbol, modifiers))
 			return f
 		return bind
-	
-	def _bind_mapped_methods(self, key_map):
-		"""Given a map of keys to unbound methods, return
-		a new map with those methods bound to this instance
-		"""
-		bound_map = {}
-		for key_mod, method in key_map.items():
-			bound_map[key_mod] = new.instancemethod(method, self, self.__class__)
-		return bound_map
 	
 	## runtime binding methods ##
 	

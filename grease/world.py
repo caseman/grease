@@ -112,6 +112,7 @@ class World(mode.Mode):
 		do nothing
 
 		The systems of the world are pushed onto `manager.event_dispatcher`
+		so they can receive system events.
 		"""
 		if not self.active:
 			for system in self.systems:
@@ -282,6 +283,11 @@ class SystemMap(object):
 				system.set_world(self._world)
 			self._list.append(system)
 			setattr(self, name, system)
+	
+	def __iadd__(self, named_system):
+		"""Add a system in place"""
+		self.add(named_system)
+		return self
 
 	def insert(self, name, system, before=None, index=None):
 		"""Add a system to the manager

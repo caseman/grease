@@ -13,6 +13,7 @@ from grease.pygletsys import KeyControls
 ## Utility functions ##
 
 SCRIPT_DIR_PATH = os.path.dirname(__file__)
+pyglet.font.add_file(SCRIPT_DIR_PATH + '/font/Vectorb.ttf')
 
 def load_sound(name, streaming=False):
 	"""Load a sound from the `sfx` directory"""
@@ -255,7 +256,7 @@ class Sweeper(grease.System):
 				entity.delete()
 
 
-class Game(KeyControls):
+class GameSystem(KeyControls):
 	"""Main game logic system
 
 	This subclass KeyControls so that the controls can be bound
@@ -295,12 +296,19 @@ class Game(KeyControls):
 		self.lives -= 1
 		self.player_ship.THRUST_SOUND.pause()
 		self.player_ship.delete()
-		if self.lives:
-			self.world.clock.schedule_once(self.player_respawn, 3.0)
+		self.world.clock.schedule_once(self.player_respawn, 3.0)
 		
 	def player_respawn(self, dt=None):
 		"""Rise to fly again, with temporary invincibility"""
-		self.player_ship = PlayerShip(self.world, invincible=True)
+		if self.lives:
+			self.player_ship = PlayerShip(self.world, invincible=True)
+		if self.world.is_multiplayer:
+			# Switch to the next player
+			if self.lives:
+				window.current_mode.activate_next()
+			else:
+				window.current_mode.remove_submode()
+
 
 	def chime(self, dt=0):
 		"""Play tension building chime sounds"""
@@ -325,13 +333,13 @@ class Game(KeyControls):
 
 	@KeyControls.key_press(key.RIGHT)
 	@KeyControls.key_press(key.D)
-	def start_turn_left(self):
+	def start_turn_right(self):
 		if self.player_ship.exists:
 			self.player_ship.turn(1)
 
 	@KeyControls.key_release(key.RIGHT)
 	@KeyControls.key_release(key.D)
-	def stop_turn_left(self):
+	def stop_turn_right(self):
 		if self.player_ship.exists and self.player_ship.movement.rotation > 0:
 			self.player_ship.turn(0)
 	
@@ -359,13 +367,19 @@ class Game(KeyControls):
 	
 	@KeyControls.key_press(key.P)
 	def pause(self):
-		self.world.running = not self.world.running
+		self.world.running = not self.world.running	
+
+	def on_key_press(self, key, modifiers):
+		"""Start the world with any key if paused"""
+		KeyControls.on_key_press(self, key, modifiers)
+		if not self.world.running:
+			self.world.running = True
+
 
 
 class Hud(grease.Renderer):
 	"""Heads-up display renderer"""
 	
-	pyglet.font.add_file(SCRIPT_DIR_PATH + '/font/Vectorb.ttf')
 	HUD_FONT = pyglet.font.load('Vector Battle')
 
 	def set_world(self, world):
@@ -373,6 +387,7 @@ class Hud(grease.Renderer):
 		self.last_lives = 0
 		self.last_score = None
 		self.game_over_label = None
+		self.paused_label = None
 		self.create_lives_entities()
 
 	def draw(self):
@@ -398,6 +413,18 @@ class Hud(grease.Renderer):
 					font_name='Vector Battle', font_size=36,
 					x = 0, y = 0, anchor_x='center', anchor_y='center')
 			self.game_over_label.draw()
+		if not self.world.running:
+			if self.paused_label is None:
+				self.player_label = pyglet.text.Label(
+					self.world.player_name,
+					font_name='Vector Battle', font_size=18, bold=True,
+					x = 0, y = 20, anchor_x='center', anchor_y='bottom')
+				self.paused_label = pyglet.text.Label(
+					"press a key to begin",
+					font_name='Vector Battle', font_size=16, bold=True,
+					x = 0, y = -20, anchor_x='center', anchor_y='top')
+			self.player_label.draw()
+			self.paused_label.draw()
 		self.score_label.draw()
 	
 	def create_lives_entities(self):
@@ -413,7 +440,21 @@ class Hud(grease.Renderer):
 			self.lives.append((i, entity))
 
 
-class GameWorld(grease.World):
+class TitleScreenControls(KeyControls):
+	"""Title screen key event handler system"""
+
+	@KeyControls.key_press(key._1)
+	def start_single_player(self):
+		window.push_mode(Game())
+	
+	@KeyControls.key_press(key._2)
+	def start_two_player(self):
+		window.push_mode(mode.Multi(
+			Game('Player One'), 
+			Game('Player Two')))
+
+
+class BaseWorld(grease.World):
 
 	def configure(self):
 		"""Configure the game world's components, systems and renderers"""
@@ -438,19 +479,71 @@ class GameWorld(grease.World):
 			('wrapper', PositionWrapper()),
 			('gun', Gun()),
 			('sweeper', Sweeper()),
-			('game', Game()),
 		)
 		self.renderers = (
 			renderer.Camera(position=(window.width / 2, window.height / 2)),
 			renderer.Vector(line_width=1.5),
-			Hud(),
 		)
+
+
+class TitleScreen(BaseWorld):
+	"""Game title screen world and mode"""
+	
+	def configure(self):
+		BaseWorld.configure(self)
+		self.renderers += (
+			pyglet.text.Label(
+				"Blasteroids",
+				font_name='Vector Battle', font_size=32, bold=True,
+				x=0, y=50, anchor_x='center', anchor_y='bottom'),
+			pyglet.text.Label(
+				"A demo for the Grease game engine",
+				font_name='Vector Battle', font_size=16, bold=True,
+				x=0, y=20, anchor_x='center', anchor_y='top'),
+			pyglet.text.Label(
+				"Press 1 for one player",
+				font_name='Vector Battle', font_size=16, bold=True,
+				x=0, y=-100, anchor_x='center', anchor_y='top'),
+			pyglet.text.Label(
+				"Press 2 for two players",
+				font_name='Vector Battle', font_size=16, bold=True,
+				x=0, y=-130, anchor_x='center', anchor_y='top'),
+		)
+		self.systems += ('controls', TitleScreenControls())
+		for i in range(15):
+			Asteroid(self, radius=random.randint(12, 45))
+
+
+class Game(BaseWorld):
+	"""Main game world and mode"""
+
+	is_multiplayer = False
+	"""Flag to indicate if this is a multiplayer session"""
+
+	def __init__(self, player_name=""):
+		BaseWorld.__init__(self)
+		self.player_name = player_name
+		if player_name:
+			# In multiplayer, start paused
+			self.running = False
+			self.is_multiplayer = True
+	
+	def configure(self):
+		BaseWorld.configure(self)
+		self.systems += ('game', GameSystem())
+		self.renderers += (Hud(),)
+	
+	def deactivate(self, manager):
+		grease.World.deactivate(self, manager)
+		# Pause the game so if resumed, we begin paused
+		self.running = False
+
 
 def main():
 	"""Initialize and run the game"""
 	global window
 	window = mode.ManagerWindow()
-	window.push_mode(GameWorld())
+	window.push_mode(TitleScreen())
 	pyglet.app.run()
 
 if __name__ == '__main__':
