@@ -1,3 +1,15 @@
+#############################################################################
+#
+# Copyright (c) 2010 by Casey Duncan and contributors
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the MIT License
+# A copy of the license should accompany this distribution.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+#
+#############################################################################
 """
 **Grease collision detection systems**
 
@@ -24,6 +36,8 @@ Note that broad-phase systems can return false positives, though they should
 never return false negatives. Do not assume that all pairs returned by a
 broad-phase system are actually in collision.
 """
+
+__version__ = '$Id$'
 
 from grease.geometry import Vec2d
 from bisect import bisect_right
