@@ -30,17 +30,17 @@ class TestPositionComp(dict):
 		data.entity = entity
 		data.position = Vec2d(position)
 
-class TestWorld(dict):
+class TestWorld(object):
 
 	def __init__(self):
 		self.components = self
-		self['collision'] = TestCollisionComp()
-		self['position'] = TestPositionComp()
+		self.collision = TestCollisionComp()
+		self.position = TestPositionComp()
 	
 	def join(self, *names):
-		for entity in self[names[0]]:
+		for entity in getattr(self, names[0]):
 			try:
-				yield tuple(self[name][entity] for name in names)
+				yield tuple(getattr(self, name)[entity] for name in names)
 			except KeyError:
 				pass
 
@@ -73,7 +73,7 @@ class TestCollisionSys(object):
 
 	def query_point(self, x, y=None, from_mask=None):
 		self.last_from_mask = from_mask
-		return set(self.world['collision'])
+		return set(self.world.collision)
 
 
 class PairTestCase(unittest.TestCase):
@@ -120,7 +120,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		from grease.collision import BroadSweepAndPrune
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
-		set_entity = world['collision'].set
+		set_entity = world.collision.set
 		set_entity(1, 10, 10, 20, 20)
 		set_entity(2, 0, 0, 3, 3)
 		set_entity(3, 11, 21, 15, 40)
@@ -142,7 +142,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world['collision'].set
+		set_entity = world.collision.set
 
 		set_entity(1, 10, 10, 20, 20)
 		set_entity(2, 15, 15, 25, 25)
@@ -172,7 +172,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world['collision'].set
+		set_entity = world.collision.set
 
 		# Start with no collisions
 		set_entity(1, 0, 0, 10, 10)
@@ -210,7 +210,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world['collision'].set
+		set_entity = world.collision.set
 
 		# Start with a couple not colliding
 		set_entity(1, 1, 1, 3, 3)
@@ -221,8 +221,8 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		# Add one that collides, one that doesn't
 		set_entity(3, 2, 2, 4, 4)
 		set_entity(4, 20, 5, 25, 7)
-		world['collision'].new_entities.add(3)
-		world['collision'].new_entities.add(4)
+		world.collision.new_entities.add(3)
+		world.collision.new_entities.add(4)
 		coll.step(0)
 		self.assertPairs(coll.collision_pairs, Pair(1,3), Pair(3, 2))
 
@@ -230,8 +230,8 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		set_entity(5, 19, 8, 21, 14)
 		set_entity(4, 20, 6, 25, 8)
 		set_entity(2, 5, 0, 11, 3)
-		world['collision'].new_entities.clear()
-		world['collision'].new_entities.add(5)
+		world.collision.new_entities.clear()
+		world.collision.new_entities.add(5)
 		coll.step(0)
 		self.assertPairs(coll.collision_pairs, Pair(1,3), Pair(4,5))
 	
@@ -240,7 +240,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world['collision'].set
+		set_entity = world.collision.set
 
 		# Add some colliding pairs
 		set_entity(1, 1, 1, 5, 2)
@@ -251,13 +251,13 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		self.assertPairs(coll.collision_pairs, Pair(1,2), Pair(1,3), Pair(2,3), Pair(1,4))
 
 		# Remove one
-		world['collision'].deleted_entities.add(3)
+		world.collision.deleted_entities.add(3)
 		coll.step(0)
 		self.assertPairs(coll.collision_pairs, Pair(1,2), Pair(1,4))
 
 		# Remove another and move one into collision
-		world['collision'].deleted_entities.clear()
-		world['collision'].deleted_entities.add(1)
+		world.collision.deleted_entities.clear()
+		world.collision.deleted_entities.add(1)
 		set_entity(2, 4, 0, 5, 5)
 		coll.step(0)
 		self.assertPairs(coll.collision_pairs, Pair(4,2))
@@ -267,7 +267,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world['collision'].set
+		set_entity = world.collision.set
 
 		set_entity(1, 0, 0, 1, 1, from_mask=1, into_mask=0)
 		set_entity(2, 0, 0, 1, 1, from_mask=0, into_mask=2)
@@ -283,7 +283,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world['collision'].set
+		set_entity = world.collision.set
 
 		set_entity(1, -1, -1, 3, 1)
 		set_entity(2, 4, 4, 8, 8)
@@ -297,8 +297,8 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 
 		set_entity(2, 4, 4, 8, 8)
 		set_entity(3, 6, 6, 9, 9)
-		world['collision'].new_entities.add(2)
-		world['collision'].new_entities.add(3)
+		world.collision.new_entities.add(2)
+		world.collision.new_entities.add(3)
 		coll.step(0)
 		self.assertEqual(coll.query_point(0, 0), set([1]))
 		self.assertEqual(coll.query_point([0, 0]), set([1]))
@@ -332,7 +332,7 @@ class BroadSweepAndPruneTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = BroadSweepAndPrune()
 		coll.set_world(world)
-		set_entity = world['collision'].set
+		set_entity = world.collision.set
 		
 		set_entity(1, 0, 0, 2, 2, into_mask=1)
 		set_entity(2, 0, 0, 2, 2, into_mask=2)
@@ -423,8 +423,8 @@ class CircularTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = Circular(broad_phase=broad)
 		coll.set_world(world)
-		pos = world['position']
-		col = world['collision']
+		pos = world.position
+		col = world.collision
 		pos.set(1, (0, 0))
 		col.set(1, radius=2)
 		pos.set(2, (2, -3))
@@ -465,8 +465,8 @@ class CircularTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = Circular(broad_phase=broad)
 		coll.set_world(world)
-		pos_set = world['position'].set
-		col_set = world['collision'].set
+		pos_set = world.position.set
+		col_set = world.collision.set
 		pos_set(1, (0, 0))
 		col_set(1, radius=5)
 		pos_set(2, (3, 3))
@@ -492,8 +492,8 @@ class CircularTestCase(unittest.TestCase):
 		world = TestWorld()
 		coll = Circular(broad_phase=broad)
 		coll.set_world(world)
-		pos_set = world['position'].set
-		col_set = world['collision'].set
+		pos_set = world.position.set
+		col_set = world.collision.set
 		pos_set(1, (0, 0))
 		col_set(1, radius=2)
 		pos_set(2, (4, 0))
@@ -528,8 +528,8 @@ class CircularTestCase(unittest.TestCase):
 		broad = TestCollisionSys()
 		coll = Circular(broad_phase=broad)
 		coll.set_world(world)
-		pos_set = world['position'].set
-		col_set = world['collision'].set
+		pos_set = world.position.set
+		col_set = world.collision.set
 		pos_set(1, (0, 0))
 		col_set(1, radius=1)
 		pos_set(2, (0, 2))
@@ -564,7 +564,7 @@ class CollisionHandlerTestCase(unittest.TestCase):
 	def test_dispatch_events_all_pairs(self):
 		from grease.collision import dispatch_events, Pair
 		world = TestWorld()
-		col = world['collision']
+		col = world.collision
 		entities = [col.set(TestEntity()) for i in range(4)]
 		system = TestCollisionSys(pairs=[
 			Pair(entities[0], entities[1]),
@@ -596,7 +596,7 @@ class CollisionHandlerTestCase(unittest.TestCase):
 	def test_dispatch_events_missing_method(self):
 		from grease.collision import dispatch_events, Pair
 		world = TestWorld()
-		col = world['collision']
+		col = world.collision
 		class NoEventEntity(object):
 			pass
 		entities = [col.set(NoEventEntity()) for i in range(4)]
@@ -611,7 +611,7 @@ class CollisionHandlerTestCase(unittest.TestCase):
 	def test_dispatch_events_respects_masks(self):
 		from grease.collision import dispatch_events, Pair
 		world = TestWorld()
-		col = world['collision']
+		col = world.collision
 		masks = [
 			(1, 1),
 			(3, 0),

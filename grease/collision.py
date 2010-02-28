@@ -108,7 +108,7 @@ class BroadSweepAndPrune(object):
 		"""Update the system for this time step, updates and sorts the 
 		axis arrays
 		"""
-		component = self.world.components[self.collision_component]
+		component = getattr(self.world.components, self.collision_component)
 		LEFT = self.LEFT_ATTR
 		RIGHT = self.RIGHT_ATTR
 		TOP = self.TOP_ATTR
@@ -182,7 +182,7 @@ class BroadSweepAndPrune(object):
 			TOP = self.TOP_ATTR
 			BOTTOM = self.BOTTOM_ATTR
 			# Build candidates overlapping along the x-axis
-			component = self.world.components[self.collision_component]
+			component = getattr(self.world.components, self.collision_component)
 			xoverlaps = set()
 			add_xoverlap = xoverlaps.add
 			discard_xoverlap = xoverlaps.discard
@@ -407,8 +407,8 @@ class Circular(object):
 	def collision_pairs(self):
 		"""The set of entity pairs in collision in this timestep"""
 		if self._collision_pairs is None:
-			position = self.world.components[self.position_component]
-			collision = self.world.components[self.collision_component]
+			position = getattr(self.world.components, self.position_component)
+			collision = getattr(self.world.components, self.collision_component)
 			pairs = self._collision_pairs = set()
 			for pair in self.broad_phase.collision_pairs:
 				entity1, entity2 = pair
@@ -449,8 +449,8 @@ class Circular(object):
 		else:
 			point = Vec2d(x_or_point, y)
 		hits = set()
-		position = self.world.components[self.position_component]
-		collision = self.world.components[self.collision_component]
+		position = getattr(self.world.components, self.position_component)
+		collision = getattr(self.world.components, self.collision_component)
 		for entity in self.broad_phase.query_point(x_or_point, y, from_mask):
 			separation = point - position[entity].position
 			if separation.get_length_sqrd() <= collision[entity].radius**2:
@@ -486,7 +486,8 @@ def dispatch_events(collision_system):
 	If a pair of entities are in collision, then the event will be dispatched
 	to both objects in arbitrary order if all of their collision masks align.
 	"""
-	collision = collision_system.world.components[collision_system.collision_component]
+	collision = getattr(collision_system.world.components, 
+		collision_system.collision_component)
 	for pair in collision_system.collision_pairs:
 		entity1, entity2 = pair
 		if pair.info is not None:

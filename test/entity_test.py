@@ -6,7 +6,8 @@ import itertools
 class TestWorld(object):
 	
 	def __init__(self, **kw):
-		self.components = kw
+		self.__dict__.update(kw)
+		self.components = self
 		self.entities = set()
 		self.new_entity_id = itertools.count().next
 		self.new_entity_id() # skip id 0

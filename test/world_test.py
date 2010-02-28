@@ -42,7 +42,7 @@ class TestSystemInjector(TestSystem):
 	def step(self, dt):
 		TestSystem.step(self, dt)
 		if not self.injected:
-			self.world.systems.add((self.name, self.system))
+			setattr(self.world.systems, self.name, self.system)
 			self.injected = True
 
 class TestRenderer(object):
@@ -153,11 +153,10 @@ class WorldTestCase(unittest.TestCase):
 	
 	def test_remove_entity(self):
 		from grease import World, Entity
-		comp1 = TestComponent()
-		comp2 = TestComponent()
-		comp3 = TestComponent()
 		world = World()
-		world.components.map(one=comp1, two=comp2, three=comp3)
+		comp1 = world.components.one = TestComponent()
+		comp2 = world.components.two = TestComponent()
+		comp3 = world.components.three = TestComponent()
 		entity = Entity(world)
 		comp1.add(entity)
 		comp2.add(entity)
@@ -174,11 +173,10 @@ class WorldTestCase(unittest.TestCase):
 	
 	def test_discard_entity(self):
 		from grease import World, Entity
-		comp1 = TestComponent()
-		comp2 = TestComponent()
-		comp3 = TestComponent()
 		world = World()
-		world.components.map(one=comp1, two=comp2, three=comp3)
+		comp1 = world.components.one = TestComponent()
+		comp2 = world.components.two = TestComponent()
+		comp3 = world.components.three = TestComponent()
 		entity = Entity(world)
 		comp1.add(entity)
 		comp2.add(entity)
@@ -196,6 +194,20 @@ class WorldTestCase(unittest.TestCase):
 		self.assertFalse(entity in comp1)
 		self.assertFalse(entity in comp2)
 		self.assertFalse(entity in comp3)
+	
+	def test_entity_extent_component_access(self):
+		from grease import World, Entity
+		from grease.entity import ComponentEntitySet
+		world = World()
+		comp = world.components.test = TestComponent()
+		e1 = Entity(world)
+		e2 = Entity(world)
+		comp.add(e1)
+		comp.add(e2)
+		extent = world[Entity]
+		comp_set = extent.test
+		self.assertEqual(comp_set, set([e1, e2]))
+		self.assertRaises(AttributeError, getattr, extent, "hummina")
 	
 	def test_entity_extent_membership_simple(self):
 		from grease import World, Entity
@@ -292,18 +304,17 @@ class WorldTestCase(unittest.TestCase):
 		self.assertEqual(full_extent.entities, entities)
 		self.assertEqual(world[...].entities, entities)
 
-	def test_map_components(self):
+	def test_configure_components(self):
 		from grease import World
 		comp1 = TestComponent()
 		comp2 = TestComponent()
 		comp3 = TestComponent()
 		world = World()
 		self.assertEqual(len(world.components), 0)
-		world.components.map(one=comp1, two=comp2, three=comp3)
-		self.assertEqual(len(world.components), 3)
-		self.assertTrue(world.components['one'] is comp1)
-		self.assertTrue(world.components['two'] is comp2)
-		self.assertTrue(world.components['three'] is comp3)
+		world.components.one = comp1
+		world.components.two = comp2
+		world.components.three = comp3
+		self.assertEqual(list(world.components), [comp1, comp2, comp3])
 		self.assertTrue(comp1.world is world)
 		self.assertTrue(comp2.world is world)
 		self.assertTrue(comp3.world is world)
@@ -316,55 +327,59 @@ class WorldTestCase(unittest.TestCase):
 		world = World()
 		self.assertFalse(world.systems)
 		self.assertFalse(world.components)
-		self.assertRaises(KeyError, lambda: world.components['foobar'])
-		world.components['foobar'] = comp1
-		self.assertTrue(world.components['foobar'] is comp1)
+		self.assertRaises(AttributeError, getattr, world, 'foobar')
+		world.components.foobar = comp1
+		self.assertTrue(world.components.foobar is comp1)
 		self.assertTrue(comp1.world is world)
 		self.assertEqual(len(world.components), 1)
 
-		self.assertRaises(KeyError, lambda: world.components['spam'])
-		world.components['spam'] = comp2
-		self.assertTrue(world.components['foobar'] is comp1)
-		self.assertTrue(world.components['spam'] is comp2)
+		self.assertRaises(AttributeError, getattr, world, 'spam')
+		world.components.spam = comp2
+		self.assertTrue(world.components.spam is comp2)
 		self.assertTrue(comp2.world is world)
 		self.assertEqual(len(world.components), 2)
 
-		world.components['foobar'] = comp3
-		self.assertFalse(world.components['foobar'] is comp1)
-		self.assertTrue(world.components['foobar'] is comp3)
-		self.assertTrue(world.components['spam'] is comp2)
+		self.assertRaises(AttributeError, getattr, world, 'foobar')
+		world.components.foobar = comp3
+		self.assertTrue(world.components.foobar is comp3)
 		self.assertTrue(comp3.world is world)
 		self.assertEqual(len(world.components), 2)
+		self.assertEqual(list(world.components), [comp3, comp2])
 	
-	def test_iter_components(self):
+	def test_del_component(self):
 		from grease import World
-		comp1 = TestComponent()
-		comp2 = TestComponent()
-		comp3 = TestComponent()
 		world = World()
-		world.components.map(foo=comp1, bar=comp2)
-		world.components['baz'] = comp3
-		self.assertEqual(sorted(list(world.components)), sorted([comp1, comp2, comp3]))
-	
+		comp1 = world.components.one = TestComponent()
+		comp2 = world.components.two = TestComponent()
+		comp3 = world.components.three = TestComponent()
+		self.assertEqual(list(world.components), [comp1, comp2, comp3])
+		del world.components.two
+		self.assertEqual(list(world.components), [comp1, comp3])
+		del world.components.one
+		self.assertEqual(list(world.components), [comp3])
+		self.assertRaises(AttributeError, delattr, world, 'one')
+
 	def test_step_components(self):
-		from grease import World
-		comp1 = TestComponent()
-		comp2 = TestComponent()
+		from grease import World, Entity
 		world = World()
-		world.components.map(foo=comp1, bar=comp2)
+		comp1 = world.components.one = TestComponent()
+		comp2 = world.components.two = TestComponent()
+		entity = Entity(world)
 		self.assertTrue(comp1.runtime == comp2.runtime == 0, comp1.runtime)
-		world.components.step(0.5)
-		self.assertEqual(comp1.runtime, 0.5)
-		self.assertEqual(comp2.runtime, 0.5)
-		world.components.step(0.75)
-		self.assertEqual(comp1.runtime, 1.25)
-		self.assertEqual(comp2.runtime, 1.25)
+		world.step(0.05)
+		self.assertEqual(comp1.runtime, 0.05)
+		self.assertEqual(comp2.runtime, 0.05)
+		world.step(0.06)
+		self.assertEqual(comp1.runtime, 0.11)
+		self.assertEqual(comp2.runtime, 0.11)
 
 	def test_join_components(self):
-		from grease import World
-		comp1 = TestComponent()
-		comp2 = TestComponent()
-		comp3 = TestComponent()
+		from grease import World, Entity
+		world = World()
+		comp1 = world.components.foo = TestComponent()
+		comp2 = world.components.bar = TestComponent()
+		comp3 = world.components.baz = TestComponent()
+		entity = Entity(world)
 		for i in range(20):
 			entity = object()
 			comp1.add(entity, i)
@@ -372,8 +387,6 @@ class WorldTestCase(unittest.TestCase):
 				comp2.add(entity, i * 10)
 			if i < 3:
 				comp3.add(entity, i * 100)
-		world = World()
-		world.components.map(foo=comp1, bar=comp2, baz=comp3)
 		self.assertEqual(sorted(world.components.join('baz', 'bar', 'foo')), [
 			(0, 0, 0), (100, 10, 1), (200, 20, 2)])
 		self.assertEqual(sorted(world.components.join('foo', 'bar')), [
@@ -381,71 +394,87 @@ class WorldTestCase(unittest.TestCase):
 		self.assertEqual(sorted(world.components.join('baz')), [
 			(0,), (100,), (200,)])
 
-	def test_system_illegal_name(self):
+	def test_illegal_part_name(self):
 		from grease import World
 		from grease.component import ComponentError
 		world = World()
-		self.assertRaises(ComponentError, world.systems.add, ('add', None))
-		self.assertRaises(ComponentError, world.systems.add, ('_reserved', None))
-		world.systems.add(('foo', None))
-		self.assertRaises(ComponentError, world.systems.add, ('foo', None))
+		self.assertRaises(ComponentError, 
+			setattr, world.components, 'entities', TestComponent())
+		self.assertRaises(ComponentError, 
+			setattr, world.systems, 'entities', TestSystem())
+		self.assertRaises(ComponentError, 
+			setattr, world.renderers, 'entities', TestRenderer())
+		self.assertRaises(ComponentError, 
+			setattr, world.components, '_reserved', TestComponent())
+		self.assertRaises(ComponentError, 
+			setattr, world.systems, '_reserved', TestSystem())
+		self.assertRaises(ComponentError, 
+			setattr, world.renderers, '_reserved', TestRenderer())
+		self.assertRaises(AttributeError, 
+			setattr, world.components, 'insert', TestComponent())
+		self.assertRaises(AttributeError, 
+			setattr, world.systems, 'insert', TestSystem())
+		self.assertRaises(AttributeError, 
+			setattr, world.renderers, 'insert', TestRenderer())
 	
 	def test_add_systems(self):
 		from grease import World
-		sys1 = TestSystem()
-		sys2 = TestSystem()
-		sys3 = TestSystem()
-		systems = [('one', sys1), ('two', sys2), ('three', sys3)]
 		world = World()
 		self.assertFalse(world.systems)
-		world.systems.add(*systems)
-		self.assertEqual(list(world.systems), [sys[1] for sys in systems])
+		sys1 = world.systems.one = TestSystem()
+		sys2 = world.systems.two = TestSystem()
+		sys3 = world.systems.three = TestSystem()
+		self.assertEqual(list(world.systems), [sys1, sys2, sys3])
 		self.assertTrue(world.systems.one is sys1)
 		self.assertTrue(world.systems.two is sys2)
 		self.assertTrue(world.systems.three is sys3)
 		self.assertTrue(sys1.world is world)
 		self.assertTrue(sys2.world is world)
 		self.assertTrue(sys3.world is world)
-		return systems, world
 	
-	def test_remove_systems(self):
-		systems, world = self.test_add_systems()
-		sys1, sys2, sys3 = [sys[1] for sys in systems]
-		world.systems.remove('one')
-		self.assertEqual(list(world.systems), [sys[1] for sys in systems[1:]])
-		self.assertRaises(AttributeError, getattr, world.systems, 'one')
-		self.assertTrue(world.systems.two is sys2)
-		self.assertTrue(world.systems.three is sys3)
-		self.assertRaises(AttributeError, world.systems.remove, 'one')
-		world.systems.remove('three')
-		self.assertEqual(list(world.systems), [sys[1] for sys in systems[1:2]])
-		self.assertRaises(AttributeError, getattr, world.systems, 'one')
-		self.assertTrue(world.systems.two is sys2)
-		self.assertRaises(AttributeError, getattr, world.systems, 'three')
+	def test_del_systems(self):
+		from grease import World
+		world = World()
+		sys1 = world.systems.one = TestSystem()
+		sys2 = world.systems.two = TestSystem()
+		sys3 = world.systems.three = TestSystem()
+		self.assertEqual(list(world.systems), [sys1, sys2, sys3])
+		del world.systems.two
+		self.assertEqual(list(world.systems), [sys1, sys3])
+		del world.systems.one
+		self.assertEqual(list(world.systems), [sys3])
+		self.assertRaises(AttributeError, delattr, world, 'one')
 	
-	def test_insert_system_before(self):
-		systems, world = self.test_add_systems()
+	def test_insert_system(self):
+		from grease import World
+		world = World()
+		sys1 = world.systems.sys1 = TestSystem()
+		sys2 = world.systems.sys2 = TestSystem()
+		sys3 = world.systems.sys3 = TestSystem()
 		inserted = TestSystem()
-		world.systems.insert('inserted', inserted, before='two')
-		systems.insert(1, ('inserted', inserted))
-		self.assertEqual(list(world.systems), [sys[1] for sys in systems])
+		world.systems.insert('inserted', inserted, before='sys2')
+		self.assertEqual(list(world.systems), [sys1, inserted, sys2, sys3])
+		self.assertTrue(world.systems.inserted is inserted)
 		another = TestSystem()
-		world.systems.insert('another', another, before=world.systems.inserted)
-		systems.insert(1, ('another', another))
-		self.assertEqual(list(world.systems), [sys[1] for sys in systems])
+		world.systems.insert('another', another, before=world.systems.sys3)
+		self.assertTrue(world.systems.another is another)
+		self.assertEqual(list(world.systems), [sys1, inserted, sys2, another, sys3])
+		onemore = TestSystem()
+		world.systems.insert('onemore', onemore, index=1)
+		self.assertEqual(list(world.systems), [sys1, onemore, inserted, sys2, another, sys3])
+		self.assertTrue(world.systems.onemore is onemore)
 	
 	def test_system_step_order(self):
 		from grease import World
-		sys1 = TestSystem()
-		sys2 = TestSystem()
-		sys3 = TestSystem()
 		world = World()
-		world.systems.add(('one', sys1), ('three', sys3))
+		sys1 = world.systems.one = TestSystem()
+		sys3 = world.systems.three = TestSystem()
+		sys2 = TestSystem()
 		world.systems.insert('two', sys2, index=1)
 		self.assertEqual(len(world.systems), 3)
 		self.assertTrue(sys1.runtime == sys2.runtime == sys3.runtime == 0)
 		self.assertTrue(sys1.order == sys2.order == sys3.order == TestSystem.order)
-		world.systems.step(0.13)
+		world.step(0.13)
 		self.assertTrue(sys1.runtime == sys2.runtime == sys3.runtime == 0.13)
 		start = sys1.order
 		self.assertEqual(sys2.order, start + 1)
@@ -453,32 +482,30 @@ class WorldTestCase(unittest.TestCase):
 	
 	def test_add_system_during_run(self):
 		from grease import World
-		sys1 = TestSystem()
-		to_inject = TestSystem()
-		injector = TestSystemInjector('injected', to_inject)
 		world = World()
-		world.systems.add(('one', sys1), ('injector', injector))
+		sys1 = world.systems.sys1 = TestSystem()
+		to_inject = TestSystem()
+		injector = world.systems.injector = TestSystemInjector('injected', to_inject)
 		self.assertEqual(len(world.systems), 2)
 		self.assertTrue(sys1.runtime == to_inject.runtime == injector.runtime == 0)
 		self.assertFalse(injector.injected)
-		world.systems.step(0.2)
+		world.step(0.1)
+		self.assertEqual(len(world.systems), 3)
+		self.assertEqual(sys1.runtime, 0.1)
+		self.assertEqual(injector.runtime, 0.1)
+		self.assertEqual(to_inject.runtime, 0)
+		self.assertTrue(injector.injected)
+		world.step(0.1)
 		self.assertEqual(len(world.systems), 3)
 		self.assertEqual(sys1.runtime, 0.2)
 		self.assertEqual(injector.runtime, 0.2)
-		self.assertEqual(to_inject.runtime, 0)
-		self.assertTrue(injector.injected)
-		world.systems.step(0.2)
-		self.assertEqual(len(world.systems), 3)
-		self.assertEqual(sys1.runtime, 0.4)
-		self.assertEqual(injector.runtime, 0.4)
-		self.assertEqual(to_inject.runtime, 0.2)
+		self.assertEqual(to_inject.runtime, 0.1)
 	
 	def test_activate(self):
 		from grease import World
 		world = World(master_clock=TestClock())
-		sys1 = TestSystem()
-		sys2 = TestSystem()
-		world.systems.add(('one', sys1), ('two', sys2))
+		sys1 = world.systems.one = TestSystem()
+		sys2 = world.systems.two = TestSystem()
 		manager = TestModeManager()
 		self.assertFalse(world.active)
 		world.activate(manager)
@@ -532,23 +559,20 @@ class WorldTestCase(unittest.TestCase):
 	
 	def test_step_max_dt(self):
 		from grease import World
-		sys1 = TestSystem()
-		comp1 = TestComponent()
 		world = World()
-		world.components.map(foo=comp1)
-		world.systems.add(('sys', sys1))
+		sys1 = world.systems.sys = TestSystem()
+		comp1 = world.components.foo = TestComponent()
 		world.step(10000)
 		self.assertEqual(comp1.runtime, 10.0 / world.step_rate)
 		self.assertEqual(sys1.runtime, 10.0 / world.step_rate)
 	
-	def test_get_set_renderers(self):
+	def test_set_renderers(self):
 		from grease import World
 		world = World()
 		self.assertEqual(tuple(world.renderers), ())
-		renderer1 = TestRenderer()
-		renderer2 = TestRenderer()
-		renderer3 = object() # arbitrary objects should be supported as renderers
-		world.renderers = (renderer1, renderer2, renderer3)
+		renderer1 = world.renderers.one = TestRenderer()
+		renderer2 = world.renderers.two = TestRenderer()
+		renderer3 = world.renderers.three = object() # arbitrary objects can be renderers
 		self.assertEqual(tuple(world.renderers), (renderer1, renderer2, renderer3))
 		# objects with a set_world() method should have it called when set
 		self.assertTrue(renderer1.world is world)
@@ -556,11 +580,9 @@ class WorldTestCase(unittest.TestCase):
 	
 	def test_on_draw(self):
 		from grease import World
-		sys2 = TestSystem()
 		world = World()
-		renderer1 = TestRenderer()
-		renderer2 = TestRenderer()
-		world.renderers = [renderer1, renderer2]
+		renderer1 = world.renderers.one = TestRenderer()
+		renderer2 = world.renderers.two = TestRenderer()
 		gl = TestGL()
 		self.assertFalse(gl.cleared)
 		self.assertFalse(gl.matrix_reset)

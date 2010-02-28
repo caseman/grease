@@ -190,6 +190,8 @@ class WindowManagerTestCase(ModeManagerTestBase, unittest.TestCase):
 	
 	def test_last_pop_closes_window(self):
 		from grease import mode
+		event_loop = pyglet.app.EventLoop() # We need one for on_close() to do its thing
+		event_loop._setup()
 		window = mode.ManagerWindow(visible=False)
 		window.push_mode(TestMode())
 		self.assertTrue(window.current_mode)

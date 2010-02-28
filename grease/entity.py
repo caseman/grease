@@ -51,28 +51,19 @@ class Entity(object):
 	
 	def __getattr__(self, name):
 		"""Return a component accessor for this entity"""
-		try:
-			component = self.world.components[name]
-		except KeyError:
-			raise AttributeError("No such component: %s" % name)
+		component = getattr(self.world.components, name)
 		return EntityComponentAccessor(component, self)
 	
 	def __setattr__(self, name, value):
 		if name in self.__class__.__slots__:
 			super(Entity, self).__setattr__(name, value)
 		else:
-			try:
-				component = self.world.components[name]
-			except KeyError:
-				raise AttributeError("No such component: %s" % name)
+			component = getattr(self.world.components, name)
 			component.set(self, value)
 	
 	def __delattr__(self, name):
 		"""Remove the data for this entity from the component"""
-		try:
-			component = self.world.components[name]
-		except KeyError:
-			raise AttributeError("No such component: %s" % name)
+		component = getattr(self.world.components, name)
 		del component[self]
 	
 	def __hash__(self):

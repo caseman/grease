@@ -21,13 +21,18 @@ class World(mode.Mode):
 	"""
 
 	components = None
-	"""Map of world components by name. Components define and contain
-	all entity data
+	"""ComponentParts are exposed as attributes of `World.components`. 
+	ComponentParts define and contain all entity data
 	"""
 
 	systems = None
-	"""The world's systems are exposed as attributes of `World.systems`. 
+	"""Systems are exposed as attributes of `World.systems`. 
 	Systems define entity behavior
+	"""
+
+	renderers = None
+	"""Renderers are exposed as attributes of `World.renderers`. 
+	Renderers define world presentation
 	"""
 
 	entities = None
@@ -49,9 +54,9 @@ class World(mode.Mode):
 	def __init__(self, step_rate=60, master_clock=pyglet.clock,
 		         clock_factory=pyglet.clock.Clock):
 		super(World, self).__init__(step_rate, master_clock, clock_factory)
-		self.components = ComponentMapper(self)
-		self.systems = SystemMap(self)
-		self._renderers = ()
+		self.components = ComponentParts(self)
+		self.systems = Parts(self)
+		self.renderers = Parts(self)
 		self.new_entity_id = itertools.count().next
 		self.new_entity_id() # skip id 0
 		self.entities = WorldEntitySet(self)
@@ -66,19 +71,6 @@ class World(mode.Mode):
 
 		The default implementation does nothing.
 		"""
-		
-	def _set_renderers(self, renderers):
-		self._renderers = tuple(renderers)
-		for renderer in self._renderers:
-			if hasattr(renderer, 'set_world'):
-				renderer.set_world(self)
-	
-	def _get_renderers(self):
-		return self._renderers
-	
-	renderers = property(_get_renderers, _set_renderers,
-		doc="""A sequence of renderers. Renderers define the presentation
-		of the world""")
 	
 	def __getitem__(self, entity_class):
 		"""Return an entity extent for the given entity class. This extent
@@ -144,8 +136,12 @@ class World(mode.Mode):
 		much longer than expected.
 		"""
 		dt = min(dt, 10.0 / self.step_rate)
-		self.components.step(dt)
-		self.systems.step(dt)
+		for component in self.components:
+			if hasattr(component, "step"):
+				component.step(dt)
+		for system in self.systems:
+			if hasattr(system, "step"):
+				system.step(dt)
 
 	def on_draw(self, gl=pyglet.gl):
 		"""Clear the current OpenGL context, reset the model/view matrix and
@@ -178,7 +174,7 @@ class WorldEntitySet(set):
 		and all necessary class sets
 		"""
 		super(WorldEntitySet, self).remove(entity)
-		for component in self.world.components.itervalues():
+		for component in self.world.components:
 			try:
 				del component[entity]
 			except KeyError:
@@ -209,46 +205,99 @@ class EntityExtent(object):
 
 	def __getattr__(self, name):
 		"""Access a component for the set of entities for querying"""
-		try:
-			component = self.__world.components[name]
-		except KeyError:
-			raise AttributeError("No such component: %s" % name)
+		component = getattr(self.__world.components, name)
 		return ComponentEntitySet(component, self.entities & component.entities)
 
 
-class ComponentMapper(dict):
-	"""Maps world component names to components"""
+class Parts(object):
+	"""Maps world parts to attributes and retains their order"""
 
-	reserved_names = ('entities', 'entity_id', 'world')
+	_world = None
+	_parts = None
+	_reserved_names = ('entities', 'entity_id', 'world')
 
 	def __init__(self, world):
 		self._world = world
+		self._parts = []
 	
-	def map(self, **components):
-		"""Map components to names using keyword arguments"""
-		for name, component in components.items():
-			self[name] = component
+	def _validate_name(self, name):
+		if (name in self._reserved_names or name.startswith('_') 
+		    or hasattr(self.__class__, name)):
+			raise ComponentError('illegal part name: %s' % name)
+		return name
+
+	def __setattr__(self, name, part):
+		if not hasattr(self.__class__, name):
+			self._validate_name(name)
+			if not hasattr(self, name):
+				self._parts.append(part)
+			else:
+				old_part = getattr(self, name)
+				self._parts[self._parts.index(old_part)] = part
+			super(Parts, self).__setattr__(name, part)
+			if hasattr(part, 'set_world'):
+				part.set_world(self._world)
+		elif name.startswith("_"):
+			super(Parts, self).__setattr__(name, part)
+		else:
+			raise AttributeError("%s attribute is read only" % name)
 	
-	def update(self, stuff):
-		raise NotImplementedError()
-	
-	def __setitem__(self, name, component):
-		if name in self.reserved_names or name.startswith('_'):
-			raise ComponentError('illegal component name: %s' % name)
-		dict.__setitem__(self, name, component)
-		if hasattr(component, 'set_world'):
-			component.set_world(self._world)
-	
+	def __delattr__(self, name):
+		self._validate_name(name)
+		part = getattr(self, name)
+		self._parts.remove(part)
+		super(Parts, self).__delattr__(name)
+
+	def insert(self, name, part, before=None, index=None):
+		"""Add a part with a particular name at a particular index.
+		If a part by that name already exists, it is replaced.
+
+		Args:
+			`name` (String): The name of the part.
+
+			`part`: The system to be added
+		
+			`before`: A part object or name. If specified, the part is
+				inserted before the specified part in order.
+
+			`index`: If specified, the part is inserted in the position
+				specified. You cannot specify both before and index.
+		"""
+		assert before is not None or index is not None, (
+			"Must specify a value for 'before' or 'index'")
+		assert before is None or index is None, (
+			"Cannot specify both 'before' and 'index' arguments when inserting")
+		self._validate_name(name)
+		if before is not None:
+			if isinstance(before, str):
+				before = getattr(self, before)
+			index = self._parts.index(before)
+		if hasattr(self, name):
+			old_part = getattr(self, name)
+			self._parts.remove(old_part)
+		self._parts.insert(index, part)
+		super(Parts, self).__setattr__(name, part)
+		if hasattr(part, 'set_world'):
+			part.set_world(self._world)
+
 	def __iter__(self):
-		return self.itervalues()
+		return iter(tuple(self._parts))
 	
+	def __len__(self):
+		return len(self._parts)
+
+
+class ComponentParts(Parts):
+	"""Component container"""
+
 	def join(self, *component_names):
 		"""Return an iterator of tuples containing data from each
 		component specified by name for each entity in all of the
 		components
 		"""
 		if component_names:
-			components = [self[name] for name in component_names]
+			components = [getattr(self, self._validate_name(name)) 
+				for name in component_names]
 			if len(components) > 1:
 				entities = components[0].entities & components[1].entities
 				for comp in components[2:]:
@@ -257,87 +306,4 @@ class ComponentMapper(dict):
 				entities = components[0].entities
 			for entity in entities:
 				yield tuple(comp[entity] for comp in components)
-	
-	def step(self, dt):
-		"""Update components for the next time step"""
-		for component in self.itervalues():
-			if hasattr(component, 'step'):
-				component.step(dt)
-
-
-class SystemMap(object):
-	"""Ordered map of world systems"""
-
-	def __init__(self, world):
-		self._world = world
-		self._list = []
-	
-	def add(self, *names_and_systems):
-		"""Add one of more systems. Each system to add is provided in a
-		('name', system) pair.
-		"""
-		for name, system in names_and_systems:
-			if hasattr(self, name) or name.startswith('_'):
-				raise ComponentError('illegal or duplicate system name: %s' % name)
-			if hasattr(system, 'set_world'):
-				system.set_world(self._world)
-			self._list.append(system)
-			setattr(self, name, system)
-	
-	def __iadd__(self, named_system):
-		"""Add a system in place"""
-		self.add(named_system)
-		return self
-
-	def insert(self, name, system, before=None, index=None):
-		"""Add a system to the manager
-
-		name -- The name of the system.
-
-		system -- The system to be added
-		
-		before -- A system object or name. If specified, the system is
-		inserted before the specified system in order, otherwise it is
-		appended.
-
-		index -- If specified, the system is inserted in the position
-		specified. You cannot specify both before and index.
-		"""
-		assert before is not None or index is not None, (
-			"Must specify a value for 'before' or 'index'")
-		assert before is None or index is None, (
-			"Cannot specify both 'before' and 'index' arguments when inserting system")
-		if hasattr(self, name) or name.startswith('_'):
-			raise ComponentError('illegal or duplicate system name: %s' % name)
-		setattr(self, name, system)
-		if before is None and index is None:
-			self._list.append(system)
-		elif before is not None:
-			if isinstance(before, str):
-				before = getattr(self, before)
-			index = self._list.index(before)
-			self._list.insert(index, system)
-		else:
-			self._list.insert(index, system)
-		if hasattr(system, 'set_world'):
-			system.set_world(self._world)
-	
-	def remove(self, system_name):
-		"""Remove the system by name"""
-		system = getattr(self, system_name)
-		self._list.remove(system)
-		delattr(self, system_name)
-	
-	def __len__(self):
-		return len(self._list)
-	
-	def __iter__(self):
-		"""Iterate the systems in order"""
-		return iter(tuple(self._list))
-	
-	def step(self, dt):
-		"""Run a time step for all runnable systems in order"""
-		for system in self:
-			if hasattr(system, "step"): 
-				system.step(dt)
 

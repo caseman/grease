@@ -195,7 +195,7 @@ class Shot(grease.Entity):
 		self.shape.verts = [(0, 1.5), (1.5, -1.5), (-1.5, -1.5)]
 		self.collision.radius = 2.0
 		self.collision.from_mask = ~shooter.collision.into_mask
-		self.renderable.color = (1.0, 1.0, 1.0)
+		self.renderable.color = (1.0, 1.0, 0.95)
 		world.clock.schedule_once(self.expire, self.TIME_TO_LIVE)
 
 	def on_collide(self, other, point, normal):
@@ -395,13 +395,14 @@ class Hud(grease.Renderer):
 		if self.last_lives != game.lives:
 			for i, entity in self.lives:
 				if game.lives > i:
-					entity.renderable.color = (0.8,0.8,0.8)
+					entity.renderable.color = PlayerShip.COLOR
 				else:
 					entity.renderable.color = (0,0,0,0)
 			self.last_lives = game.lives
 		if self.last_score != game.score:
 			self.score_label = pyglet.text.Label(
 				str(game.score),
+				color=(180, 180, 255, 255),
 				font_name='Vector Battle', font_size=14, bold=True,
 				x=window.width // 2 - 25, y=window.height // 2 - 25, 
 				anchor_x='right', anchor_y='center')
@@ -410,17 +411,20 @@ class Hud(grease.Renderer):
 			if self.game_over_label is None:
 				self.game_over_label = pyglet.text.Label(
 					"GAME OVER",
-					font_name='Vector Battle', font_size=36,
+					font_name='Vector Battle', font_size=36, bold=True,
+					color=(255, 0, 0, 255),
 					x = 0, y = 0, anchor_x='center', anchor_y='center')
 			self.game_over_label.draw()
 		if not self.world.running:
 			if self.paused_label is None:
 				self.player_label = pyglet.text.Label(
 					self.world.player_name,
+					color=(150, 150, 255, 255),
 					font_name='Vector Battle', font_size=18, bold=True,
 					x = 0, y = 20, anchor_x='center', anchor_y='bottom')
 				self.paused_label = pyglet.text.Label(
 					"press a key to begin",
+					color=(150, 150, 255, 255),
 					font_name='Vector Battle', font_size=16, bold=True,
 					x = 0, y = -20, anchor_x='center', anchor_y='top')
 			self.player_label.draw()
@@ -458,32 +462,28 @@ class BaseWorld(grease.World):
 
 	def configure(self):
 		"""Configure the game world's components, systems and renderers"""
-		self.components.map(
-			position=component.Position(),
-			movement=component.Movement(),
-			shape=component.Shape(),
-			renderable=component.Renderable(),
-			collision=component.Collision(),
-			# Custom components
-			gun=component.Component(
-				firing=bool, 
-				last_fire_time=float, 
-				cool_down=float, 
-				sound=object),
-			award=component.Component(points=int),
-		)
-		self.systems.add(
-			('movement', controller.EulerMovement()),
-			('collision', collision.Circular(
-				handlers=[collision.dispatch_events])),
-			('wrapper', PositionWrapper()),
-			('gun', Gun()),
-			('sweeper', Sweeper()),
-		)
-		self.renderers = (
-			renderer.Camera(position=(window.width / 2, window.height / 2)),
-			renderer.Vector(line_width=1.5),
-		)
+		self.components.position = component.Position()
+		self.components.movement = component.Movement()
+		self.components.shape = component.Shape()
+		self.components.renderable = component.Renderable()
+		self.components.collision = component.Collision()
+		self.components.gun = component.Component(
+			firing=bool, 
+			last_fire_time=float, 
+			cool_down=float, 
+			sound=object)
+		self.components.award = component.Component(points=int)
+
+		self.systems.movement = controller.EulerMovement()
+		self.systems.collision = collision.Circular(
+			handlers=[collision.dispatch_events])
+		self.systems.wrapper = PositionWrapper()
+		self.systems.gun = Gun()
+		self.systems.sweeper = Sweeper()
+
+		self.renderers.camera = renderer.Camera(
+			position=(window.width / 2, window.height / 2))
+		self.renderers.vector = renderer.Vector(line_width=1.5)
 
 
 class TitleScreen(BaseWorld):
@@ -491,25 +491,28 @@ class TitleScreen(BaseWorld):
 	
 	def configure(self):
 		BaseWorld.configure(self)
-		self.renderers += (
-			pyglet.text.Label(
-				"Blasteroids",
-				font_name='Vector Battle', font_size=32, bold=True,
-				x=0, y=50, anchor_x='center', anchor_y='bottom'),
-			pyglet.text.Label(
-				"A demo for the Grease game engine",
-				font_name='Vector Battle', font_size=16, bold=True,
-				x=0, y=20, anchor_x='center', anchor_y='top'),
-			pyglet.text.Label(
-				"Press 1 for one player",
-				font_name='Vector Battle', font_size=16, bold=True,
-				x=0, y=-100, anchor_x='center', anchor_y='top'),
-			pyglet.text.Label(
-				"Press 2 for two players",
-				font_name='Vector Battle', font_size=16, bold=True,
-				x=0, y=-130, anchor_x='center', anchor_y='top'),
-		)
-		self.systems += ('controls', TitleScreenControls())
+		self.renderers.title = pyglet.text.Label(
+			"Blasteroids",
+			color=(150, 150, 255, 255),
+			font_name='Vector Battle', font_size=32, bold=True,
+			x=0, y=50, anchor_x='center', anchor_y='bottom')
+		self.renderers.description = pyglet.text.Label(
+			"A demo for the Grease game engine",
+			color=(150, 150, 255, 255),
+			font_name='Vector Battle', font_size=16, bold=True,
+			x=0, y=20, anchor_x='center', anchor_y='top')
+		self.renderers.one_player = pyglet.text.Label(
+			"Press 1 for one player",
+			color=(150, 150, 255, 255),
+			font_name='Vector Battle', font_size=16, bold=True,
+			x=0, y=-100, anchor_x='center', anchor_y='top')
+		self.renderers.two_player = pyglet.text.Label(
+			"Press 2 for two players",
+			color=(150, 150, 255, 255),
+			font_name='Vector Battle', font_size=16, bold=True,
+			x=0, y=-130, anchor_x='center', anchor_y='top')
+
+		self.systems.controls = TitleScreenControls()
 		for i in range(15):
 			Asteroid(self, radius=random.randint(12, 45))
 
@@ -530,8 +533,8 @@ class Game(BaseWorld):
 	
 	def configure(self):
 		BaseWorld.configure(self)
-		self.systems += ('game', GameSystem())
-		self.renderers += (Hud(),)
+		self.systems.game = GameSystem()
+		self.renderers.hud = Hud()
 	
 	def deactivate(self, manager):
 		grease.World.deactivate(self, manager)
