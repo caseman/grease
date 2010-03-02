@@ -385,9 +385,9 @@ class GameSystem(KeyControls):
 
 	def on_key_press(self, key, modifiers):
 		"""Start the world with any key if paused"""
-		KeyControls.on_key_press(self, key, modifiers)
 		if not self.world.running:
 			self.world.running = True
+		KeyControls.on_key_press(self, key, modifiers)
 
 
 
