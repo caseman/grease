@@ -2,7 +2,6 @@ import unittest
 import itertools
 
 
-
 class TestWorld(object):
 	
 	def __init__(self, **kw):

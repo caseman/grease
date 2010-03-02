@@ -11,7 +11,7 @@
 #
 #############################################################################
 
-__version__ = '$Id$'
+__version__ = '0.1'
 
 import grease.component
 import grease.geometry

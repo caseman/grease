@@ -1,0 +1,17 @@
+include *.txt
+include MANIFEST.in MANIFEST
+
+recursive-include grease *
+recursive-include test *
+recursive-include examples *
+recursive-include doc *
+
+prune **/.svn
+global-exclude *.pyc 
+global-exclude *.pyo
+global-exclude *.o
+global-exclude *.so
+global-exclude *.out
+global-exclude .DS_Store
+global-exclude doc/_*
+
