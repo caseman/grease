@@ -12,6 +12,7 @@ Contents:
 	:maxdepth: 2
 
 	collision_mod
+	tutorial/tutorial1
 
 Indices and tables
 ==================
