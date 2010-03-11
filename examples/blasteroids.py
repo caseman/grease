@@ -73,7 +73,7 @@ class PlayerShip(BlasteroidsEntity):
 	SHAPE_VERTS = [
 		(-8, -12), (-4, -10), (0, -8), (4, -10), (8, -12), # flame
 		(0, 12), (-8, -12), (0, -8), (8, -12)]
-	COLOR = (0.5, 1, 0.5)
+	COLOR = "#7f7"
 	GUN_COOL_DOWN = 0.5
 	GUN_SOUND = load_sound('pewpew.wav')
 	THRUST_SOUND = looping_sound('thrust.wav')
@@ -161,18 +161,17 @@ class Asteroid(BlasteroidsEntity):
 				random.choice([-1, 1]) * random.randint(50, window.height / 2))
 		else:
 			self.position.position = position
-		deviation = radius / 7
 		self.movement.velocity = (random.gauss(0, 700 / radius), random.gauss(0, 700 / radius))
 		if parent_velocity is not None:
 			self.movement.velocity += parent_velocity
 		self.movement.rotation = random.gauss(0, 15)
-		verts = [(random.gauss(x*radius, deviation), random.gauss(y*radius, deviation))
+		verts = [(random.gauss(x*radius, radius / 7), random.gauss(y*radius, radius / 7))
 			for x, y in self.UNIT_CIRCLE]
 		self.shape.verts = verts
 		self.collision.radius = radius
 		self.collision.from_mask = PlayerShip.COLLIDE_INTO_MASK
 		self.collision.into_mask = self.COLLIDE_INTO_MASK
-		self.renderable.color = (0.75, 0.75, 0.75)
+		self.renderable.color = "#aaa"
 		self.award.points = points
 
 	def on_collide(self, other, point, normal):
@@ -209,7 +208,7 @@ class Shot(grease.Entity):
 		self.shape.verts = [(0, 1.5), (1.5, -1.5), (-1.5, -1.5)]
 		self.collision.radius = 2.0
 		self.collision.from_mask = ~shooter.collision.into_mask
-		self.renderable.color = (1.0, 1.0, 0.95)
+		self.renderable.color = "#ffc"
 		world.clock.schedule_once(self.expire, self.TIME_TO_LIVE)
 
 	def on_collide(self, other, point, normal):

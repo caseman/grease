@@ -17,10 +17,10 @@ class Asteroid(grease.Entity):
             random.choice([-1, 1]) * random.randint(50, window.height / 2))
         self.movement.velocity = (random.gauss(0, 700 / radius), random.gauss(0, 700 / radius))
         self.movement.rotation = random.gauss(0, 15)
-        verts = [(random.gauss(x*radius, radius / 7), random.gauss(y*radius, radius / 7))
+        verts = [(random.gauss(x * radius, radius / 7), random.gauss(y * radius, radius / 7))
             for x, y in self.UNIT_CIRCLE]
         self.shape.verts = verts
-        self.renderable.color = (0.75, 0.75, 0.75)
+        self.renderable.color = "#aaa"
 
 
 class GameWorld(grease.World):
