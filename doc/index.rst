@@ -13,6 +13,7 @@ Contents:
 
 	collision_mod
 	tutorial/tutorial1
+	tutorial/tutorial2
 
 Indices and tables
 ==================

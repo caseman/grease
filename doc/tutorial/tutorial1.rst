@@ -1,4 +1,4 @@
-.. Grease tutorial part 1
+.. Grease tutorial chapter 1
 
 ###############
 Grease Tutorial
@@ -7,6 +7,8 @@ Grease Tutorial
 In this tutorial, we will be creating a simple, but complete game. To make the most of this material, you should have a working Grease installation. The tutorial progresses through several revisions of an example game named *Blasteroids*. To keep things simple, all of the code in this game is in a single file. Each section of the tutorial builds a new revision of the game code. You can find the complete revisions of the tutorial game code for each section in the *doc/tutorial* subdirectory of the Grease source package.  
 
 For Grease installation instructions, see: <insert install doc link>
+
+.. _tut-chapter-1:
 
 ********************
 Chapter 1: Diving In
@@ -36,7 +38,7 @@ Starting from the top of our list, we will write the code that creates the windo
     if __name__ == '__main__':
         main()
 
-The above is a complete Pyglet program that creates a window and enters the event loop listening for system events. The window is declared ``global`` because we will need to reference it elsewhere in the program to access things like its :attr:`width` and :attr:`height`. Although the above is not very interesting yet, it already has some important functionality. In particular the program will exit if the window is closed or the escape key is pressed. This functionality is included in the window's default :meth:`on_key_press()` event handler.
+The above is a complete Pyglet program that creates a window and enters the event loop listening for system events. The window is declared :keyword:`global` because we will need to reference it elsewhere in the program to access things like its :attr:`width` and :attr:`height`. Although the above is not very interesting yet, it already has some important functionality. In particular the program will exit if the window is closed or the escape key is pressed. This functionality is included in the window's default :meth:`on_key_press()` event handler.
 
 If you have not seen it before, the ``if`` statement at the end may appear a bit odd. This is a python idiom used in module files that can be run as scripts. Each module has a built-in :attr:`__name__` attribute set by the interpreter. The name ``"__main__"`` is used for a module that is being executed as a script. In our example this means that the :meth:`main()` function will be executed when the module is run as a script, but not it is imported by another module. Although our program is not intended to be imported by other programs, it can still be handy to do so from the python prompt for debugging. Without using this check, importing the module would unexpectedly execute :func:`pyglet.app.run()` to start the event loop, which would not return control to the importing program.
 
@@ -193,3 +195,4 @@ We now have a working start to the game. The full source of our first revision c
 
 .. image:: blasteroids1.png
 
+**Next:** :ref:`tut-chapter-2`
