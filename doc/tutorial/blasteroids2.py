@@ -2,9 +2,29 @@ import math
 import random
 import pyglet
 import grease
-from grease import component, controller, renderer, geometry
+from grease import component, controller, renderer, geometry, collision
 from pyglet.window import key
 from grease.pygletsys import KeyControls
+
+
+class BlasteroidsEntity(grease.Entity):
+    """Entity base class"""
+
+    def explode(self):
+        """Segment the entity shape into itty bits"""
+        shape = self.shape.verts.transform(angle=self.position.angle)
+        for segment in shape.segments():
+            debris = Debris(self.world)
+            debris.shape.verts = segment
+            debris.position.position = self.position.position
+            debris.movement.velocity = self.movement.velocity
+            debris.movement.velocity += segment[0].normalized() * random.gauss(50, 20)
+            debris.movement.rotation = random.gauss(0, 45)
+            debris.renderable.color = self.renderable.color
+
+
+class Debris(grease.Entity):
+    """Floating space junk"""
 
 
 class PlayerShip(grease.Entity):
@@ -16,6 +36,8 @@ class PlayerShip(grease.Entity):
         (-8, -12), (-4, -10), (0, -8), (4, -10), (8, -12), # flame
         (0, 12), (-8, -12), (0, -8), (8, -12)]
     COLOR = "#7f7"
+    COLLISION_RADIUS = 7.5
+    COLLIDE_INTO_MASK = 0x1
 
     def __init__(self, world, invincible=False):
         self.position.position = (0, 0)
@@ -25,6 +47,8 @@ class PlayerShip(grease.Entity):
         self.shape.verts = self.SHAPE_VERTS
         self.shape.closed = False
         self.renderable.color = self.COLOR
+        self.collision.into_mask = self.COLLIDE_INTO_MASK
+        self.collision.radius = self.COLLISION_RADIUS
 
     def turn(self, direction):
         self.movement.rotation = self.TURN_RATE * direction
@@ -39,10 +63,14 @@ class PlayerShip(grease.Entity):
         self.movement.accel = (0, 0)
         self.shape.verts[2] = (0, -8)
 
+    def on_collide(self, other, point, normal):
+        self.delete()
+
 
 class Asteroid(grease.Entity):
     """Big floating space rock"""
 
+    COLLIDE_INTO_MASK = 0x2
     UNIT_CIRCLE = [(math.sin(math.radians(a)), math.cos(math.radians(a))) 
         for a in range(0, 360, 18)]
 
@@ -56,6 +84,12 @@ class Asteroid(grease.Entity):
             for x, y in self.UNIT_CIRCLE]
         self.shape.verts = verts
         self.renderable.color = "#aaa"
+        self.collision.radius = radius
+        self.collision.from_mask = PlayerShip.COLLIDE_INTO_MASK
+        self.collision.into_mask = self.COLLIDE_INTO_MASK
+
+    def on_collide(self, other, point, normal):
+        self.delete()
 
 
 class GameSystem(KeyControls):

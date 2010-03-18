@@ -30,14 +30,14 @@ In the constructor, we setup the initial position and angle (centered and pointi
 Unlike asteroids, the player's ship needs to be able to move dynamically in response to player inputs. Specifically, the ship needs to be able to turn (rotate) left and right, and accelerate forward in the direction it is facing to simulate thrust. Let's start with the turn method:
 
 .. literalinclude:: blasteroids2.py
-   :lines: 29-30
+   :pyobject: PlayerShip.turn
 
 This simple method lets us turn the ship left or right by supplying the proper direction value: -1 for turn left, 1 for turn right, 0 for straight ahead.
 
 Let's move on to the thrust method:
 
 .. literalinclude:: blasteroids2.py
-   :lines: 32-36
+   :pyobject: PlayerShip.thrust_on
 
 This method accelerates the ship in the direction it is facing. We start by defining an upward-facing vector with a magnitude set to the class's :attr:`THRUST_ACCEL` value. This vector is then rotated in-place to face the direction of the ship using :meth:`Vec2d.rotate()`. The :attr:`accel` field of the entity's movment component is then set to the rotated thrust vector. The :class:`controller.EulerMovement` system, already in the world takes care of calculating the ship's velocity and position over time based on the acceleration. 
 
@@ -48,7 +48,7 @@ We will be wiring the :meth:`thrust()` method to fire every frame that the thrus
 The last thing we need is a method to turn the ship's thrust off. We'll wire this up to fire when the thrust key is released:
 
 .. literalinclude:: blasteroids2.py
-   :lines: 38-40
+   :pyobject: PlayerShip.thrust_off
 
 This resets the ship's acceleration and flame tip vertex back to their original values.
 
@@ -64,7 +64,8 @@ Remember that systems are behavioral aspects of our application, and are invoked
 .. literalinclude:: blasteroids2.py
    :lines: 6-7
 .. literalinclude:: blasteroids2.py
-   :lines: 59-70
+   :pyobject: GameSystem
+   :end-before: @
 
 We start by defining our :class:`GameSystem` as a subclass of :class:`KeyControls`. :class:`KeyControls` is a system subclass that provides a convenient mechanism for binding its methods to keyboard events.
 
@@ -134,7 +135,67 @@ The :class:`component.Collision` component (line 9 above) has the fields we need
    The meaning of this field is up to the specific collision system used. For :class:`collision.Circular` systems, entities are approximated as circles for the purposes of collision detection. The radius value is simply the radius of the collision circle for an entity.
 
 `from_mask` and `into_mask`
-   Not all entities in the collision component need to be able to collide with each other. These two mask fields let you specify which entities can collide. Both mask fields are 32 bit integer bitmasks. When two entities are compared for collision, the :attr:`from_mask` value from each entity is bit-anded with the :attr:`into_mask` of the other. If this bit-and operation returns a non-zero result, then a collision is possible, if the result is zero, the entities cannot collide. Note that this happens in both directions, so a collision can occur between entity A and B if `A.from_mask & B.into_mask != 0 or B.from_mask & A.into_mask != 0`.
+   Not all entities in the collision component need to be able to collide with each other. These two mask fields let you specify which entities can collide. Both mask fields are 32 bit integer bitmasks. When two entities are compared for collision, the :attr:`from_mask` value from each entity is bit-anded with the :attr:`into_mask` of the other. If this bit-and operation returns a non-zero result, then a collision is possible, if the result is zero, the entities cannot collide. Note that this happens in both directions, so a collision can occur between entity A and B if `A.collision.from_mask & B.collision.into_mask != 0 or B.collision.from_mask & A.collision.into_mask != 0`.
 
-In our game we will leverage the collision masks to make it so that the player's ship collides with asteroids, but the asteroids do not collide with each other.
+Let's take a closer look at how the collision system is configured above:
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: GameWorld
+   :start-after: self.systems.game
+   :end-before: self.renderers.camera
+
+There are two major steps to collision handling in Grease: *collision detection* and *collision response*. The detection step happens within the collision system. A set of pairs of the currently colliding entities can be found in the :attr:`collision_pairs` attribute of the collision system. Applications are free to use :attr:`collision_pairs` directly, but they can also register one or more handlers for more automated collision response. Collision handlers are simply functions that accept the collision system they are configured for as an argument. The handler functions are called each time step to deal with collision response.
+
+Above we have configured :func:`grease.collision.dispatch_events` as the collision handler. This function calls :meth:`on_collide` on all entities that are colliding. The entities' :meth:`on_collide` handler methods can contain whatever logic desired to handle the collision. This method accepts three arguments: :attr:`other_entity`, :attr:`collision_point`, and :attr:`collision_normal`. These arguments are the other entity collided with, the point where the collision occured and the normal vector at the point of collision respectively. It is up to the handler method to decide how these values are used. Note that when two entities collide, both of their :meth:`on_collide` handler methods will be called, if defined.
+
+In our game we will leverage the collision masks to make it so that the player's ship collides with asteroids, but the asteroids do not collide with each other. To do that we need to modify the :class:`Asteroid` and :class:`PlayerShip` constructors to set the collision component fields.
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: PlayerShip
+   :end-before: def turn
+
+Lines 19-20 above initialize the collision settings for the player ship. Note that the radius is set slightly smaller than the farthest vertex in the shape (by 0.5 units). This is common when using circular collision shapes, it prevents the appearance of false positive collisions that can make the game feel unfair.
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: Asteroid
+   :linenos:
+
+Lines 18-20 above setup collision for the asteroids. The radius is simply set to the asteroid's radius. The collision masks are configured so that the asteroids will collide with the player's ship, but not with each other.
+
+To start with, will add a simple :meth:`on_collide` method to both the :class:`Asteroid` and :class:`PlayerShip` classes that simply delete the entities when they collide::
+
+        def on_collide(self, other, point, normal):
+            self.delete()
+
+Blowing Stuff Up
+================
+
+When you run the game now, you'll notice that asteroids pass right through each other, but if you hit one with the ship, both the ship and asteroid disappear. This proves that the collision is working as expected, but it's not very interesting yet. What would really spice things up is some simple explosion effects when entities are destroyed. 
+
+Here's what we need to implement to make this happen:
+
+* A method to "explode" and entity into a bunch of debris fragments.
+
+* A system that manages the debris, fading it out and cleaning it up over
+  time.
+
+Let's start with the :meth:`explode` method. Since asteroids and the player ship are basically the same except for their shape, they can share the method code. The most straightforward way to do this, is to create a common base class for both entities:
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: BlasteroidsEntity
+   :linenos:
+
+We also define an entity class for the debris. This class defines no behavior of its own, it just serves to tag the debris entities so that we can easily manage them in the system we will be creating later:
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: Debris
+
+Let's take apart the :class:`BlasteroidsEntity` class and see how it works. In line 6 above, we take the base shape of the entity and transform it into a new shape, rotating it to the current angle of the entity that is exploding:
+
+.. literalinclude:: blasteroids2.py
+   :lines: 15
+
+Next we create the debris. This is aided by the :meth:`shape.segments` method (line 7). This method returns an iterator of all of the individual line segments of the original shape as separate shapes. This effectively fragments our original entity shape. 
+
+We loop over these fragment segments creating debris entities for each. The shape of each debris fragment is a single segment of the original entity's shape. We also set the initial position and velocity of the debris entity to that of the exploding entity (line 10-11). Next we add some random velocity outward from the exploding entity's position to make it "explode" (line 12). Because the base shapes are centered around the origin, we can just use one of the vertex positions to determine the approximate outward direction from the center. Normalizing the first vertex vector -- giving it a length of 1 -- and multiplying it by a random value gives us the desired outward push. A bit of random rotation adds a little spice to the effect (line 13). Last, we set the color of the debris to the same as the original entity so it appears to be pieces of the original.
 
