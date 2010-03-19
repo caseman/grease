@@ -61,7 +61,7 @@ class BlasteroidsEntity(grease.Entity):
             debris.renderable.color = self.renderable.color
 
 
-class Debris(BlasteroidsEntity):
+class Debris(grease.Entity):
     """Floating space junk"""
 
 
@@ -89,7 +89,7 @@ class PlayerShip(BlasteroidsEntity):
         self.shape.verts = self.SHAPE_VERTS
         self.shape.closed = False
         self.renderable.color = self.COLOR
-        self.collision.radius = 7.5
+        self.collision.radius = self.COLLISION_RADIUS
         self.gun.firing = False
         self.gun.last_fire_time = 0
         self.gun.cool_down = self.GUN_COOL_DOWN
@@ -168,10 +168,10 @@ class Asteroid(BlasteroidsEntity):
         verts = [(random.gauss(x*radius, radius / 7), random.gauss(y*radius, radius / 7))
             for x, y in self.UNIT_CIRCLE]
         self.shape.verts = verts
+        self.renderable.color = "#aaa"
         self.collision.radius = radius
         self.collision.from_mask = PlayerShip.COLLIDE_INTO_MASK
         self.collision.into_mask = self.COLLIDE_INTO_MASK
-        self.renderable.color = "#aaa"
         self.award.points = points
 
     def on_collide(self, other, point, normal):

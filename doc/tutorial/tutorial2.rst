@@ -135,7 +135,7 @@ The :class:`component.Collision` component (line 9 above) has the fields we need
    The meaning of this field is up to the specific collision system used. For :class:`collision.Circular` systems, entities are approximated as circles for the purposes of collision detection. The radius value is simply the radius of the collision circle for an entity.
 
 `from_mask` and `into_mask`
-   Not all entities in the collision component need to be able to collide with each other. These two mask fields let you specify which entities can collide. Both mask fields are 32 bit integer bitmasks. When two entities are compared for collision, the :attr:`from_mask` value from each entity is bit-anded with the :attr:`into_mask` of the other. If this bit-and operation returns a non-zero result, then a collision is possible, if the result is zero, the entities cannot collide. Note that this happens in both directions, so a collision can occur between entity A and B if `A.collision.from_mask & B.collision.into_mask != 0 or B.collision.from_mask & A.collision.into_mask != 0`.
+   Not all entities in the collision component need to be able to collide with each other. These two mask fields let you specify which entities can collide. Both mask fields are 32 bit integer bitmasks. When two entities are compared for collision, the :attr:`from_mask` value from each entity is bit-anded with the :attr:`into_mask` of the other. If this bit-and operation returns a non-zero result, then a collision is possible, if the result is zero, the entities cannot collide. Note that this happens in both directions, so a collision can occur between entity A and B if ``A.collision.from_mask & B.collision.into_mask != 0 or B.collision.from_mask & A.collision.into_mask != 0``.
 
 Let's take a closer look at how the collision system is configured above:
 
@@ -153,11 +153,13 @@ In our game we will leverage the collision masks to make it so that the player's
 .. literalinclude:: blasteroids2.py
    :pyobject: PlayerShip
    :end-before: def turn
+   :linenos:
 
-Lines 19-20 above initialize the collision settings for the player ship. Note that the radius is set slightly smaller than the farthest vertex in the shape (by 0.5 units). This is common when using circular collision shapes, it prevents the appearance of false positive collisions that can make the game feel unfair.
+Lines 21-22 above initialize the collision settings for the player ship. Note that the radius is set slightly smaller than the farthest vertex in the shape (by 0.5 units). This is common when using circular collision shapes, it prevents the appearance of false positive collisions that can make the game feel unfair.
 
 .. literalinclude:: blasteroids2.py
    :pyobject: Asteroid
+   :end-before: def on_collide
    :linenos:
 
 Lines 18-20 above setup collision for the asteroids. The radius is simply set to the asteroid's radius. The collision masks are configured so that the asteroids will collide with the player's ship, but not with each other.
@@ -165,16 +167,17 @@ Lines 18-20 above setup collision for the asteroids. The radius is simply set to
 To start with, will add a simple :meth:`on_collide` method to both the :class:`Asteroid` and :class:`PlayerShip` classes that simply delete the entities when they collide::
 
         def on_collide(self, other, point, normal):
+            """Collision response handler"""
             self.delete()
 
 Blowing Stuff Up
 ================
 
-When you run the game now, you'll notice that asteroids pass right through each other, but if you hit one with the ship, both the ship and asteroid disappear. This proves that the collision is working as expected, but it's not very interesting yet. What would really spice things up is some simple explosion effects when entities are destroyed. 
+When you run the game now, you'll notice that asteroids pass right through each other, but if you hit one with the ship, both the ship and asteroid disappear. This proves that the collision is working as expected, but it's not very interesting yet. What would really spice things up are some simple explosion effects when entities are destroyed. 
 
-Here's what we need to implement to make this happen:
+Here's what we need to implement to make stuff explode:
 
-* A method to "explode" and entity into a bunch of debris fragments.
+* A method to "explode" an entity into a bunch of debris fragments.
 
 * A system that manages the debris, fading it out and cleaning it up over
   time.
@@ -197,5 +200,58 @@ Let's take apart the :class:`BlasteroidsEntity` class and see how it works. In l
 
 Next we create the debris. This is aided by the :meth:`shape.segments` method (line 7). This method returns an iterator of all of the individual line segments of the original shape as separate shapes. This effectively fragments our original entity shape. 
 
-We loop over these fragment segments creating debris entities for each. The shape of each debris fragment is a single segment of the original entity's shape. We also set the initial position and velocity of the debris entity to that of the exploding entity (line 10-11). Next we add some random velocity outward from the exploding entity's position to make it "explode" (line 12). Because the base shapes are centered around the origin, we can just use one of the vertex positions to determine the approximate outward direction from the center. Normalizing the first vertex vector -- giving it a length of 1 -- and multiplying it by a random value gives us the desired outward push. A bit of random rotation adds a little spice to the effect (line 13). Last, we set the color of the debris to the same as the original entity so it appears to be pieces of the original.
+We loop over these fragment segments creating debris entities for each. The shape of each debris fragment is a single segment of the original entity's shape. We also set the initial position and velocity of the debris entity to that of the exploding entity (line 10-11). Next we add some random velocity outward from the exploding entity's position to make it "explode" (line 12). Because the base shapes are centered around the origin, we can just use one of the vertex positions to determine the approximate outward direction from the center. Normalizing the first vertex vector -- giving it a length of 1 -- and multiplying it by a random value gives us the desired outward push. A bit of random rotation adds a little spice to the effect (line 13). Last, we set the color of the debris to the same as the original entity so they appear to be pieces of the original.
 
+To trigger the explosions, we simply need to change the base class of our :class:`PlayerShip` and :class:`Asteroid` classes to :class:`BlasteroidsEntity` and add a call to :meth:`explode` in their :meth:`on_collide` methods::
+
+        def on_collide(self, other, point, normal):
+            """Collision response handler"""
+            self.explode()
+            self.delete()
+
+
+Cleaning Up the Mess
+""""""""""""""""""""
+
+Blowing stuff up is great fun, of course, but at some point we need to clean up the debris. We'll accomplish this by adding a custom :class:`Sweeper` system:
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: Sweeper
+   :linenos:
+
+This is first system we've created from scratch, so let's look a little deeper at what a system actually is. You'll notice we are subclassing :class:`grease.System`, an abstract base class defined by the framework. Subclassing :class:`grease.System` is optional, though it helps make it clear what type of part the class defines.
+
+The only method that a system must implement is :meth:`step`. The :meth:`step` method is called by the world every time step, passing in the time delta since the last time step as a float. This is where the system implements its business logic.
+
+Optionally a system can implement a :meth:`set_world` method. If defined, this method is called when the system is added to a world, passing the :class:`grease.World` instance as its argument. This can be a good place to do system initialization where you need a world object, such as we did with the :class:`GameWorld` system implementation earlier. The :class:`grease.System` base class defines a simple implementation of :meth:`set_world` that stores a reference to the system's world for convenient access to its entities, components or even other systems.
+
+The :attr:`SWEEP_TIME` value defined on our class specifies the time debris will live before it is "swept up" by the system and deleted. As this time elapses, the alpha value of each debris entity's color is slowly reduced, fading the debris away.
+
+We determine the amount to fade the debris for each time step by dividing the time delta ``dt`` by the :attr:`SWEEP_TIME` (line 7 above). This works because the color component values are floating point numbers between 0 and 1.0: 
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: Sweeper
+   :start-after: def step
+   :end-before: for entity
+
+Next we loop iterating through the :class:`Debris` entities. We do this by accessing the *entity extent* for :class:`Debris`. This extent is accessed by using the :class:`Debris` class as a key to the world::
+
+    self.world[Debris].entities
+
+The entity extent object returned by ``self.world[Debris]`` has an attribute :attr:`entities` which is the set of all entities for that extent in the world. This conveniently gives us all of the debris entities in existence. You'll notice that in the for loop on line 7, we turn this set of entities into a tuple:
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: Sweeper
+   :start-after: fade =
+   :end-before: color =
+
+This makes a copy of the set to iterate over, so we can safely remove debris entities from the world inside the loop. Without making a copy, we might actually change the members of the :attr:`entities` while iterating it, which at best would cause an exception, and at worst would result in some entities being skipped over. Any time you iterate over a mutable sequence, such as a list, set or dict, you need to be careful about changes to that sequence while iterating it. This tends to be a common gotcha in Python game development.
+
+Inside the loop things are pretty straightforward. For each debris entity, we get the color from the renderable component (line 9). Color objects have the attributes :attr:`r`, :attr:`g`, :attr:`b`, and :attr:`a` for their red, green, blue, and alpha values. We only care about the alpha in this system. For alpha values greater than 0.2, we fade it a bit to a minimum value of zero. If the alpha value is not greater than 0.2, we delete the debris entity entirely (lines 10-13).
+
+Now the debris fragments fade away and disappear a short time after the entity explodes.
+
+.. note::
+   What's powerful about systems is their ability to define behavioral aspects of the world. With this simple system, we now control the behavior and lifespan of all debris, regardless of where, why or how they are created. If we add new sources of debris later, this system will automatically handle them without additional effort.
+
+.. Animation frames go here

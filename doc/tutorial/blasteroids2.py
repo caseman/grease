@@ -27,7 +27,7 @@ class Debris(grease.Entity):
     """Floating space junk"""
 
 
-class PlayerShip(grease.Entity):
+class PlayerShip(BlasteroidsEntity):
     """Thrust ship piloted by the player"""
 
     THRUST_ACCEL = 75
@@ -64,10 +64,12 @@ class PlayerShip(grease.Entity):
         self.shape.verts[2] = (0, -8)
 
     def on_collide(self, other, point, normal):
+        """Collision response handler"""
+        self.explode()
         self.delete()
 
 
-class Asteroid(grease.Entity):
+class Asteroid(BlasteroidsEntity):
     """Big floating space rock"""
 
     COLLIDE_INTO_MASK = 0x2
@@ -89,7 +91,24 @@ class Asteroid(grease.Entity):
         self.collision.into_mask = self.COLLIDE_INTO_MASK
 
     def on_collide(self, other, point, normal):
+        """Collision response handler"""
+        self.explode()
         self.delete()
+
+
+class Sweeper(grease.System):
+    """Clears out space debris"""
+
+    SWEEP_TIME = 2.0
+
+    def step(self, dt):
+        fade = dt / self.SWEEP_TIME
+        for entity in tuple(self.world[Debris].entities):
+            color = entity.renderable.color
+            if color.a > 0.2:
+                color.a = max(color.a - fade, 0)
+            else:
+                entity.delete()
 
 
 class GameSystem(KeyControls):
