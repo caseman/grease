@@ -38,6 +38,7 @@ class PlayerShip(BlasteroidsEntity):
     COLOR = "#7f7"
     COLLISION_RADIUS = 7.5
     COLLIDE_INTO_MASK = 0x1
+    GUN_COOL_DOWN = 0.5
 
     def __init__(self, world, invincible=False):
         self.position.position = (0, 0)
@@ -49,6 +50,8 @@ class PlayerShip(BlasteroidsEntity):
         self.renderable.color = self.COLOR
         self.collision.into_mask = self.COLLIDE_INTO_MASK
         self.collision.radius = self.COLLISION_RADIUS
+        self.gun.cool_down = self.GUN_COOL_DOWN
+
 
     def turn(self, direction):
         self.movement.rotation = self.TURN_RATE * direction
@@ -94,6 +97,60 @@ class Asteroid(BlasteroidsEntity):
         """Collision response handler"""
         self.explode()
         self.delete()
+
+
+class Shot(grease.Entity):
+    """Pew Pew!"""
+
+    SPEED = 300
+    TIME_TO_LIVE = 0.75 # seconds
+    
+    def __init__(self, world, shooter, angle):
+        offset = geometry.Vec2d(0, shooter.collision.radius)
+        offset.rotate(angle)
+        self.position.position = shooter.position.position + offset
+        self.movement.velocity = (
+            offset.normalized() * self.SPEED + shooter.movement.velocity)
+        self.shape.verts = [(0, 1.5), (1.5, -1.5), (-1.5, -1.5)]
+        self.collision.radius = 2.0
+        self.collision.from_mask = ~shooter.collision.into_mask
+        self.renderable.color = "#ffc"
+        world.clock.schedule_once(self.expire, self.TIME_TO_LIVE)
+
+    def on_collide(self, other, point, normal):
+        self.delete()
+    
+    def expire(self, dt):
+        self.delete()
+
+
+class PositionWrapper(grease.System):
+    """Wrap positions around when they go off the edge of the window"""
+
+    def __init__(self):
+        self.half_width = window.width / 2
+        self.half_height = window.height / 2
+
+    def step(self, dt):
+        for entity in self.world[...].collision.aabb.right < -self.half_width:
+            entity.position.position.x += window.width + entity.collision.aabb.width
+        for entity in self.world[...].collision.aabb.left > self.half_width:
+            entity.position.position.x -= window.width + entity.collision.aabb.width
+        for entity in self.world[...].collision.aabb.top < -self.half_height:
+            entity.position.position.y += window.height + entity.collision.aabb.height 
+        for entity in self.world[...].collision.aabb.bottom > self.half_height:
+            entity.position.position.y -= window.height + entity.collision.aabb.height
+
+
+class Gun(grease.System):
+    """Fires Shot entities"""
+
+    def step(self, dt):
+        for entity in self.world[...].gun.firing == True:
+            if self.world.time >= entity.gun.last_fire_time + entity.gun.cool_down:
+                Shot(self.world, entity, entity.position.angle)
+                entity.gun.last_fire_time = self.world.time
+
 
 
 class Sweeper(grease.System):
@@ -167,10 +224,6 @@ class GameSystem(KeyControls):
     def stop_firing(self):
         if self.player_ship.exists:
             self.player_ship.gun.firing = False
-    
-    @KeyControls.key_press(key.P)
-    def pause(self):
-        self.world.running = not self.world.running 
 
 
 class GameWorld(grease.World):
@@ -182,11 +235,18 @@ class GameWorld(grease.World):
         self.components.shape = component.Shape()
         self.components.renderable = component.Renderable()
         self.components.collision = component.Collision()        
+        self.components.gun = component.Component(
+            firing=bool, 
+            last_fire_time=float, 
+            cool_down=float)
 
         self.systems.movement = controller.EulerMovement()
         self.systems.game = GameSystem()
         self.systems.collision = collision.Circular(
             handlers=[collision.dispatch_events])
+        self.systems.sweeper = Sweeper()
+        self.systems.gun = Gun()
+        self.systems.wrapper = PositionWrapper()
 
         self.renderers.camera = renderer.Camera(
             position=(window.width / 2, window.height / 2))

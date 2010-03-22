@@ -1,14 +1,13 @@
-###############
-Grease Tutorial
-###############
-
 .. _tut-chapter-2:
 
-******************************
-Chapter 2: Making a Game of it
-******************************
+#######################
+Grease Tutorial Part II
+#######################
 
-In :ref:`chapter 1 <tut-chapter-1>` the basis was laid for the *Blasteroids* game, but it is far from complete or even playable. By the end of this chapter, we'll have rectified that. To start with, let's build on the techniques we used to create the :class:`Asteroid` class, and create an entity for the player's ship.
+Making a Game of it
+===================
+
+In :ref:`part 1 <tut-chapter-1>` of the tutorial the basis was laid for the *Blasteroids* game, but it is far from complete or even playable. By the end of this chapter, we'll have rectified that. To start with, let's build on the techniques we used to create the :class:`Asteroid` class, and create an entity for the player's ship.
 
 The start should look pretty familar, and even a bit simpler than the asteroids:
 
@@ -249,9 +248,160 @@ This makes a copy of the set to iterate over, so we can safely remove debris ent
 
 Inside the loop things are pretty straightforward. For each debris entity, we get the color from the renderable component (line 9). Color objects have the attributes :attr:`r`, :attr:`g`, :attr:`b`, and :attr:`a` for their red, green, blue, and alpha values. We only care about the alpha in this system. For alpha values greater than 0.2, we fade it a bit to a minimum value of zero. If the alpha value is not greater than 0.2, we delete the debris entity entirely (lines 10-13).
 
+Now that the :class:`Sweeper` class is implemented, the last thing we need to do is add it to our game world. We just need to add this line to the :meth:`configure` method of the :class:`GameoWorld` class::
+
+    self.systems.sweeper = Sweeper()
+
 Now the debris fragments fade away and disappear a short time after the entity explodes.
 
 .. note::
    What's powerful about systems is their ability to define behavioral aspects of the world. With this simple system, we now control the behavior and lifespan of all debris, regardless of where, why or how they are created. If we add new sources of debris later, this system will automatically handle them without additional effort.
 
 .. Animation frames go here
+
+Shoot Me Now
+============
+
+Alright, so now we have collisions and explosions working, what more could we want in a game? Well, there's a big problem: The only way to blow things up is to use the ship as a battering ram. We need a way to destroy things without also committing suicide. If only there was a game mechanic we could use....hmmm.
+
+Ok, enough fooling around, we need to be able to shoot stuff! To do that we need some sort of gun. For our purposes, a gun is a device that can shoot out :class:`Shot` entities. Since such a "device" might be useful for other entities besides the :class:`PlayerShip`, it would be useful to implement as a behavioral aspect of the game. 
+
+The best way to implement such aspects, as we've seen, is to use a system. It might not seem obvious when a feature should be implemented using a system, versus just a method on the entity class, like :meth:`explode` above. Of course, these things are not cut and dried and there is no right or wrong way, but systems offer some advantages in certain situations:
+
+#. The behavior is tied to specific components.
+#. The behavior is continuous or recurs over time.
+#. The behavior is not specific to a particular entity.
+
+If any one of the above is true, you should consider implementing the behavior as a system. In our case, we will be defining a custom :obj:`gun` component to store some state for guns, and the behavior recurs periodically over time (If you hold down fire). Right now #3 above is not true, but if we were to implement alien ships that could shoot at the player later, it would be. All in all I think that makes a compelling case for using a system here.
+
+The first thing we need is a component to store some gun state. This will be used to determine when the gun can shoot. Three pieces of information are needed for this: a flag to determine if the gun should fire, the last time the gun was shot, and the minimum "cool down" time between shots. We can add a custom component to the :class:`GameWorld` to store this information in three fields::
+
+        self.components.gun = component.Component(
+            firing=bool, 
+            last_fire_time=float, 
+            cool_down=float)
+
+The :class:`grease.component.Component` class lets us create custom components with user-defined fields. To construct a custom component, we specify the fields as keyword arguments. The names of the arguments specify the names of the fields. The value of each argument specifies the data type for each field. Since the data type is fixed, this makes component fields more rigid than conventional Python attributes, but it provides some important benefits:
+
+#. Component values can be stored in compact data structures using native data types where possible (int, float, Vec2d, etc).
+#. Component data can be stored in contiguous data blocks for much faster batch operations.
+#. Fields have sensible default values.
+#. Input values can be automatically cast to the proper field type 
+   (e.g., 2-tuples to :class:`Vec2d`, hex strings to :class:`color.RGBA`)
+#. Systems and other users of component data know exactly what type of data to expect
+   for each field.
+
+An important drawback to this arrangement is that fields must always have a value of the proper type. So it is not possible to assign a value of ``None`` to a float field, for instance. 
+
+.. Note::
+   The only difference between custom and built-in components is that the fields for the former are already specified for convenience. Using custom components has no drawbacks other than the additional configuration required.
+
+With the :obj:`gun` component in place, lets modify the :class:`PlayerShip` class to initialize the gun data:
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: PlayerShip
+   :end-before: def turn
+   :linenos:
+
+We add a class attribute on line 12 to specify a one half second cooldown for the gun. On line 24 we set this value in the :obj:`gun` component. We do not have to explicitly set the :attr:`firing` and :attr:`last_fire_time` fields. They will automatically default to ``False`` and ``0`` respectively.
+
+Shot Class
+""""""""""
+
+Now let's implement the :class:`Shot` entity class for our bullets:
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: Shot
+   :end-before: def on_collide
+   :linenos:
+
+We start with some class attributes (line 4-5) to specify the shot's speed and time-to-live. The latter is an indirect way to specify the range for the shot.
+
+Next we define the constructor, which in addition to the required :obj:`world` argument, takes a :obj:`shooter` entity and :obj:`angle` value. The shooter is the entity that the shot is being fired from. The angle determines the direction of the shot.
+
+Inside the constructor, we first determine the initial position of the shot (lines 8-10). This is done by computing an offset based on the shooter's collision radius and the input angle. This way the shot appears to come from the surface of the shooter, rather than the center. The velocity is calculated by multiplying the angle's unit vector by the shot's speed, plus the shooter's velocity. Without including the shooter's velocity, the shooter could actually outrun his own shots, and strafing would feel very unnatural.
+
+The shape of the shot is set to a small triangle (line 13). This is small enough so that it will appear to be a small dot when rendered.  Collision is setup with a small radius and a mask specifically designed to collide with everything except for the shooter (``~`` is Python's bit-invert operator). Setting the color ensures the shot is rendered.
+
+On line 17 we schedule the shot to expire at the proper time. The clock will call the expire method (defined below) when the time-to-live elapses, deleting the entity automatically. This means that we do not need to keep track of when each shot will expire ourselves, which is convenient.
+
+We have two more methods to implement for :class:`Shot`: an :meth:`on_collide` handler for collision and an :meth:`expire` method for handling the shot expiration. Both will simply delete the entity:
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: Shot.on_collide
+.. literalinclude:: blasteroids2.py
+   :pyobject: Shot.expire
+
+Gun System
+""""""""""
+
+With the :obj:`gun` component and :class:`Shot` class implemented, we can finally finish things off by implementing the :class:`Gun` system:
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: Gun
+   :linenos:
+
+This is even shorter than the :class:`Sweeper` system that we implemented previously, but there are some new things here that bear explanation, in particular on line 5. In the :class:`Sweeper` implementation, we discussed how to use entity classes as keys on the world to retrieve entity extents. In many cases though, you want to get the extent containing all entities instead of just one particular type. To do this you use the special Python ellipsis symbol (``...``) as a key::
+
+		world[...]
+
+This means: "give me the extent of all entities in the world."
+
+In :class:`Sweeper`, we used the extent just to get a set of entities of a particular type. But extents can do far more than that, they can also be used to create query expressions.
+
+You can think of extents as a batch of entities, and like individual entities you can access components as attributes of extents. Only instead of accessing a single component record for an entity, an extent accessor selects them for the entire extent. For instance::
+
+		world[...].gun
+
+This returns a special set of all entities in the :obj:`gun` component. It's special because we can use it to query fields in the component. For example::
+
+		world[...].gun.firing == True
+
+That looks like an innocent boolean expression, but it is actually much more than that. This expression returns a set of all entities where the component field ``gun.firing`` matches the value ``True``. So this expression returns the set of all entities currently firing their gun. We can iterate this set, as we do in line 5 above, to perform the neccessary logic in our system.
+
+On line 6 we check if the entity's gun is ready to fire. ``self.world.time`` is the local timestamp of the world object, updated every time step. If the gun is ready to fire, we create a :class:`Shot` entity and update the ``last_fire_time`` so the gun can begin its cool down cycle again.
+
+As you may have guessed, now that we have our :class:`Gun` system implemented, we need to add it to the :class:`GameWorld` class::
+
+		self.systems.gun = Gun()
+
+In addition, we need to add some methods to the :class:`GameSystem` class to fire the player ship's gun when the space bar is pressed:
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: GameSystem
+   :start-after: self.player_ship.thrust_off
+   :end-before: GameWorld
+
+These methods simply set the :attr:`gun.ship` flag when space is pressed, and reset it when space is released.
+
+With all of this in place we can finally blast those asteroids to smithereens!
+
+.. image:: blast_em.png
+
+Wrapping Things Up
+==================
+
+We've now implemented all of the major game mechanics, save one. You'll notice if you fly around for a few seconds, all of the asteroids fly off the screen and disappear. And so will the player's ship if you accelerate it in one direction. We forgot to implement the all-important toroidal space topology! That's fancy-talk for making objects wrap around when they fly off the edge of the screen.
+
+So, how do you suppose we're gonna fix this? Surprise! Another system! This is a textbook example of a behavioral aspect of the application:
+
+.. literalinclude:: blasteroids2.py
+   :pyobject: PositionWrapper
+   :linenos:
+
+The constructor (lines 4-6) precalculates the half width and height of the window for convenience later. Remember that the origin is in centered in the window, so these values are handy for finding the edges.
+
+The :meth:`step` method performs four entity extent queries, in the same spirit as in the :class:`Gun` system. Here we are querying the edges of the entities using their collision bounding boxes, comparing them to the window edges. In the first loop (line 9-10) we iterate over all entities whose right edge has moved left beyond the left edge of the window. This extent query does the job::
+
+		self.world[...].collision.aabb.right < -self.half_width
+
+For all of the entities matched by this expression, we move them to the right the full width of the window plus the width of the entity which we can also conveniently get using the bounding box.
+
+The remaining 3 loops are essentially the same except each handles a different window edge.
+
+Naturally once we have this class implemented, you guessed it, we need to add it to the :class:`GameWorld`::
+
+        self.systems.wrapper = PositionWrapper()
+
+With this now in place, all of the entities in the collision component (asteroids, the player ship, shots) will automatically wrap around when they fly offscreen.
+

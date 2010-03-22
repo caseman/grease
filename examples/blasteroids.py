@@ -74,12 +74,12 @@ class PlayerShip(BlasteroidsEntity):
         (-8, -12), (-4, -10), (0, -8), (4, -10), (8, -12), # flame
         (0, 12), (-8, -12), (0, -8), (8, -12)]
     COLOR = "#7f7"
+    COLLISION_RADIUS = 7.5
+    COLLIDE_INTO_MASK = 0x1
     GUN_COOL_DOWN = 0.5
     GUN_SOUND = load_sound('pewpew.wav')
     THRUST_SOUND = looping_sound('thrust.wav')
     DEATH_SOUND = load_sound('dead.wav')
-    COLLISION_RADIUS = 7.5
-    COLLIDE_INTO_MASK = 0x1
 
     def __init__(self, world, invincible=False):
         self.position.position = (0, 0)
@@ -90,8 +90,6 @@ class PlayerShip(BlasteroidsEntity):
         self.shape.closed = False
         self.renderable.color = self.COLOR
         self.collision.radius = self.COLLISION_RADIUS
-        self.gun.firing = False
-        self.gun.last_fire_time = 0
         self.gun.cool_down = self.GUN_COOL_DOWN
         self.gun.sound = self.GUN_SOUND
         self.set_invincible(invincible)
@@ -490,9 +488,9 @@ class BaseWorld(grease.World):
         self.systems.movement = controller.EulerMovement()
         self.systems.collision = collision.Circular(
             handlers=[collision.dispatch_events])
-        self.systems.wrapper = PositionWrapper()
-        self.systems.gun = Gun()
         self.systems.sweeper = Sweeper()
+        self.systems.gun = Gun()
+        self.systems.wrapper = PositionWrapper()
 
         self.renderers.camera = renderer.Camera(
             position=(window.width / 2, window.height / 2))

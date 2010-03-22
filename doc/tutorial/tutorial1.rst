@@ -1,18 +1,18 @@
 .. Grease tutorial chapter 1
 
-###############
-Grease Tutorial
-###############
+.. _tut-chapter-1:
+
+######################
+Grease Tutorial Part I
+######################
 
 In this tutorial, we will be creating a simple, but complete game. To make the most of this material, you should have a working Grease installation. The tutorial progresses through several revisions of an example game named *Blasteroids*. To keep things simple, all of the code in this game is in a single file. Each section of the tutorial builds a new revision of the game code. You can find the complete revisions of the tutorial game code for each section in the *doc/tutorial* subdirectory of the Grease source package.  
 
 For Grease installation instructions, see: <insert install doc link>
 
-.. _tut-chapter-1:
 
-********************
-Chapter 1: Diving In
-********************
+Diving In
+=========
 
 Grease is built upon the excellent `Pyglet <http://www.pyglet.org/>`_ library. Pyglet provides the basic windowing, operating system event, scheduling and OpenGL graphics support for Grease. This tutorial assumes no prior knowledge of Pyglet or OpenGL, however it is not itself anything but a basic introduction to each. One of the advantages to Grease is that it abstracts away much of the details of using OpenGL, however its full power is still available to you if you need it. In fact there is no OpenGL-specific code in this tutorial, but several general graphic programming concepts will be introduced.
 
@@ -195,4 +195,4 @@ We now have a working start to the game. The full source of our first revision c
 
 .. image:: blasteroids1.png
 
-**Next:** :ref:`tut-chapter-2`
+**Next:** :ref:`Grease Tutorial Part II: Making a Game of it <tut-chapter-2>`
