@@ -10,9 +10,7 @@
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 #
 #############################################################################
-"""Basic vector graphics arcade game built with Grease"""
-
-__version__ = '$Id$'
+"""Grease tutorial game revision 3"""
 
 import os
 import math

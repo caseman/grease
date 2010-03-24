@@ -405,3 +405,6 @@ Naturally once we have this class implemented, you guessed it, we need to add it
 
 With this now in place, all of the entities in the collision component (asteroids, the player ship, shots) will automatically wrap around when they fly offscreen.
 
+:download:`blasteroids2.py` contains the full source of the second revision of the game.
+
+**Next:** :ref:`Grease Tutorial Part III: Spit and Polish <tut-chapter-3>`
