@@ -296,6 +296,15 @@ class GameSystem(KeyControls):
         if self.level == 1:
             self.chime()
     
+    def chime(self, dt=0):
+        """Play tension building chime sounds"""
+        if self.lives:
+            self.chimes.next().play()
+            self.chime_time = max(self.chime_time - dt * 0.01, self.MIN_CHIME_TIME)
+            if not self.world[Asteroid].entities:
+                self.start_level()
+            self.world.clock.schedule_once(self.chime, self.chime_time)
+
     def award_points(self, entity):
         """Get points for destroying stuff"""
         if hasattr(entity.award, 'points'):
@@ -317,16 +326,6 @@ class GameSystem(KeyControls):
                 window.current_mode.activate_next()
             else:
                 window.current_mode.remove_submode()
-
-
-    def chime(self, dt=0):
-        """Play tension building chime sounds"""
-        if self.lives:
-            self.chimes.next().play()
-            self.chime_time = max(self.chime_time - dt * 0.01, self.MIN_CHIME_TIME)
-            if not self.world[Asteroid].entities:
-                self.start_level()
-            self.world.clock.schedule_once(self.chime, self.chime_time)
     
     @KeyControls.key_press(key.LEFT)
     @KeyControls.key_press(key.A)
