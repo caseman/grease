@@ -55,10 +55,9 @@ Components specify the data fields for the entities in the game and store all of
 Below is the first part of our world configuration that subclasses the :class:`grease.World` base class and configures some basic components:
 
 .. literalinclude:: blasteroids1.py
-   :lines: 5
-
-.. literalinclude:: blasteroids1.py
-   :lines: 26-33
+   :pyobject: GameWorld
+   :end-before: self.systems
+   :linenos:
 
 Components are accessed via the world attribute :attr:`components`. Above, attributes for each component we need are added. Although we can give the component attributes any names we want, other parts of the world will be easier to configure if we use standard names. The standard names of the built-in components are always the same as the class name, only lower case. If the component name has multiple words, it is recommended to use the `pep-8 <http://www.python.org/dev/peps/pep-0008/>`_ naming convention of :attr:`lower_case_with_underscores`. But bear in mind that the component attribute names are not magical and can be anything you want.
 
@@ -84,7 +83,9 @@ Systems
 Now that we have some components for our world, let's move on to systems. Systems define behavioral aspects of the world. They execute at regular intervals to update the state of the world in particular ways. This often means they take data from one or more components to modify the data in others.  Below we add a standard system to our world configuration:
 
 .. literalinclude:: blasteroids1.py
-   :lines: 26-35
+   :pyobject: GameWorld
+   :end-before: self.renderers
+   :linenos:
 
 Similar to components, the world attribute :attr:`systems` is used to access the systems. Systems are also named using attributes, like components. Unlike components, however, the order of systems in the world is important. When the systems are executed each time step, they are executed in the order they were assigned to the :attr:`systems` attribute. Many times systems use the results calculated by other systems to do their work. System ordering allows the application to ensure that the world is updated in a consistent way. Of course since we only have a single system so far, we can't go too far wrong with the order. When we add more systems later, we'll come back and address ordering again.
 
@@ -117,20 +118,24 @@ Not let's put that theory into practice and define the :class:`Asteroid` entity 
 
 .. literalinclude:: blasteroids1.py
    :pyobject: Asteroid
+   :linenos:
 
 Let's dissect this to see what's going on. The class declaration is straightforward enough, we simply subclass :class:`grease.Entity`. It's worth stating that this is not optional. The :class:`Entity` base class contains several essential facilities to make it fit into a world context.
 
 After the docstring (always a good idea), we have a standard class attribute declaration:
 
 .. literalinclude:: blasteroids1.py
-   :lines: 11-12
+   :pyobject: Asteroid
+   :start-after: """
+   :end-before: __init__
 
 Since our asteroids are basically distorted circles, this sets up a list of points along a unit circle to use as a base shape. Although instance attributes of entities are fixed, you can define as many class attributes as desired. It's important that their names do not clash with the component accessors (which we'll be getting to next). Using a naming convention, such as :attr:`UPPER_CASE_WITH_UNDERSCORES` as above avoids name collision problems handily.
 
 Next let's go into the entity constructor:
 
 .. literalinclude:: blasteroids1.py
-   :lines: 14-17
+   :pyobject: Asteroid.__init__
+   :end-before: movement
 
 The method declaration is conventional, however the second :attr:`world` argument is mandatory. As you might imagine this is the world object that the entity has been created in. Although you must receive this argument, you do not need to do anything with it in your :meth:`__init__()` method. The :class:`Entity` base class takes care of assigning the :attr:`world` and :attr:`entity_id` attributes for you in its :meth:`__new__()` method. After the :attr:`world` argument you can define any additional arguments you need. Here we add a radius argument so that asteroids of various sizes can be created with this class.
 
@@ -143,7 +148,8 @@ So you can read the above assignment statement as, *"add the entity to the posit
 Now let's tackle movement:
 
 .. literalinclude:: blasteroids1.py
-   :lines: 18-19
+   :pyobject: Asteroid.__init__
+   :end-before: verts
 
 The velocity is a 2D vector much like position. We set it to a random value, that on average will be faster for asteroids with a smaller radius.
 
@@ -151,11 +157,11 @@ Note how we can assign 2D vectors using just a 2 element tuple. These are conver
 
 The rotation is set at a slow random value centered around zero. The zero mean will result in an approximately equal number of asteroids rotating clockwise as counterclockwise. The rotation values are in degrees per second, with positive values being clockwise.
 
-
 Next up is the shape:
 
 .. literalinclude:: blasteroids1.py
-   :lines: 20-22
+   :pyobject: Asteroid.__init__
+   :end-before: renderable
 
 I broke this into two lines to make it a little easier to follow, it could be done on one line if desired. The first line sets up a list of 2D vertex coordinates for a polygon shape. The shape is offset and rotated by the position component values when it is used, so the coordinates here are relative to the "local origin" which in this case is at the center of each asteroid shape. To create the desired irregular shape, we step through the unit circle multiplying each unit coordinate by the radius. The gaussian random function adds a random deviation to each vertex location. The amount of deviation is proportional to the asteroid size.
 
@@ -164,7 +170,7 @@ The second line just takes our randomized vertices and stores them in the shape 
 Lastly, we set the asteroid color, to a nice dusty light gray:
 
 .. literalinclude:: blasteroids1.py
-   :lines: 23
+   :pyobject: Asteroid.__init__
 
 In order for the vector renderer to draw the entity, it must be a member of the position, shape and renderable components. Now that we have added data for our asteroids in all of those components, the renderer will draw them.
 
