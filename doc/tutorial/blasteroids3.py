@@ -304,7 +304,7 @@ class GameSystem(KeyControls):
 
     def award_points(self, entity):
         """Get points for destroying stuff"""
-        if hasattr(entity.award, 'points'):
+        if entity.award:
             self.score += entity.award.points
     
     def player_died(self):

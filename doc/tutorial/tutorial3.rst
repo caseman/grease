@@ -134,7 +134,7 @@ In the :meth:`set_world` method (line 15), we add attributes for :attr:`level` n
 
 Next we define a :meth:`chime` method to sound the chimes (line 32). This method plays the next chime sound, slightly reduces the chime interval, and schedules the next chime sound. We also opportunistically check if all of the asteroids have been destroyed. If so, we start a new level. The reason to do that here is to provide a small time between when the last asteroid is destroyed and when the next level begins. Alternately, we could override the :meth:`step` method and put this logic there, but this is a bit simpler, if a little less tidy.
 
-The last new method we add here is :meth:`award_points` (line 41). This simply accepts an entity, checks if it provides any points, and adds it to the total score if so. The :func:`hasattr` check on line 43 is a simple way to check if an entity has a particular component value. If the entity is not a member of the :obj:`award` component, this will return ``False``. 
+The last new method we add here is :meth:`award_points` (line 41). This simply accepts an entity, checks if it provides any points, and adds it to the total score if so. The check on line 43 is a simple way to see if an entity has a particular component value. If the entity is not a member of the :obj:`award` component, this will return ``False``. 
 
 We want to get points when the player shoots things. This means we need to call the :meth:`award_points` when a shot collides with something. Adding the call to the :class:`Shot` class' :meth:`on_collide` method does the trick::
 
