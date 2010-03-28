@@ -12,7 +12,8 @@ In :ref:`part 1 <tut-chapter-1>` of the tutorial the basis was laid for the *Bla
 The start should look pretty familar, and even a bit simpler than the asteroids:
 
 .. literalinclude:: blasteroids2.py
-   :lines: 10-27
+   :pyobject: PlayerShip
+   :end-before: def turn
 
 First we have some class attributes that configure various aspects of the ship, including thrust acceleration, turn rate, shape (vertex points) and color. Separating these out of the code makes them easier to tweak while testing the game, and also will allow us to refer to them from other code, which can be convenient.
 
@@ -61,8 +62,6 @@ To do this, we are going to create our own custom :class:`grease.System` to hous
 Remember that systems are behavioral aspects of our application, and are invoked each time step. So they are the perfect place to define and glue together the logic for the game.
 
 .. literalinclude:: blasteroids2.py
-   :lines: 6-7
-.. literalinclude:: blasteroids2.py
    :pyobject: GameSystem
    :end-before: @
 
@@ -73,7 +72,9 @@ The :meth:`set_world` method is overridden to include a call to create a :class:
 Next let's add a method to turn the ship left when either the "a" or left arrow keys are pressed:
 
 .. literalinclude:: blasteroids2.py
-   :lines: 72-76
+   :pyobject: GameSystem
+   :start-after: PlayerShip
+   :end-before: key_release
 
 The first thing of interest are the two decorators at the top. The :meth:`KeyControls.key_press` decorator binds a method to a key press event for a specific key. As you can see from the code, we can have multiple key binding decorators for a given method to bind it to multiple keys. The decorator method takes one or two arguments. The first argument is the Pyglet key code from :obj:`pyglet.window.key`. The second optional argument is to specify modifier keys (shift, alt, etc). By default, no modifier keys are assumed.
 
@@ -82,25 +83,24 @@ The logic in this method is quite simple. First we check that the :obj:`player_s
 Next we add a complimentary method to stop turning left:
 
 .. literalinclude:: blasteroids2.py
-   :lines: 78-82
+   :pyobject: GameSystem
+   :start-after: turn(-1)
+   :end-before: key_press
 
 The decorators here bind this method to the key release event for the same keys. The methods check for the existence of the entity as above, but also that it is currently turning left (negative rotation). This is to properly handle simultaneous key presses, e.g., left down, right down, then left up.
 
 The methods for handling turning right are the same as above with the direction reversed:
 
 .. literalinclude:: blasteroids2.py
-   :lines: 84-94
-
-Now let's define the methods for handling thrust:
-
-.. literalinclude:: blasteroids2.py
-   :lines: 96-106
+   :pyobject: GameSystem
+   :start-after: turn(0)
+   :end-before: key.SPACE
 
 For activating thrust, we use the :meth:`KeyControls.key_hold` decorator. This works differently than the key press and release decorators we used for turning. The press and release decorators configure a method to fire once for each specific key event. The key hold decorator configures a method to fire continuously, once per time step, as long as the specified key is held down. This is perfect for thrust, which needs to be adjusted continously as the ship turns, and runs a continuous animation while activated.
 
 The :meth:`stop_thrust` method is simply bound to key release, to ensure the thrust is deactivated at the proper time.
 
-With the key control logic code in place, the next step is to add the :class:`GameSystem` to our :class:`GameWorld`'s systems (Line #11 below):
+With the key control logic code in place, the next step is to add the :class:`GameSystem` to our :class:`GameWorld`'s systems (Line 16 below):
 
 .. literalinclude:: blasteroids2.py
    :pyobject: GameWorld
@@ -195,7 +195,9 @@ We also define an entity class for the debris. This class defines no behavior of
 Let's take apart the :class:`BlasteroidsEntity` class and see how it works. In line 6 above, we take the base shape of the entity and transform it into a new shape, rotating it to the current angle of the entity that is exploding:
 
 .. literalinclude:: blasteroids2.py
-   :lines: 15
+   :pyobject: Debris
+   :start-after: """
+   :end-before: for segment
 
 Next we create the debris. This is aided by the :meth:`shape.segments` method (line 7). This method returns an iterator of all of the individual line segments of the original shape as separate shapes. This effectively fragments our original entity shape. 
 
