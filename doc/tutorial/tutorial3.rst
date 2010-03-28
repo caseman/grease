@@ -141,9 +141,83 @@ We want to get points when the player shoots things. This means we need to call 
     class Shot(grease.Entity):
         """Pew Pew!"""
         ...
+
 .. literalinclude:: blasteroids3.py
    :pyobject: Shot.on_collide
 
 Remember that :meth:`award_points` does the right thing if the other entity has points associated with it or not. That means the caller can just pass in whatever entity the shot runs into without additional logic.
 
+Three Lives to Live
+-------------------
+
+Classic arcade games typically give you multiple lives to spend in a single game. Let's implement that functionality here. In :class:`GameSystem` we aleady initialize a :attr:`lives` counter attribute, now lets add logic for when the player dies and respawns:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: GameSystem.player_died
+
+This method will be called when the player's ship is destroyed. It simply decrements the lives counter, deletes the player's ship entity and schedules a call to :meth:`player_respawn` after a few seconds. Let's look at that implementation next:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: GameSystem.player_respawn
+   :end-before: is_multiplayer
+
+This is a pretty trivial callback that creates a new :class:`PlayerShip` if there are lives remaining. There are a couple of things to note here: one is the :attr:`dt` parameter. This is needed because the clock always passes the time delta in when calling a scheduled method. We don't use it, but we need to receive it for the callback to work. The second thing of note is the :attr:`invincibility` parameter passed into the :class:`PlayerShip` constructor. This will temporarily make the ship invulnerable when it respawns so the player can avoid instant death if the ship materalizes and immediately collides with an asteroid. We will need to modify :class:`PlayerShip` to support this::
+
+    class PlayerShip(BlasteroidsEntity):
+        """Thrust ship piloted by the player"""
+        ...
+
+        def __init__(self, world, invincible=False):
+           ...
+           self.set_invincible(invincible)
+		   
+First we add an :attr:`invincible` parameter to the constructor, and call a new method :meth:`set_invincible` at the end. Now let's define that method:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: PlayerShip.set_invincible
+
+If this is called with the :attr:`invincible` parameter true, the collision masks are cleared so that nothing will collide with the ship. A new :meth:`blink` method is scheduled every 0.15 seconds. It also schedules another call to :meth:`set_invincible` to expire the invincibility in a few seconds.
+
+If the :attr:`invincible` parameter is false, blinking is stopped by unscheduling the :meth:`blink` method, and the collision masks are restored so that the ship will collide with other entities.
+
+Now let's define the :meth:`blink` callback method:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: PlayerShip.blink
+
+This method hides the ship by removing it from the renderable component if it is visible, or makes it visible by setting the ``renderable.color`` if its currently invisible. Calling this repeatedly will alternately hide and show the ship. This is a visual indication to the player that the ship is invulnerable. 
+
+To complete the circuit, we need to add a call to the :meth:`player_died` method we defined above when the ship collides with something and explodes:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: PlayerShip.on_collide
+
+Heads Up!
+---------
+
+The :class:`GameSystem` now keeps track of the player's score and remaining lives, but this information is not presented to the player yet. To remedy that, we'll create a heads-up display. Since this is purely visual, we'll implement it as a renderer:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: Hud
+   :end-before: def draw
+   :linenos:
+
+The methods above setup the :class:`Hud` renderer. The :meth:`set_world` method here serves the same purpose as the same method of our system classes. It is called when the renderer is added to the world. Here we initialize some instance attributes and call :meth:`create_lives_entities`.
+
+.. note:: :class:`grease.Renderer` is an abstract base class much like :class:`grease.System`. Like the latter, it not mandatory that custom renderers subclass :class:`grease.Renderer`, but it does serve to make the application code easier to understand.
+
+:meth:`create_lives_entities` describes its own purpose pretty well. It creates some stationary entities that look lke the player's ship to represent the extra lives remaining. These will be displayed at the top-left of the window.
+
+Below we get to the heart of the matter, the :meth:`draw` method. All renderers must implement this method, which is called whenever the display needs to be updated:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: Hud.draw
+   :end-before: self.world.running
+   :linenos:
+
+Lines 3-9 update the color of the lives entities we created before. Remaining lives are colored the same as the player's ship, making them visible. Additional life markers are made invisible to hide them.
+
+Lines 10-18 create or update the score label. This uses a :class:`pyglet.text.Label`. Creating these objects is relatively expensive, so it is only done when the score actually changes. This is rare compared to the number of times the window must be redrawn.
+
+Lines 19-26 draw a "GAME OVER" label after the player loses their last life.
 

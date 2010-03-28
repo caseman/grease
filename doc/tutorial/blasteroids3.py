@@ -108,7 +108,7 @@ class PlayerShip(BlasteroidsEntity):
         self.THRUST_SOUND.pause()
     
     def set_invincible(self, invincible):
-        """Set the invincibility status of the ship. If invicible is
+        """Set the invincibility status of the ship. If invincible is
         True then the ship will not collide with any obstacles and will
         blink to indicate this. If False, then the normal collision 
         behavior is restored
@@ -125,7 +125,7 @@ class PlayerShip(BlasteroidsEntity):
             self.collision.into_mask = self.COLLIDE_INTO_MASK
     
     def blink(self, dt):
-        """Blink the ship to show invincbility"""
+        """Blink the ship to show invincibility"""
         if self.renderable:
             del self.renderable
         else:
@@ -133,6 +133,7 @@ class PlayerShip(BlasteroidsEntity):
     
     def on_collide(self, other, point, normal):
         self.explode()
+        self.THRUST_SOUND.pause()
         self.DEATH_SOUND.play()
         self.world.systems.game.player_died()
 
@@ -213,10 +214,6 @@ class Shot(grease.Entity):
     
     def expire(self, dt):
         self.delete()
-
-
-class HudEntity(grease.Entity):
-    """Entities used by the HUD"""
 
 ## Define game systems ##
 
@@ -312,7 +309,6 @@ class GameSystem(KeyControls):
     
     def player_died(self):
         self.lives -= 1
-        self.player_ship.THRUST_SOUND.pause()
         self.player_ship.delete()
         self.world.clock.schedule_once(self.player_respawn, 3.0)
         
@@ -388,8 +384,6 @@ class GameSystem(KeyControls):
 class Hud(grease.Renderer):
     """Heads-up display renderer"""
     
-    HUD_FONT = pyglet.font.load('Vector Battle')
-
     def set_world(self, world):
         self.world = world
         self.last_lives = 0
@@ -397,6 +391,18 @@ class Hud(grease.Renderer):
         self.game_over_label = None
         self.paused_label = None
         self.create_lives_entities()
+    
+    def create_lives_entities(self):
+        """Create entities to represent the remaining lives"""
+        self.lives = []
+        verts = geometry.Vec2dArray(PlayerShip.SHAPE_VERTS[3:])
+        left = -window.width // 2 + 25
+        top = window.height // 2 - 25
+        for i in range(20):
+            entity = grease.Entity(self.world)
+            entity.shape.verts = verts.transform(scale=0.75)
+            entity.position.position = (i * 20 + left, top)
+            self.lives.append((i, entity))
 
     def draw(self):
         game = self.world.systems.game
@@ -415,6 +421,7 @@ class Hud(grease.Renderer):
                 x=window.width // 2 - 25, y=window.height // 2 - 25, 
                 anchor_x='right', anchor_y='center')
             self.last_score = game.score
+        self.score_label.draw()
         if game.lives == 0:
             if self.game_over_label is None:
                 self.game_over_label = pyglet.text.Label(
@@ -437,19 +444,6 @@ class Hud(grease.Renderer):
                     x = 0, y = -20, anchor_x='center', anchor_y='top')
             self.player_label.draw()
             self.paused_label.draw()
-        self.score_label.draw()
-    
-    def create_lives_entities(self):
-        """Create entities to represent the remaining lives"""
-        self.lives = []
-        verts = geometry.Vec2dArray(PlayerShip.SHAPE_VERTS[3:])
-        left = -window.width // 2 + 25
-        top = window.height // 2 - 25
-        for i in range(20):
-            entity = HudEntity(self.world)
-            entity.shape.verts = verts.transform(scale=0.75)
-            entity.position.position = (i * 20 + left, top)
-            self.lives.append((i, entity))
 
 
 class TitleScreenControls(KeyControls):
@@ -562,5 +556,4 @@ if __name__ == '__main__':
 
 
 # vim: ai ts=4 sts=4 et sw=4
-
 
