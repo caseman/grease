@@ -221,3 +221,146 @@ Lines 10-18 create or update the score label. This uses a :class:`pyglet.text.La
 
 Lines 19-26 draw a "GAME OVER" label after the player loses their last life.
 
+The screenshots below show the heads-up display in action:
+
+.. image:: heads_up.png
+
+
+.. image:: game_over.png
+
+En-"title"-ment
+===============
+
+With all of the game mechanics in place, we can focus on another important part of the experience, launching the game itself. Currently the player is thrust right into a new game immediately when the application is launched. We need to add a title screen to give the player an opportunity to start the game when they are ready. When a game ends, the player should return to the title screen so they can play again. We can also add different game play modes here for the player to select.
+
+Grease provides a modal framework to aid in creating a user interface flow between different application screens. The main pieces of this framework are mode managers, and modes. :class:`grease.mode.Mode` objects represent a specific application mode. Typically, at any given time, only one specific mode in an application is active. The active mode receives events and time steps so that it can run and the user can interact with it.
+
+Modes are managed by a :class:`grease.mode.Manager`. A manager keeps track of modes in a stack. When a mode is *pushed* onto a manager stack, it becomes active and starts receiving events. Any mode that was active before is deactivated and no longer receives events, but it remains in the manager stack. If the active mode is *popped* off of the manager stack, it is deactivated and the previous active mode is reactivated. If the last mode in the manager stack is popped off, the manager can perform a special action, such as closing the active window or application.
+
+The basic utility of a mode stack is that the user can start in one mode, enter another, then return to the original mode when it's complete and resume where it left off. This is perfect for our title screen. We want to present the title screen when the game application is launched, allow the player to start a game, then return to the title screen when the game is over.
+
+Windows, Managers, Worlds, and Modes
+------------------------------------
+
+Although it is possible to create custom modes and managers in your application, there are two concrete implementations provided by Grease that should prove convenient. One, we are already familar with: :class:`grease.World`. Worlds implement the mode interface so that they can be used directly as game modes. When a world is active in a mode manager, its clock receives ticks, its systems receive events, and it will invoke its renderers when the display needs to be redrawn. When a world is deactivated, it is "frozen". Its clock no longer runs, its systems no longer receive events and its renderers are no longer invoked. When the world is later reactivated, it resumes right where it left off.
+
+Grease also provides a special mode manager, :class:`grease.mode.ManagerWindow`. This class is a Pyglet window subclass that implements the mode manager interface. This allows you to push and pop modes, such as :class:`grease.World` objects, directly onto an application window. All of the OS events the window receives will go directly to the active mode. This makes implementing a user interface flow with push and pop semantics a breeze.
+
+:class:`grease.mode.ManagerWindow` objects also include some default behavior:
+
+* When the ``Esc`` key is pressed, the current mode is popped.
+* When the last mode is popped, the window closes.
+
+.. note:: A :class:`ManagerWindow` object is both the mode manager and the source of events (i.e., the event dispatcher). Custom mode managers can be made by subclassing :class:`grease.mode.BaseManager` to separate these two concerns, if desired. This can allow several mode managers to share a single window, or even use an application-defined event dispatcher.
+
+We can create a custom world to use as our title screen. The title screen will have some text, will respond to some key commands, and will have some asteroids floating in the background to make it more interesting. It will need a very similar configuration of components and systems as our existing :class:`GameWorld`, so let's refactor the common parts into a shared base class:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: BaseWorld
+   :linenos:
+
+The :meth:`configure` methods sets up the parts common to both the :class:`Game` and the :class:`TitleScreen` world classes we will define below. This is lifted directly from the old :class:`GameWorld` class. Let's implement the new :class:`Game` class based on the above::
+
+        class Game(BaseWorld):
+            """Main game world and mode"""
+
+            def configure(self):
+                BaseWorld.configure(self)
+                self.systems.game = GameSystem()
+                self.renderers.hud = Hud()
+
+This only adds a :class:`GameSystem` system and :class:`Hud` renderer to the base world. 
+
+Now let's define the :class:`TitleScreen` world and mode::
+
+        class TitleScreen(BaseWorld):
+            """Game title screen world and mode"""
+            
+            def configure(self):
+                BaseWorld.configure(self)
+                self.renderers.title = pyglet.text.Label(
+                    "Blasteroids",
+                    color=(150, 150, 255, 255),
+                    font_name='Vector Battle', font_size=32, bold=True,
+                    x=0, y=50, anchor_x='center', anchor_y='bottom')
+                self.renderers.description = pyglet.text.Label(
+                    "A demo for the Grease game engine",
+                    color=(150, 150, 255, 255),
+                    font_name='Vector Battle', font_size=16, bold=True,
+                    x=0, y=20, anchor_x='center', anchor_y='top')
+                self.renderers.one_player = pyglet.text.Label(
+                    "Press 1 to begin",
+                    color=(150, 150, 255, 255),
+                    font_name='Vector Battle', font_size=16, bold=True,
+                    x=0, y=-100, anchor_x='center', anchor_y='top')
+
+                self.systems.controls = TitleScreenControls()
+                for i in range(15):
+                    Asteroid(self, radius=random.randint(12, 45))
+
+You'll notice above that we use :class:`pyglet.text.Label` objects directly as renderers! This works because any object with a :meth:`draw` method can function as a renderer. This saves us from defining a separate renderer class.
+
+.. note:: Drawing :class:`pyglet.text.Label` objects individually, as above, is not very efficient. In this case the performance is acceptable, but an application drawing many labels should draw them using a batch. Since Pyglet batch objects have a :meth:`draw` method, they can also serve as renderers in a world.
+
+After the renderers we add a :class:`TitleScreenControls` system, followed by a few randomly sized asteroids. We haven't defined the system class yet, so let's do that now:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: TitleScreenControls
+   :end-before: _2
+   :linenos:
+
+The magic happens on line 6 above. When the player presses the ``1`` key on the title screen, this system instantiates a new :class:`Game` world and pushes it onto the window. This activates and starts the game, and deactivates the title screen, but leaves it on the stack for when the player is done.
+
+One last thing is left to do, we need refactor our :func:`main` function to use a :class:`ManagerWindow` and start the application at the title screen:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: main
+
+Notice how tidy that makes our main function! All it has to do now is create the :class:`ManagerWindow`, push a :class:`TitleScreen` on it and enter the event loop. The mode management framework takes care of the rest.
+
+Getting in the Hotseat
+======================
+
+Before we can fully capture the spirit of a classic arcade game, we need to implement the classic "hotseat" multiplayer mode that was so prevalent in coin-op games. In this mode two players alternate playing their games, changing seats when the current player loses a life. We will use modes to implement this, but it will require a different model than the simple stack-based management used above.
+
+Grease provides a special :class:`grease.mode.Multi` class we can leverage for this purpose. A :class:`grease.mode.Multi` is a mode object that contains one or more submodes. These submodes are arranged logically in a list or a ring. As with a mode manager, only a single submode of a :class:`grease.mode.Multi` is active at one time. Unlike a mode manager, a multi-mode can be used to cycle through a modes sequentially. This makes it ideal for implementing a series of screens that are navigated in sequence, or for alternating between screens. Also unlike a manager, if you move forward to a submode and then move back, the next submode is not popped off, it is just deactivated. If you move forward again, it will resume where it left off, allowing bi-directional navigation.
+
+Because multi-modes themselves are just modes, they allow a whole group of submodes to be pushed onto a manager at once. They also keep track of which submode is active. Submodes can also be added and removed from the multi-mode at any time.
+
+To implement hotseat multiplayer using a muti-mode is quite simple. When a two-player game is initiated, a :class:`grease.mode.Multi` object will be created containing 2 game worlds. When this is pushed onto the mode manager, the first game world will be activated. We will add some code to activate the next game whenever the current player loses a life. When a player's game is over, it will be removed from the multi-mode.
+
+Let's start by seeing how we can initiate a two-player game from the title screen:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: TitleScreenControls
+   :linenos:
+
+We added the :meth:`start_two_player` method to the :class:`TitleScreenControls` class (line 8 above). This creates the :class:`grease.mode.Multi` mode containing two game worlds and pushes it onto the window. By default, when a multi-mode is first activated, it activates its first submode. This will begin the game for player one.
+
+Notice that we pass some label strings into the :class:`Game` class constructor to identify each game. We'll need to modify that class to support these labels:
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: Game
+   :linenos:
+
+Games are only provided a label in multiplayer, so we use that fact to set an :attr:`is_multiplayer` flag when a label is provided. 
+
+We also override the mode's :class:`activate` method, starting the mode paused in multiplayer sessions by setting the world's :attr:`running` flag to false. Grease will not tick the world's clock until the flag is set to true. This gives the next player time to get situated before their turn begins.
+
+Next we need to modify the :meth:`player_respawn` method of our :class:`GameSystem` to switch to the next game when the current player loses their life::
+
+    class GameSystem(KeyControls):
+        ...
+
+        def player_respawn(self, dt=None):
+            """Rise to fly again, with temporary invincibility"""
+            if self.lives:
+                self.player_ship = PlayerShip(self.world, invincible=True)
+            if self.world.is_multiplayer:
+                # Switch to the next player
+                if self.lives:
+                    window.current_mode.activate_next()
+                else:
+                    window.current_mode.remove_submode()
+
+If the current player has lives remaining, :meth:`activate_next` is simply called on the :obj:`current_mode`, which is the multi-mode create in the :func:`main` function. This activates the next game world in revolving order. If the current player's game is over than :meth:`remove_subnode` is called, removing their game world altogether. Note that when all of the subnodes of a multi-node are removed, the multi-node automatically pops itself from its mode manager. In our case, this will automatically return to the title screen when both players' games are over.

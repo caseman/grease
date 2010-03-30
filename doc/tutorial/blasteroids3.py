@@ -522,26 +522,21 @@ class TitleScreen(BaseWorld):
 class Game(BaseWorld):
     """Main game world and mode"""
 
-    is_multiplayer = False
-    """Flag to indicate if this is a multiplayer session"""
-
     def __init__(self, player_name=""):
         BaseWorld.__init__(self)
         self.player_name = player_name
-        if player_name:
-            # In multiplayer, start paused
-            self.running = False
-            self.is_multiplayer = True
-    
+        self.is_multiplayer = self.player_name != ""
+
     def configure(self):
         BaseWorld.configure(self)
         self.systems.game = GameSystem()
         self.renderers.hud = Hud()
     
-    def deactivate(self, manager):
-        grease.World.deactivate(self, manager)
-        # Pause the game so if resumed, we begin paused
-        self.running = False
+    def activate(self, manager):
+        """Start paused in multiplayer"""
+        grease.World.activate(self, manager)
+        if self.is_multiplayer:
+            self.running = False
 
 
 def main():

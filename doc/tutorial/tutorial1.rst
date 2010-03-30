@@ -6,15 +6,14 @@
 Grease Tutorial Part I
 ######################
 
-In this tutorial, we will be creating a simple, but complete game. To make the most of this material, you should have a working Grease installation. The tutorial progresses through several revisions of an example game named *Blasteroids*. To keep things simple, all of the code in this game is in a single file. Each section of the tutorial builds a new revision of the game code. You can find the complete revisions of the tutorial game code for each section in the *doc/tutorial* subdirectory of the Grease source package.  
+In this tutorial, we will be creating a simple, but complete game. To make the most of this material, you should have a working Python 2.6 and Grease installation. The tutorial progresses through several revisions of an example game named *Blasteroids*. To keep things simple, all of the code in this game is in a single file. Each of the three tutorial parts builds a new revision of the game code. You can find the complete revisions of the tutorial game code for each part in the *doc/tutorial* subdirectory of the Grease source package.  
 
-For Grease installation instructions, see: <insert install doc link>
-
+This tutorial assumes basic to intermediate knowledge and experience with the Python language. You should be comfortable with concepts like defining classes, and using decorators to get the most out of it.
 
 Diving In
 =========
 
-Grease is built upon the excellent `Pyglet <http://www.pyglet.org/>`_ library. Pyglet provides the basic windowing, operating system event, scheduling and OpenGL graphics support for Grease. This tutorial assumes no prior knowledge of Pyglet or OpenGL, however it is not itself anything but a basic introduction to each. One of the advantages to Grease is that it abstracts away much of the details of using OpenGL, however its full power is still available to you if you need it. In fact there is no OpenGL-specific code in this tutorial, but several general graphic programming concepts will be introduced.
+Grease is built upon the excellent `Pyglet <http://www.pyglet.org/>`_ library. Pyglet provides the basic windowing, operating system event, scheduling and OpenGL graphics support for Grease. This tutorial assumes no prior knowledge of Pyglet or OpenGL, however it is not itself anything but a basic introduction to each. One of the advantages to Grease is that it abstracts away much of the details of using OpenGL, however its full power is still available to you if you need it. In fact there is no OpenGL-specific code in this tutorial, but some simple graphic programming concepts will be introduced.
 
 *Blasteroids* is a facimile of the similarly named classic arcade game. I chose this game specifically because it is familiar and simple, yet still complicated enough to be a non-trivial example. It's also still fun to play after all of these years. To implement *Blasteroids* we will need the following basic functionality:
 
@@ -107,6 +106,8 @@ The main workhorse renderer in our example is the :class:`renderer.Vector`. This
 
 We now have all the parts configured for our second goal: to create polygonal shapes, move and draw them. Now we just need to create some entities that store data in our components.
 
+..note:: Components, renderers, and systems coorespond closely to the models, views and controllers respectively of the MVC design pattern.
+
 Defining an Entity Class
 ========================
 
@@ -135,6 +136,7 @@ Next let's go into the entity constructor:
 
 .. literalinclude:: blasteroids1.py
    :pyobject: Asteroid.__init__
+   :start-after: """
    :end-before: movement
 
 The method declaration is conventional, however the second :attr:`world` argument is mandatory. As you might imagine this is the world object that the entity has been created in. Although you must receive this argument, you do not need to do anything with it in your :meth:`__init__()` method. The :class:`Entity` base class takes care of assigning the :attr:`world` and :attr:`entity_id` attributes for you in its :meth:`__new__()` method. After the :attr:`world` argument you can define any additional arguments you need. Here we add a radius argument so that asteroids of various sizes can be created with this class.
