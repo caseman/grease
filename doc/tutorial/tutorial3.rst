@@ -89,7 +89,7 @@ Then play one of these sounds at random when the asteroid is hit::
         self.explode()
         self.delete()
 
-It's amazing what an improvement these simple sound effects make to the game. These sounds were created using the brilliant, free 8-bit sound effect generator: sfxr. You can download it `for Windows <http://games.softpedia.com/get/Tools/sfxr.shtml>`_ , and `for Mac <http://mac.softpedia.com/get/Developer-Tools/cfxr.shtml>`_.
+It's amazing what an improvement these simple sound effects make to the game. These sounds were created using the brilliant, free 8-bit sound effect generator: *sfxr*. You can download it `for Windows <http://games.softpedia.com/get/Tools/sfxr.shtml>`_ , and `for Mac <http://mac.softpedia.com/get/Developer-Tools/cfxr.shtml>`_.
 
 He Shoots, He Scores!
 =====================
@@ -321,7 +321,7 @@ Notice how tidy that makes our main function! All it has to do now is create the
 Getting in the Hotseat
 ======================
 
-Before we can fully capture the spirit of a classic arcade game, we need to implement the classic "hotseat" multiplayer mode that was so prevalent in coin-op games. In this mode two players alternate playing their games, changing seats when the current player loses a life. We will use modes to implement this, but it will require a different model than the simple stack-based management used above.
+Before we can fully capture the spirit of a classic arcade game, we need to implement the classic "hotseat" multiplayer mode that was so prevalent in coin-op games. In this mode two players alternate playing their games, changing seats when the current player loses a life. We will use modes to implement this, but it will require a different approach than the simple stack-based management used above.
 
 Grease provides a special :class:`grease.mode.Multi` class we can leverage for this purpose. A :class:`grease.mode.Multi` is a mode object that contains one or more submodes. These submodes are arranged logically in a list or a ring. As with a mode manager, only a single submode of a :class:`grease.mode.Multi` is active at one time. Unlike a mode manager, a multi-mode can be used to cycle through a modes sequentially. This makes it ideal for implementing a series of screens that are navigated in sequence, or for alternating between screens. Also unlike a manager, if you move forward to a submode and then move back, the next submode is not popped off, it is just deactivated. If you move forward again, it will resume where it left off, allowing bi-directional navigation.
 
@@ -363,4 +363,61 @@ Next we need to modify the :meth:`player_respawn` method of our :class:`GameSyst
                 else:
                     window.current_mode.remove_submode()
 
-If the current player has lives remaining, :meth:`activate_next` is simply called on the :obj:`current_mode`, which is the multi-mode create in the :func:`main` function. This activates the next game world in revolving order. If the current player's game is over than :meth:`remove_subnode` is called, removing their game world altogether. Note that when all of the subnodes of a multi-node are removed, the multi-node automatically pops itself from its mode manager. In our case, this will automatically return to the title screen when both players' games are over.
+If the current player has lives remaining, :meth:`activate_next` is simply called on the :obj:`current_mode`, which is the multi-mode create in the :func:`main` function. This activates the next game world in revolving order. If the current player's game is over than :meth:`remove_subnode` is called, removing their game world altogether. Note that when all of the subnodes of a multi-node are removed, the multi-node automatically pops itself from its mode manager. In our case, this will automatically return to the title screen when both players' games are over:
+
+.. figure:: modes.png
+
+   **Game mode flow**
+
+We also need to add some methods here to pause and resume the game::
+    
+        @KeyControls.key_press(key.P)
+        def pause(self):
+            self.world.running = not self.world.running        
+
+        def on_key_press(self, key, modifiers):
+            """Start the world with any key if paused"""
+            if not self.world.running:
+                self.world.running = True
+            KeyControls.on_key_press(self, key, modifiers)
+
+The :meth:`pause` method simply toggles the :attr:`world.running` flag when the ``P`` key is pressed. 
+
+The :meth:`on_key_press` method implemented above overrides the method in the base class. It simply resumes the world if it isn't running on any key press event. It doesn't consume the key event, so it will also be passed along to any downstream handlers. This makes the game immediate responsive when it resumes.
+
+.. note:: When developing games, resist the temptation to make the world objects global variables. Always reference them as instance variables as above (i.e., ``self.world``). This makes supporting multiple worlds independently as we do here, effortless.
+
+The give a visual indication when the game is paused, we can modify the heads-up display, adding some additional code to the :class:`Hud` class' :meth:`draw` method::
+
+        class Hud(grease.Renderer):
+            """Heads-up display renderer"""
+            ...
+
+            def draw(self):
+                ...
+                if not self.world.running:
+                    if self.paused_label is None:
+                        self.player_label = pyglet.text.Label(
+                            self.world.player_name,
+                            color=(150, 150, 255, 255),
+                            font_name='Vector Battle', font_size=18, bold=True,
+                            x = 0, y = 20, anchor_x='center', anchor_y='bottom')
+                        self.paused_label = pyglet.text.Label(
+                            "press a key to begin",
+                            color=(150, 150, 255, 255),
+                            font_name='Vector Battle', font_size=16, bold=True,
+                            x = 0, y = -20, anchor_x='center', anchor_y='top')
+                    self.player_label.draw()
+                    self.paused_label.draw()
+
+The final touch is to change the :class:`TitleScreen` class to instruct the player how to start one and two player games (lines 16-25 below):
+
+.. literalinclude:: blasteroids3.py
+   :pyobject: TitleScreen
+   :linenos:
+
+The final title screen in its full glory:
+
+.. image:: title.png
+
+And I give you, the final revision of :download:`blasteroids3.py`. You made it, congratulations! You now have the basics under your belt to create your own games with *Grease*.
