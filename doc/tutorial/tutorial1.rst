@@ -106,7 +106,7 @@ The main workhorse renderer in our example is the :class:`renderer.Vector`. This
 
 We now have all the parts configured for our second goal: to create polygonal shapes, move and draw them. Now we just need to create some entities that store data in our components.
 
-..note:: Components, renderers, and systems coorespond closely to the models, views and controllers respectively of the MVC design pattern.
+.. note:: Components, renderers, and systems coorespond closely to the models, views and controllers respectively of the `MVC design pattern <http://en.wikipedia.org/wiki/Model–view–controller>`_.
 
 Defining an Entity Class
 ========================
