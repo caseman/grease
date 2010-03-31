@@ -27,26 +27,25 @@ class World(mode.Mode):
 	A world is also a mode that may be pushed onto a 
 	:class:`grease.mode.Manager`
 
-	Args:
-		`step_rate`: The rate of `step()` calls per second. 
+	:param step_rate: The rate of :meth:`step()` calls per second. 
 
-		`master_clock`: The :class:`pyglet.clock.Clock` interface used
-			as the master clock that ticks the world's clock. This 
-			defaults to the main pyglet clock.
+	:param master_clock: The :class:`pyglet.clock.Clock` interface used
+		as the master clock that ticks the world's clock. This 
+		defaults to the main pyglet clock.
 	"""
 
 	components = None
-	"""ComponentParts are exposed as attributes of `World.components`. 
+	"""ComponentParts are exposed as attributes of :attr:`World.components`. 
 	ComponentParts define and contain all entity data
 	"""
 
 	systems = None
-	"""Systems are exposed as attributes of `World.systems`. 
+	"""Systems are exposed as attributes of :attr:`World.systems`. 
 	Systems define entity behavior
 	"""
 
 	renderers = None
-	"""Renderers are exposed as attributes of `World.renderers`. 
+	"""Renderers are exposed as attributes of :attr:`World.renderers`. 
 	Renderers define world presentation
 	"""
 
@@ -67,7 +66,7 @@ class World(mode.Mode):
 	"""
 
 	def __init__(self, step_rate=60, master_clock=pyglet.clock,
-		         clock_factory=pyglet.clock.Clock):
+				 clock_factory=pyglet.clock.Clock):
 		super(World, self).__init__(step_rate, master_clock, clock_factory)
 		self.components = ComponentParts(self)
 		self.systems = Parts(self)
@@ -92,13 +91,15 @@ class World(mode.Mode):
 		can be used to access the set of entities of that class in the world
 		or to query these entities via their components. 
 
-		`entity_class` may also be a tuple of entity classes, in which case
-		the extent returned contains union of all entities of the classes
-		in the world.
+		:param entity_class: The entity class for the extent.
 
-		`entity_class` may also be the special value ellipsis (...), which
-		returns an extent containing all entities in the world.  This allows
-		you to conveniently query all entities using `world[...]`.
+			May also be a tuple of entity classes, in which case
+			the extent returned contains union of all entities of the classes
+			in the world.
+
+			May also be the special value ellipsis (``...``), which
+			returns an extent containing all entities in the world.  This allows
+			you to conveniently query all entities using ``world[...]``.
 		"""
 		if isinstance(entity_class, tuple):
 			entities = set()
@@ -237,7 +238,7 @@ class Parts(object):
 	
 	def _validate_name(self, name):
 		if (name in self._reserved_names or name.startswith('_') 
-		    or hasattr(self.__class__, name)):
+			or hasattr(self.__class__, name)):
 			raise ComponentError('illegal part name: %s' % name)
 		return name
 
