@@ -6,15 +6,23 @@
 Welcome to Grease's documentation!
 ==================================
 
-Contents:
+Blasteroids Tutorial
+--------------------
+
+.. toctree::
+	:maxdepth: 2
+
+	tutorial/tutorial1
+	tutorial/tutorial2
+	tutorial/tutorial3
+	
+Reference
+---------
 
 .. toctree::
 	:maxdepth: 2
 
 	collision_mod
-	tutorial/tutorial1
-	tutorial/tutorial2
-	tutorial/tutorial3
 
 Indices and tables
 ==================

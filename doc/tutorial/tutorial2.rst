@@ -195,7 +195,7 @@ We also define an entity class for the debris. This class defines no behavior of
 Let's take apart the :class:`BlasteroidsEntity` class and see how it works. In line 6 above, we take the base shape of the entity and transform it into a new shape, rotating it to the current angle of the entity that is exploding:
 
 .. literalinclude:: blasteroids2.py
-   :pyobject: Debris
+   :pyobject: BlasteroidsEntity
    :start-after: """
    :end-before: for segment
 

@@ -136,7 +136,6 @@ Next let's go into the entity constructor:
 
 .. literalinclude:: blasteroids1.py
    :pyobject: Asteroid.__init__
-   :start-after: """
    :end-before: movement
 
 The method declaration is conventional, however the second :attr:`world` argument is mandatory. As you might imagine this is the world object that the entity has been created in. Although you must receive this argument, you do not need to do anything with it in your :meth:`__init__()` method. The :class:`Entity` base class takes care of assigning the :attr:`world` and :attr:`entity_id` attributes for you in its :meth:`__new__()` method. After the :attr:`world` argument you can define any additional arguments you need. Here we add a radius argument so that asteroids of various sizes can be created with this class.
