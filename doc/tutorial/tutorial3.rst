@@ -228,6 +228,8 @@ The screenshots below show the heads-up display in action:
 
 .. image:: game_over.png
 
+.. _tut-mode-section:
+
 En-"title"-ment
 ===============
 

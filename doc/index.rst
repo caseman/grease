@@ -16,13 +16,15 @@ Blasteroids Tutorial
 	tutorial/tutorial2
 	tutorial/tutorial3
 	
-Reference
----------
+Module Reference
+----------------
 
 .. toctree::
 	:maxdepth: 2
 
 	mod/collision
+	mod/entity
+	mod/mode
 	mod/world
 
 Indices and tables

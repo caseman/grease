@@ -2,5 +2,6 @@
 ===============================================
 
 .. automodule:: grease.collision
-	:members:
+   :synopsis: Collision detection systems
+   :members:
 

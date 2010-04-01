@@ -94,6 +94,11 @@ class World(mode.Mode):
 		can be used to access the set of entities of that class in the world
 		or to query these entities via their components. 
 
+		Examples::
+
+			world[MyEntity]
+			world[...]
+
 		:param entity_class: The entity class for the extent.
 
 			May also be a tuple of entity classes, in which case

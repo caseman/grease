@@ -14,6 +14,8 @@
 
 __version__ = '$Id$'
 
+__all__ = ('Entity', 'EntityComponentAccessor', 'ComponentEntitySet')
+
 
 class EntityMeta(type):
 	"""The entity metaclass enforces fixed slots of `entity_id` and `world`
@@ -40,22 +42,24 @@ class EntityMeta(type):
 class Entity(object):
 	"""Base class for grease entities.
 	
-	Entity objects themselves are actually just a facade for convient access
-	of component data for a single entity, they do not contain any data
-	themselves other than an entity id.
+	Entity objects themselves are merely identifiers within a :class:`grease.world.World`.
+	They also provide a facade for convenient entity-wise access of component
+	data. However, they do not contain any data themselves other than an
+	entity id.
 
 	Entities must be instantiated in the context of a world. To instantiate an
 	entity, you must pass the world as the first argument to the constructor.
-	Subclasses that implement the `__init__()` method, must accept the world
-	as their first argument (after `self`). Other constructor arguments can be
+	Subclasses that implement the :meth:`__init__()` method, must accept the world
+	as their first argument (after ``self``). Other constructor arguments can be
 	specified arbitarily by the subclass.
-
-	Attributes:
-		`world`: The :class:`grease.World` object that this entity belongs to
-
-		`entity_id`: Unique entity identifier
 	"""
 	__metaclass__ = EntityMeta
+
+	world = None
+	"""The :class:`grease.World` object that this entity belongs to"""
+
+	entity_id = None
+	"""World-unique entity identifier"""
 
 	def __new__(cls, world, *args, **kw):
 		"""Create a new entity and add it to the world"""
@@ -66,11 +70,29 @@ class Entity(object):
 		return entity
 	
 	def __getattr__(self, name):
-		"""Return a component accessor for this entity"""
+		"""Return an :class:`EntityComponentAccessor` for this entity
+		for the component named.
+
+		Example::
+
+			my_entity.movement
+		"""
 		component = getattr(self.world.components, name)
 		return EntityComponentAccessor(component, self)
 	
 	def __setattr__(self, name, value):
+		"""Set the entity data in the named component for this entity.
+		This sets the values of the component fields to the values of
+		the matching attributes of the value provided. This value must
+		have attributes for each of the component fields.
+
+		This allows you to easily copy component data from one entity
+		to another.
+
+		Example::
+
+			my_entity.position = other_entity.position
+		"""
 		if name in self.__class__.__slots__:
 			super(Entity, self).__setattr__(name, value)
 		else:
@@ -78,7 +100,12 @@ class Entity(object):
 			component.set(self, value)
 	
 	def __delattr__(self, name):
-		"""Remove the data for this entity from the component"""
+		"""Remove this entity and its data from the component.
+		
+		Example::
+		
+			del my_entity.renderable
+		"""
 		component = getattr(self.world.components, name)
 		del component[self]
 	
@@ -94,14 +121,15 @@ class Entity(object):
 			self.world.__class__.__name__, id(self.world))
 
 	def delete(self):
-		"""Delete the entity from its world. If then entity has already
-		been deleted, this call does nothing
+		"""Delete the entity from its world. This removes all of its
+		component data. If then entity has already been deleted, 
+		this call does nothing.
 		"""
 		self.world.entities.discard(self)
 
 	@property
 	def exists(self):
-		"""Return true if the entity still exists in the world"""
+		"""True if the entity still exists in the world"""
 		return self in self.world.entities
 
 
@@ -111,6 +139,9 @@ class EntityComponentAccessor(object):
 	data until needed. If an attribute is set for a component that the 
 	entity is not yet a member of, it is automatically added to the
 	component first.
+
+	:param component: The :class:`grease.Component` being accessed
+	:param entity: The :class:`Entity` being accessed
 	"""
 	
 	# beware, name mangling ahead. We want to avoid clashing with any
@@ -129,6 +160,7 @@ class EntityComponentAccessor(object):
 		return self.__entity in self.__component
 	
 	def __getattr__(self, name):
+		"""Return the data for the specified field of the entity's component"""
 		if self.__data is None:
 			try:
 				data = self.__component[self.__entity]
@@ -139,6 +171,7 @@ class EntityComponentAccessor(object):
 		return getattr(self.__data, name)
 	
 	def __setattr__(self, name, value):
+		"""Set the data for the specified field of the entity's component"""
 		if self.__data is None:
 			clsname = self.__class__.__name__
 			if self.__entity in self.__component:
@@ -149,7 +182,7 @@ class EntityComponentAccessor(object):
 
 
 class ComponentEntitySet(set):
-	"""set of entities in a component, can be queried by component fields"""
+	"""Set of entities in a component, can be queried by component fields"""
 
 	_component = None
 
