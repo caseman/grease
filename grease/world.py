@@ -35,22 +35,22 @@ class World(mode.Mode):
 	"""
 
 	components = None
-	"""ComponentParts are exposed as attributes of :attr:`World.components`. 
-	ComponentParts define and contain all entity data
+	""":class:`ComponentParts` object containing all world components.
+	:class:`grease.component.Component` objects define and contain all entity data
 	"""
 
 	systems = None
-	"""Systems are exposed as attributes of :attr:`World.systems`. 
-	Systems define entity behavior
+	""":class:`Parts` object containing all world systems. 
+	:class:`grease.System` objects define world and entity behavior
 	"""
 
 	renderers = None
-	"""Renderers are exposed as attributes of :attr:`World.renderers`. 
-	Renderers define world presentation
+	""":class:`Parts` object containing all world renderers. 
+	:class:`grease.Renderer` objects define world presentation
 	"""
 
 	entities = None
-	"""Set of entities that exist in the world"""
+	"""Set of all entities that exist in the world"""
 
 	clock = None
 	""":class:`pyglet.clock` interface for use by constituents
@@ -58,7 +58,9 @@ class World(mode.Mode):
 	"""
 
 	time = None
-	"""Current clock time of the world"""
+	"""Current clock time of the world, starts at 0 when the world
+	is instantiated
+	"""
 
 	running = True
 	"""Flag to indicate that the world clock is running, advancing time
@@ -79,7 +81,8 @@ class World(mode.Mode):
 		self.configure()
 
 	def configure(self):
-		"""Hook to configure the world after construction. Override
+		"""Hook to configure the world after construction. This method
+		is called immediately after the world is initialized. Override
 		in a subclass to configure the world's components, systems,
 		and renderers.
 
@@ -87,7 +90,7 @@ class World(mode.Mode):
 		"""
 	
 	def __getitem__(self, entity_class):
-		"""Return an entity extent for the given entity class. This extent
+		"""Return an :class:`EntityExtent` for the given entity class. This extent
 		can be used to access the set of entities of that class in the world
 		or to query these entities via their components. 
 
@@ -116,11 +119,14 @@ class World(mode.Mode):
 			return extent
 		
 	def activate(self, manager):
-		"""Activate the mode for the given manager, if the mode is already active, 
-		do nothing
+		"""Activate the world/mode for the given manager, if the world is already active, 
+		do nothing. This method is typically not used directly, it is called
+		automatically by the mode manager when the world becomes active.
 
 		The systems of the world are pushed onto `manager.event_dispatcher`
 		so they can receive system events.
+
+		:param manager: :class:`mode.BaseManager` instance
 		"""
 		if not self.active:
 			for system in self.systems:
@@ -128,16 +134,24 @@ class World(mode.Mode):
 		super(World, self).activate(manager)
 	
 	def deactivate(self, manager):
-		"""Deactivate the mode, if the mode is not active, do nothing
+		"""Deactivate the world/mode, if the world is not active, do nothing.
+		This method is typically not used directly, it is called
+		automatically by the mode manager when the world becomes active.
 
 		Removes the system handlers from the `manager.event_dispatcher`
+
+		:param manager: :class:`mode.BaseManager` instance
 		"""
 		for system in self.systems:
 			manager.event_dispatcher.remove_handlers(system)
 		super(World, self).deactivate(manager)
 
 	def tick(self, dt):
-		"""Tick the mode's clock, but only if the world is currently running"""
+		"""Tick the mode's clock, but only if the world is currently running
+		
+		:param dt: The time delta since the last tick
+		:type dt: float
+		"""
 		if self.running:
 			super(World, self).tick(dt)
 	
@@ -150,6 +164,9 @@ class World(mode.Mode):
 		then dt will be pinned at a maximum of 0.1666. This avoids 
 		pathological behavior when the time between steps goes
 		much longer than expected.
+
+		:param dt: The time delta since the last time step
+		:type dt: float
 		"""
 		dt = min(dt, 10.0 / self.step_rate)
 		for component in self.components:
@@ -210,7 +227,11 @@ class WorldEntitySet(set):
 
 
 class EntityExtent(object):
-	"""Encapsulates a set of entities queriable by component"""
+	"""Encapsulates a set of entities queriable by component. Extents
+	are accessed by using an entity class as a key on the :class:`World`::
+
+		extent = world[MyEntity]
+	"""
 
 	entities = None
 	"""The full set of entities in the extent""" 
@@ -220,13 +241,28 @@ class EntityExtent(object):
 		self.entities = entities
 
 	def __getattr__(self, name):
-		"""Access a component for the set of entities for querying"""
+		"""Return a queriable :class:`ComponentEntitySet` for the named component 
+
+		Example::
+
+			world[MyEntity].movement.velocity > (0, 0)
+
+		Returns a set of entities where the value of the :attr:`velocity` field
+		of the :attr:`movement` component is greater than ``(0, 0)``.
+		"""
 		component = getattr(self.__world.components, name)
 		return ComponentEntitySet(component, self.entities & component.entities)
 
 
 class Parts(object):
-	"""Maps world parts to attributes and retains their order"""
+	"""Maps world parts to attributes. The parts are kept in the
+	order they are set. Parts may also be inserted out of order.
+	
+	Used for:
+	
+	- :attr:`World.systems`
+	- :attr:`World.renderers`
+	"""
 
 	_world = None
 	_parts = None
@@ -267,17 +303,18 @@ class Parts(object):
 	def insert(self, name, part, before=None, index=None):
 		"""Add a part with a particular name at a particular index.
 		If a part by that name already exists, it is replaced.
+			
+		:arg name: The name of the part.
+		:type name: str
 
-		Args:
-			`name` (String): The name of the part.
+		:arg part: The component, system, or renderer part to insert
+	
+		:arg before: A part object or name. If specified, the part is
+			inserted before the specified part in order.
 
-			`part`: The system to be added
-		
-			`before`: A part object or name. If specified, the part is
-				inserted before the specified part in order.
-
-			`index`: If specified, the part is inserted in the position
-				specified. You cannot specify both before and index.
+		:arg index: If specified, the part is inserted in the position
+			specified. You cannot specify both before and index.
+		:type index: int
 		"""
 		assert before is not None or index is not None, (
 			"Must specify a value for 'before' or 'index'")
@@ -297,6 +334,7 @@ class Parts(object):
 			part.set_world(self._world)
 
 	def __iter__(self):
+		"""Iterate the parts in order"""
 		return iter(tuple(self._parts))
 	
 	def __len__(self):
@@ -304,12 +342,24 @@ class Parts(object):
 
 
 class ComponentParts(Parts):
-	"""Component container"""
+	"""Maps world components to attributes. The components are kept in the
+	order they are set. Components may also be inserted out of order.
+
+	Used for: :attr:`World.components`
+	"""
 
 	def join(self, *component_names):
-		"""Return an iterator of tuples containing data from each
-		component specified by name for each entity in all of the
-		components
+		"""Join and iterate entity data from multiple components together.
+
+		For each entity in all of the components named, yield a tuple containing
+		the entity data from each component specified.
+
+		This is useful in systems that pull data from multiple components.
+		
+		Typical Usage::
+
+			for position, movement in world.components.join("position", "movement"):
+				# Do something with each entity's position and movement data
 		"""
 		if component_names:
 			components = [getattr(self, self._validate_name(name)) 

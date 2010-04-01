@@ -9,6 +9,13 @@
 
    .. automethod:: __getitem__
 
+.. autoclass:: Parts
+   :members:
+
+.. autoclass:: ComponentParts
+   :members:
+   :inherited-members:
+
 .. autoclass:: EntityExtent
     :members: __getattr__, entities
 

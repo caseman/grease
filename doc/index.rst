@@ -22,8 +22,8 @@ Reference
 .. toctree::
 	:maxdepth: 2
 
-	mod/world
 	mod/collision
+	mod/world
 
 Indices and tables
 ==================
