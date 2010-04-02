@@ -15,15 +15,15 @@ __version__ = '$Id$'
 
 
 class EulerMovement(object):
-	"""Applies movement to position using Euler's method"""
+	"""System that applies entity movement to position using Euler's method
+
+	:param position_component: Name of :class:`grease.component.Position` 
+		component to update.
+	:param movement_component: Name of :class:`grease.component.Movement` 
+		component used to update position.
+	"""
 
 	def __init__(self, position_component='position', movement_component='movement'):
-		"""Initialize the system.
-
-		position_component -- Name of Position component to update.
-
-		movement_component -- Name of Movment component used to update position.
-		"""
 		self.position_component = position_component
 		self.movement_component = movement_component
 	

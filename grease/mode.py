@@ -120,7 +120,7 @@ class BaseManager(object):
 	
 	def remove_mode(self, mode):
 		"""Remove the specified mode. If the mode is at the top of the stack,
-		this is equivilant to :meth:`pop_mode()`. If not, no other modes
+		this is equivilent to :meth:`pop_mode()`. If not, no other modes
 		are affected. If the mode is not in the manager, do nothing.
 
 		:param mode: The :class:`Mode` object to remove from the manager.

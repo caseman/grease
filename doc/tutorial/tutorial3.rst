@@ -192,6 +192,8 @@ To complete the circuit, we need to add a call to the :meth:`player_died` method
 .. literalinclude:: blasteroids3.py
    :pyobject: PlayerShip.on_collide
 
+.. _tut-renderer-example:
+
 Heads Up!
 ---------
 

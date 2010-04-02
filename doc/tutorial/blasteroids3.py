@@ -20,7 +20,7 @@ import pyglet
 from pyglet.window import key
 import grease
 from grease import component, controller, geometry, collision, renderer, mode
-from grease.pygletsys import KeyControls
+from grease.controls import KeyControls
 
 ## Utility functions ##
 

@@ -10,7 +10,23 @@
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 #
 #############################################################################
-"""Grease entities"""
+"""Grease entities are useful as actionable, interactive
+game elements that are often visible to the player.
+
+You might use entities to represent:
+
+- Characters
+- Bullets
+- Particles
+- Pick-ups
+- Space Ships
+- Weapons
+- Trees
+- Planets
+- Explosions
+
+See :ref:`an example entity class in the tutorial <tut-entity-example>`.
+"""
 
 __version__ = '$Id$'
 
@@ -54,12 +70,6 @@ class Entity(object):
 	specified arbitarily by the subclass.
 	"""
 	__metaclass__ = EntityMeta
-
-	world = None
-	"""The :class:`grease.World` object that this entity belongs to"""
-
-	entity_id = None
-	"""World-unique entity identifier"""
 
 	def __new__(cls, world, *args, **kw):
 		"""Create a new entity and add it to the world"""

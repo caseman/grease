@@ -13,7 +13,6 @@ class Vec2d(ctypes.Structure):
     
     @classmethod
     def from_param(cls, arg):
-        """Used by ctypes to automatically create Vec2ds"""
         return cls(arg)
         
     def __init__(self, x_or_pair, y = None):
@@ -408,9 +407,11 @@ class Vec2dArray(list):
 		list.__setitem__(self, index, Vec2d(value))
 	
 	def append(self, value):
+		"""Append a vector to the array"""
 		list.append(self, Vec2d(value))
 	
 	def insert(self, index, value):
+		"""Insert a vector into the array"""
 		list.insert(self, index, Vec2d(value))
 	
 	def transform(self, offset=Vec2d(0,0), angle=0, scale=1.0):
@@ -463,10 +464,12 @@ class Rect(ctypes.Structure):
 
 	@property
 	def width(self):
+		"""Rectangle width"""
 		return self.right - self.left
 	
 	@property
 	def height(self):
+		"""Rectangle height"""
 		return self.top - self.bottom
 
 
@@ -595,5 +598,3 @@ if __name__ == "__main__":
     ####################################################################
     unittest.main()
  
-    ######################################################################## 
-__all__ = ["Vec2d"]

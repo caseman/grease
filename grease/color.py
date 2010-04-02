@@ -1,5 +1,19 @@
 
 class RGBA(object):
+	"""Four channel color representation.
+
+	RGBA colors are floating point color representations with color channel
+	values between (0..1). Colors may be initialized from 3 or 4 floating
+	point numbers or a hex string::
+
+		RGBA(1.0, 1.0, 1.0) # Alpha defaults to 1.0
+		RGBA(1.0, 1.0, 0, 0.5)
+		RGBA("#333")
+		RGBA("#7F7F7F")
+	
+	Individual color channels can be accessed by attribute name, or the
+	color object can be treated as a sequence of 4 floats.
+	"""
 
 	def __init__(self, r_or_colorstr, g=None, b=None, a=None):
 		if isinstance(r_or_colorstr, str):

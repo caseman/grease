@@ -1,7 +1,7 @@
 :mod:`grease.entity` -- Entity Classes
 ======================================
 
-.. module:: grease.entity
+.. automodule:: grease.entity
    :synopsis: Actionable game objects
 
 .. autoclass:: Entity

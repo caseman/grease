@@ -52,6 +52,8 @@ The last thing we need is a method to turn the ship's thrust off. We'll wire thi
 
 This resets the ship's acceleration and flame tip vertex back to their original values.
 
+.. _tut-controls-example:
+
 Controlling the Ship
 ====================
 
@@ -379,6 +381,8 @@ These methods simply set the :attr:`gun.ship` flag when space is pressed, and re
 With all of this in place we can finally blast those asteroids to smithereens!
 
 .. image:: blast_em.png
+
+.. _tut-system-example:
 
 Wrapping Things Up
 ==================

@@ -13,6 +13,8 @@
 
 __version__ = '$Id$'
 
+__all__ = ('Vector',)
+
 from grease.geometry import Vec2d
 import ctypes
 from math import sin, cos, radians
@@ -20,7 +22,36 @@ import pyglet
 
 
 class Vector(object):
-	"""Renders shapes in vector graphics style"""
+	"""Renders shapes in a classic vector graphics style
+	
+	:param scale: Scaling factor applied to shape vertices when rendered.
+	
+	:param line_width: The line width provided to ``glLineWidth`` before rendering.
+		If not specified or None, ``glLineWidth`` is not called, and the line
+		width used is determined by the OpenGL state at the time of rendering.
+
+	:param anti_alias: If ``True``, OpenGL blending and line smoothing is enabled.
+		This allows for fractional line widths as well. If ``False``, the blending
+		and line smoothing modes are unchanged.
+
+	:param corner_fill: If true (the default), the shape corners will be filled
+		with round points when the ``line_width`` exceeds 2.0. This improves
+		the visual quality of the rendering at larger line widths at some
+		cost to performance. Has no effect if ``line_width`` is not specified.
+
+	:param position_component: Name of :class:`grease.component.Position` 
+		component to use. Shapes rendered are offset by the entity positions.
+
+	:param renderable_component: Name of :class:`grease.component.Renderable` 
+		component to use. This component specifies the entities to be 
+		rendered and their base color.
+
+	:param shape_component: Name of :class:`grease.component.Shape` 
+		component to use. Source of the shape vertices for each entity.
+
+	The entities rendered are taken from the intersection of he position,
+	renderable and shape components each time :meth:`draw` is called.
+	"""
 
 	CORNER_FILL_SCALE = 0.6
 	CORNER_FILL_THRESHOLD = 2.0
@@ -29,35 +60,6 @@ class Vector(object):
 		position_component='position', 
 		renderable_component='renderable', 
 		shape_component='shape'):
-		"""Initialize a vector renderer
-
-		scale -- Scaling factor applied to shape vertices when rendered.
-	
-		line_width -- The line width provided to glLineWidth before rendering.
-		If not specified or None, glLineWidth is not called, and the line
-		width used is determined by the OpenGL state at the time of rendering.
-
-		anti_alias -- If True, OpenGL blending and line smoothing is enabled.
-		This allows for fractional line widths as well. If False, the blending
-		and line smoothing modes are unchanged.
-
-		corner_fill -- If true (the default), the shape corners will be filled
-		with round points when the line_width exceeds 2.0. This improves
-		the visual quality of the rendering at larger line widths at some
-		cost to performance. Has no effect if line_width is not specified.
-
-		position_component -- Name of Position component to use. Shapes rendered
-		are offset by the entity positions.
-
-		renderable_component -- Name of Renderable component to use. This component
-		specifies the entities to be rendered and their base color.
-
-		shape_component -- Name of shape component to use. Source of the shape
-		vertices for each entity.
-
-		The entities rendered are taken from the intersection of he position,
-		renderable and shape components each time draw() is called.
-		"""
 		self.scale = float(scale)
 		self.corner_fill = corner_fill
 		self.line_width = line_width
@@ -118,7 +120,6 @@ class Vector(object):
 		return v_array, i_size, i_array, i_index
 
 	def draw(self, gl=pyglet.gl):
-		"""Render the entities"""
 		vertices, index_size, indices, index_count = self._generate_verts()
 		if index_count:
 			if self.anti_alias:

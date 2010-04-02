@@ -41,6 +41,8 @@ The above is a complete Pyglet program that creates a window and enters the even
 
 If you have not seen it before, the ``if`` statement at the end may appear a bit odd. This is a python idiom used in module files that can be run as scripts. Each module has a built-in :attr:`__name__` attribute set by the interpreter. The name ``"__main__"`` is used for a module that is being executed as a script. In our example this means that the :meth:`main()` function will be executed when the module is run as a script, but not it is imported by another module. Although our program is not intended to be imported by other programs, it can still be handy to do so from the python prompt for debugging. Without using this check, importing the module would unexpectedly execute :func:`pyglet.app.run()` to start the event loop, which would not return control to the importing program.
 
+.. _tut-world-example:
+
 The World of Grease
 ===================
 
@@ -107,6 +109,8 @@ The main workhorse renderer in our example is the :class:`renderer.Vector`. This
 We now have all the parts configured for our second goal: to create polygonal shapes, move and draw them. Now we just need to create some entities that store data in our components.
 
 .. note:: Components, renderers, and systems coorespond closely to the models, views and controllers respectively of the `MVC design pattern <http://en.wikipedia.org/wiki/Model–view–controller>`_.
+
+.. _tut-entity-example:
 
 Defining an Entity Class
 ========================

@@ -18,7 +18,7 @@ import pyglet
 import grease
 from grease import component, controller, renderer, geometry, collision
 from pyglet.window import key
-from grease.pygletsys import KeyControls
+from grease.controls import KeyControls
 
 
 class BlasteroidsEntity(grease.Entity):

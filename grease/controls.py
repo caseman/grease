@@ -10,16 +10,18 @@
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 #
 #############################################################################
-"""Grease systems specific to Pyglet"""
+"""Control systems for binding controls to game logic"""
 
 import grease
 
 class KeyControls(grease.System):
-	"""Maps subclass-defined action methods to keys. 
+	"""System that maps subclass-defined action methods to keys. 
 
 	Keys may be mapped in the subclass definition using decorators
-	defined here as class methods or at runtime using the bind_key_* 
+	defined here as class methods or at runtime using the ``bind_key_*`` 
 	instance methods.
+
+	See :ref:`an example implementation in the tutorial <tut-controls-example>`.
 	"""
 
 	world = None
@@ -46,7 +48,7 @@ class KeyControls(grease.System):
 
 	@classmethod
 	def key_hold(cls, symbol, modifiers=0):
-		"""Bind a method to be executed where a key is held down"""
+		"""Decorator to bind a method to be executed where a key is held down"""
 		def bind(f):
 			if not hasattr(f, '_grease_hold_key_binding'):
 				f._grease_hold_key_binding = []
@@ -56,7 +58,7 @@ class KeyControls(grease.System):
 
 	@classmethod
 	def key_press(cls, symbol, modifiers=0):
-		"""Bind a method to be executed where a key is initially depressed"""
+		"""Decorator to bind a method to be executed where a key is initially depressed"""
 		def bind(f):
 			if not hasattr(f, '_grease_press_key_binding'):
 				f._grease_press_key_binding = []
@@ -66,7 +68,7 @@ class KeyControls(grease.System):
 
 	@classmethod
 	def key_release(cls, symbol, modifiers=0):
-		"""Bind a method to be executed where a key is released"""
+		"""Decorator to bind a method to be executed where a key is released"""
 		def bind(f):
 			if not hasattr(f, '_grease_release_key_binding'):
 				f._grease_release_key_binding = []
@@ -77,9 +79,9 @@ class KeyControls(grease.System):
 	## runtime binding methods ##
 	
 	def bind_key_hold(self, method, key, modifiers=0):
-		"""Bind a method to a key at runtime to be invoked when the key is held down,
-		this replaces any existing key hold binding for this key. To unbind
-		the key entirely, pass None for method.
+		"""Bind a method to a key at runtime to be invoked when the key is
+		held down, this replaces any existing key hold binding for this key.
+		To unbind the key entirely, pass ``None`` for method.
 		"""
 		if method is not None:
 			self._key_hold_map[key, modifiers] = method
@@ -92,7 +94,7 @@ class KeyControls(grease.System):
 	def bind_key_press(self, method, key, modifiers=0):
 		"""Bind a method to a key at runtime to be invoked when the key is initially
 		pressed, this replaces any existing key hold binding for this key. To unbind
-		the key entirely, pass None for method.
+		the key entirely, pass ``None`` for method.
 		"""
 		if method is not None:
 			self._key_press_map[key, modifiers] = method
@@ -105,7 +107,7 @@ class KeyControls(grease.System):
 	def bind_key_release(self, method, key, modifiers=0):
 		"""Bind a method to a key at runtime to be invoked when the key is releaseed,
 		this replaces any existing key hold binding for this key. To unbind
-		the key entirely, pass None for method.
+		the key entirely, pass ``None`` for method.
 		"""
 		if method is not None:
 			self._key_release_map[key, modifiers] = method
@@ -145,7 +147,7 @@ if __name__ == '__main__':
 	import pyglet
 	from pyglet.window import key
 
-	class KeyControls(KeyControls):
+	class TestKeyControls(KeyControls):
 		
 		remapped = False
 		
@@ -198,7 +200,7 @@ if __name__ == '__main__':
 
 	window = pyglet.window.Window()
 	window.clear()
-	controls = KeyControls(window)
+	controls = TestKeyControls(window)
 	pyglet.clock.schedule_interval(controls.run, 0.5)
 	pyglet.app.run()
 

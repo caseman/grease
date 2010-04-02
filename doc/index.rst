@@ -20,12 +20,10 @@ Module Reference
 ----------------
 
 .. toctree::
-	:maxdepth: 2
+	:glob:
+	:maxdepth: 1
 
-	mod/collision
-	mod/entity
-	mod/mode
-	mod/world
+	mod/*
 
 Indices and tables
 ==================

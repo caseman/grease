@@ -10,6 +10,16 @@
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 #
 #############################################################################
+"""Worlds are environments described by a configuration of components, systems and 
+renderers. These parts describe the data, behavioral and presentation aspects
+of the world respectively.
+
+The world environment is the context within which entities exist. A typical
+application consists of one or more worlds containing entities that evolve
+over time and react to internal and external interaction.
+
+See :ref:`an example of world configuration in the tutorial <tut-world-example>`.
+"""
 
 __version__ = '$Id$'
 

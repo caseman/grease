@@ -19,7 +19,23 @@ from grease.entity import ComponentEntitySet
 
 
 class Component(dict):
-	"""General component with a configurable schema"""
+	"""General component with a configurable schema
+
+	The field schema is defined via keyword args where the 
+	arg name is the field name and the value is the type object.
+
+	The following types are supported for fields:
+
+	- :class:`int`
+	- :class:`float`
+	- :class:`bool`
+	- :class:`str`
+	- :class:`object`
+	- :class:`Vec2d`
+	- :class:`Vec2dArray`
+	- :class:`RGBA`
+	- :class:`Rect`
+	"""
 
 	deleted_entities = ()
 	"""List of entities deleted from the component since the last time step"""
@@ -28,11 +44,6 @@ class Component(dict):
 	"""List of entities added to the component since the last time step"""
 
 	def __init__(self, **fields):
-		"""Initialize the component
-
-		The field schema is defined via keyword args where the 
-		arg name is the field name and the value is the type object.
-		"""
 		self.fields = {}
 		for fname, ftype in fields.items():
 			assert ftype in field.types, fname + " has an illegal field type"
