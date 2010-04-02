@@ -4,6 +4,9 @@
 Grease Tutorial Part III
 ########################
 
+.. index::
+   single: Sound Effects (tutorial)
+
 Crash, Bang, Boom!
 ==================
 
@@ -194,6 +197,10 @@ To complete the circuit, we need to add a call to the :meth:`player_died` method
 
 .. _tut-renderer-example:
 
+.. index::
+   pair: Renderer; Hud (example)
+   single: Heads-up Display (tutorial)
+
 Heads Up!
 ---------
 
@@ -231,6 +238,10 @@ The screenshots below show the heads-up display in action:
 .. image:: game_over.png
 
 .. _tut-mode-section:
+
+.. index::
+   single: Mode (tutorial)
+   pair: Renderer; TitleScreen (example)
 
 En-"title"-ment
 ===============
@@ -306,6 +317,9 @@ You'll notice above that we use :class:`pyglet.text.Label` objects directly as r
 
 .. note:: Drawing :class:`pyglet.text.Label` objects individually, as above, is not very efficient. In this case the performance is acceptable, but an application drawing many labels should draw them using a batch. Since Pyglet batch objects have a :meth:`draw` method, they can also serve as renderers in a world.
 
+.. index::
+   pair: KeyControls; TitleScreenControls (example)
+
 After the renderers we add a :class:`TitleScreenControls` system, followed by a few randomly sized asteroids. We haven't defined the system class yet, so let's do that now:
 
 .. literalinclude:: blasteroids3.py
@@ -321,6 +335,10 @@ One last thing is left to do, we need refactor our :func:`main` function to use 
    :pyobject: main
 
 Notice how tidy that makes our main function! All it has to do now is create the :class:`ManagerWindow`, push a :class:`TitleScreen` on it and enter the event loop. The mode management framework takes care of the rest.
+
+.. index::
+   single: Hotseat Multiplayer (tutorial)
+   single: Multi-mode (tutorial)
 
 Getting in the Hotseat
 ======================

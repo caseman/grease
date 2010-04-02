@@ -13,6 +13,9 @@ This tutorial assumes basic to intermediate knowledge and experience with the Py
 Diving In
 =========
 
+.. index::
+   single: pyglet library
+
 Grease is built upon the excellent `Pyglet <http://www.pyglet.org/>`_ library. Pyglet provides the basic windowing, operating system event, scheduling and OpenGL graphics support for Grease. This tutorial assumes no prior knowledge of Pyglet or OpenGL, however it is not itself anything but a basic introduction to each. One of the advantages to Grease is that it abstracts away much of the details of using OpenGL, however its full power is still available to you if you need it. In fact there is no OpenGL-specific code in this tutorial, but some simple graphic programming concepts will be introduced.
 
 *Blasteroids* is a facimile of the similarly named classic arcade game. I chose this game specifically because it is familiar and simple, yet still complicated enough to be a non-trivial example. It's also still fun to play after all of these years. To implement *Blasteroids* we will need the following basic functionality:
@@ -43,10 +46,16 @@ If you have not seen it before, the ``if`` statement at the end may appear a bit
 
 .. _tut-world-example:
 
+.. index::
+   single: World (tutorial overview)
+
 The World of Grease
 ===================
 
 Now that we have a window, we can move on to setting up our game environment. Grease provides a :class:`grease.World` class to organize and orchestrate all of the basic parts that we need. A convenient way to specify a world configuration is the subclass :class:`grease.World` and override the :meth:`configure()` method. This method gets called after the world is instantiated so that the application can configure it as desired. We need to configure the world with three different types of parts: components, systems and renderers. We'll start with components.
+
+.. index::
+   single: Component (tutorial overview)
 
 Components
 ----------
@@ -78,6 +87,9 @@ Below the built-in components used above are explained in more detail.
 
 Entities in a :class:`GameWorld` instance can now have data in any of these components.
 
+.. index::
+   single: System (tutorial overview)
+
 Systems
 -------
 
@@ -91,6 +103,9 @@ Now that we have some components for our world, let's move on to systems. System
 Similar to components, the world attribute :attr:`systems` is used to access the systems. Systems are also named using attributes, like components. Unlike components, however, the order of systems in the world is important. When the systems are executed each time step, they are executed in the order they were assigned to the :attr:`systems` attribute. Many times systems use the results calculated by other systems to do their work. System ordering allows the application to ensure that the world is updated in a consistent way. Of course since we only have a single system so far, we can't go too far wrong with the order. When we add more systems later, we'll come back and address ordering again.
 
 The :class:`controller.EulerMovement` system is responsible for updating the position and movement components. It performs a Euler integration each time step to update the :attr:`movement.velocity`, :attr:`position.position` and :attr:`position.angle` fields for all entities with both position and movement data. Systems access components in the world by name. By default, the :class:`EulerMovement` controller assumes the position component it will use is named "position" and the movement controller is named "movement". This is just a convention, however. In fact you can have multiple position and movement components with different names if desired. For this application the defaults work fine, and require less configuration.
+
+.. index::
+   single: Renderer (tutorial overview)
 
 Renderers
 ---------
@@ -111,6 +126,9 @@ We now have all the parts configured for our second goal: to create polygonal sh
 .. note:: Components, renderers, and systems coorespond closely to the models, views and controllers respectively of the `MVC design pattern <http://en.wikipedia.org/wiki/Model–view–controller>`_.
 
 .. _tut-entity-example:
+
+.. index::
+   single: Entity (tutorial overview)
 
 Defining an Entity Class
 ========================

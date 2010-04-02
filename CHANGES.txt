@@ -1,0 +1,13 @@
+Release 0.2 (Apr 1, 2010)
+=========================
+
+* Add Module Reference Documentation
+
+* Add Blasteroids Tutorial
+
+* Rename pygletsys module to controls
+
+Release 0.1 (Feb 28, 2010)
+==========================
+
+* *Duck!*

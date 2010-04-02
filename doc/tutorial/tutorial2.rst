@@ -7,6 +7,9 @@ Grease Tutorial Part II
 Making a Game of it
 ===================
 
+.. index::
+   pair: PlayerShip (example); Entity
+
 In :ref:`part 1 <tut-chapter-1>` of the tutorial the basis was laid for the *Blasteroids* game, but it is far from complete or even playable. By the end of this chapter, we'll have rectified that. To start with, let's build on the techniques we used to create the :class:`Asteroid` class, and create an entity for the player's ship.
 
 The start should look pretty familar, and even a bit simpler than the asteroids:
@@ -53,6 +56,10 @@ The last thing we need is a method to turn the ship's thrust off. We'll wire thi
 This resets the ship's acceleration and flame tip vertex back to their original values.
 
 .. _tut-controls-example:
+
+.. index::
+   single: KeyControls (tutorial example)
+   single: KeyControls; GameSystem (example)
 
 Controlling the Ship
 ====================
@@ -118,6 +125,9 @@ Now we can control the ship and fly it around the screen.
 
 .. image:: flying_around.png
 
+.. index::
+   single: Collision (tutorial example)
+
 Running Into Stuff
 ==================
 
@@ -171,6 +181,9 @@ To start with, will add a simple :meth:`on_collide` method to both the :class:`A
             """Collision response handler"""
             self.delete()
 
+.. index::
+   pair: Particle Effect (tutorial); Entity
+
 Blowing Stuff Up
 ================
 
@@ -212,6 +225,8 @@ To trigger the explosions, we simply need to change the base class of our :class
             self.explode()
             self.delete()
 
+.. index::
+   pair: Sweeper (example); System
 
 Cleaning Up the Mess
 """"""""""""""""""""
@@ -278,6 +293,9 @@ The best way to implement such aspects, as we've seen, is to use a system. It mi
 
 If any one of the above is true, you should consider implementing the behavior as a system. In our case, we will be defining a custom :obj:`gun` component to store some state for guns, and the behavior recurs periodically over time (If you hold down fire). Right now #3 above is not true, but if we were to implement alien ships that could shoot at the player later, it would be. All in all I think that makes a compelling case for using a system here.
 
+.. index::
+   pair: Component (tutorial); Custom
+
 The first thing we need is a component to store some gun state. This will be used to determine when the gun can shoot. Three pieces of information are needed for this: a flag to determine if the gun should fire, the last time the gun was shot, and the minimum "cool down" time between shots. We can add a custom component to the :class:`GameWorld` to store this information in three fields::
 
         self.components.gun = component.Component(
@@ -309,6 +327,9 @@ With the :obj:`gun` component in place, lets modify the :class:`PlayerShip` clas
 
 We add a class attribute on line 12 to specify a one half second cooldown for the gun. On line 24 we set this value in the :obj:`gun` component. We do not have to explicitly set the :attr:`firing` and :attr:`last_fire_time` fields. They will automatically default to ``False`` and ``0`` respectively.
 
+.. index::
+   pair: Shot (example); Entity
+
 Shot Class
 """"""""""
 
@@ -335,6 +356,9 @@ We have two more methods to implement for :class:`Shot`: an :meth:`on_collide` h
    :pyobject: Shot.on_collide
 .. literalinclude:: blasteroids2.py
    :pyobject: Shot.expire
+
+.. index::
+   pair: System; Gun (example)
 
 Gun System
 """"""""""
@@ -383,6 +407,9 @@ With all of this in place we can finally blast those asteroids to smithereens!
 .. image:: blast_em.png
 
 .. _tut-system-example:
+
+.. index::
+   pair: System; Wrapper (example)
 
 Wrapping Things Up
 ==================

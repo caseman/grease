@@ -3,8 +3,8 @@
 	You can adapt this file completely to your liking, but it should at least
 	contain the root `toctree` directive.
 
-Welcome to Grease's documentation!
-==================================
+Grease Documentation Contents
+=============================
 
 Blasteroids Tutorial
 --------------------
@@ -24,6 +24,14 @@ Module Reference
 	:maxdepth: 1
 
 	mod/*
+
+Release Notes
+-------------
+
+.. toctree::
+	:maxdepth: 2
+
+	changes
 
 Indices and tables
 ==================
