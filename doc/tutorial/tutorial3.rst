@@ -1,3 +1,4 @@
+.. include:: ../include.rst 
 .. _tut-chapter-3:
 
 ########################
@@ -213,7 +214,7 @@ The :class:`GameSystem` now keeps track of the player's score and remaining live
 
 The methods above setup the :class:`Hud` renderer. The :meth:`set_world` method here serves the same purpose as the same method of our system classes. It is called when the renderer is added to the world. Here we initialize some instance attributes and call :meth:`create_lives_entities`.
 
-.. note:: :class:`grease.Renderer` is an abstract base class much like :class:`grease.System`. Like the latter, it not mandatory that custom renderers subclass :class:`grease.Renderer`, but it does serve to make the application code easier to understand.
+.. note:: |Renderer| is an abstract base class much like |System| Like the latter, it not mandatory that custom renderers subclass |Renderer|, but it does serve to make the application code easier to understand.
 
 :meth:`create_lives_entities` describes its own purpose pretty well. It creates some stationary entities that look lke the player's ship to represent the extra lives remaining. These will be displayed at the top-left of the window.
 
@@ -248,25 +249,25 @@ En-"title"-ment
 
 With all of the game mechanics in place, we can focus on another important part of the experience, launching the game itself. Currently the player is thrust right into a new game immediately when the application is launched. We need to add a title screen to give the player an opportunity to start the game when they are ready. When a game ends, the player should return to the title screen so they can play again. We can also add different game play modes here for the player to select.
 
-Grease provides a modal framework to aid in creating a user interface flow between different application screens. The main pieces of this framework are mode managers, and modes. :class:`grease.mode.Mode` objects represent a specific application mode. Typically, at any given time, only one specific mode in an application is active. The active mode receives events and time steps so that it can run and the user can interact with it.
+Grease provides a modal framework to aid in creating a user interface flow between different application screens. The main pieces of this framework are mode managers, and modes. |Mode| objects represent a specific application mode. Typically, at any given time, only one specific mode in an application is active. The active mode receives events and time steps so that it can run and the user can interact with it.
 
-Modes are managed by a :class:`grease.mode.Manager`. A manager keeps track of modes in a stack. When a mode is *pushed* onto a manager stack, it becomes active and starts receiving events. Any mode that was active before is deactivated and no longer receives events, but it remains in the manager stack. If the active mode is *popped* off of the manager stack, it is deactivated and the previous active mode is reactivated. If the last mode in the manager stack is popped off, the manager can perform a special action, such as closing the active window or application.
+Modes are managed by a mode |Manager|. A manager keeps track of modes in a stack. When a mode is *pushed* onto a manager stack, it becomes active and starts receiving events. Any mode that was active before is deactivated and no longer receives events, but it remains in the manager stack. If the active mode is *popped* off of the manager stack, it is deactivated and the previous active mode is reactivated. If the last mode in the manager stack is popped off, the manager can perform a special action, such as closing the active window or application.
 
 The basic utility of a mode stack is that the user can start in one mode, enter another, then return to the original mode when it's complete and resume where it left off. This is perfect for our title screen. We want to present the title screen when the game application is launched, allow the player to start a game, then return to the title screen when the game is over.
 
 Windows, Managers, Worlds, and Modes
 ------------------------------------
 
-Although it is possible to create custom modes and managers in your application, there are two concrete implementations provided by Grease that should prove convenient. One, we are already familar with: :class:`grease.World`. Worlds implement the mode interface so that they can be used directly as game modes. When a world is active in a mode manager, its clock receives ticks, its systems receive events, and it will invoke its renderers when the display needs to be redrawn. When a world is deactivated, it is "frozen". Its clock no longer runs, its systems no longer receive events and its renderers are no longer invoked. When the world is later reactivated, it resumes right where it left off.
+Although it is possible to create custom modes and managers in your application, there are two concrete implementations provided by Grease that should prove convenient. One, we are already familar with: |World|. Worlds implement the mode interface so that they can be used directly as game modes. When a world is active in a mode manager, its clock receives ticks, its systems receive events, and it will invoke its renderers when the display needs to be redrawn. When a world is deactivated, it is "frozen". Its clock no longer runs, its systems no longer receive events and its renderers are no longer invoked. When the world is later reactivated, it resumes right where it left off.
 
-Grease also provides a special mode manager, :class:`grease.mode.ManagerWindow`. This class is a Pyglet window subclass that implements the mode manager interface. This allows you to push and pop modes, such as :class:`grease.World` objects, directly onto an application window. All of the OS events the window receives will go directly to the active mode. This makes implementing a user interface flow with push and pop semantics a breeze.
+Grease also provides a special mode manager, :class:`~grease.mode.ManagerWindow`. This class is a Pyglet window subclass that implements the mode manager interface. This allows you to push and pop modes, such as |World| objects, directly onto an application window. All of the OS events the window receives will go directly to the active mode. This makes implementing a user interface flow with push and pop semantics a breeze.
 
-:class:`grease.mode.ManagerWindow` objects also include some default behavior:
+:class:`~grease.mode.ManagerWindow` objects also include some default behavior:
 
 * When the ``Esc`` key is pressed, the current mode is popped.
 * When the last mode is popped, the window closes.
 
-.. note:: A :class:`ManagerWindow` object is both the mode manager and the source of events (i.e., the event dispatcher). Custom mode managers can be made by subclassing :class:`grease.mode.BaseManager` to separate these two concerns, if desired. This can allow several mode managers to share a single window, or even use an application-defined event dispatcher.
+.. note:: A :class:`ManagerWindow` object is both the mode manager and the source of events (i.e., the event dispatcher). Custom mode managers can be made by subclassing :class:`~grease.mode.BaseManager` to separate these two concerns, if desired. This can allow several mode managers to share a single window, or even use an application-defined event dispatcher.
 
 We can create a custom world to use as our title screen. The title screen will have some text, will respond to some key commands, and will have some asteroids floating in the background to make it more interesting. It will need a very similar configuration of components and systems as our existing :class:`GameWorld`, so let's refactor the common parts into a shared base class:
 
@@ -345,11 +346,11 @@ Getting in the Hotseat
 
 Before we can fully capture the spirit of a classic arcade game, we need to implement the classic "hotseat" multiplayer mode that was so prevalent in coin-op games. In this mode two players alternate playing their games, changing seats when the current player loses a life. We will use modes to implement this, but it will require a different approach than the simple stack-based management used above.
 
-Grease provides a special :class:`grease.mode.Multi` class we can leverage for this purpose. A :class:`grease.mode.Multi` is a mode object that contains one or more submodes. These submodes are arranged logically in a list or a ring. As with a mode manager, only a single submode of a :class:`grease.mode.Multi` is active at one time. Unlike a mode manager, a multi-mode can be used to cycle through a modes sequentially. This makes it ideal for implementing a series of screens that are navigated in sequence, or for alternating between screens. Also unlike a manager, if you move forward to a submode and then move back, the next submode is not popped off, it is just deactivated. If you move forward again, it will resume where it left off, allowing bi-directional navigation.
+Grease provides a special |Multi| class we can leverage for this purpose. A |Multi| is a mode object that contains one or more submodes. These submodes are arranged logically in a list or a ring. As with a mode manager, only a single submode of a |Multi| is active at one time. Unlike a mode manager, a multi-mode can be used to cycle through a modes sequentially. This makes it ideal for implementing a series of screens that are navigated in sequence, or for alternating between screens. Also unlike a manager, if you move forward to a submode and then move back, the next submode is not popped off, it is just deactivated. If you move forward again, it will resume where it left off, allowing bi-directional navigation.
 
 Because multi-modes themselves are just modes, they allow a whole group of submodes to be pushed onto a manager at once. They also keep track of which submode is active. Submodes can also be added and removed from the multi-mode at any time.
 
-To implement hotseat multiplayer using a muti-mode is quite simple. When a two-player game is initiated, a :class:`grease.mode.Multi` object will be created containing 2 game worlds. When this is pushed onto the mode manager, the first game world will be activated. We will add some code to activate the next game whenever the current player loses a life. When a player's game is over, it will be removed from the multi-mode.
+To implement hotseat multiplayer using a muti-mode is quite simple. When a two-player game is initiated, a |Multi| object will be created containing 2 game worlds. When this is pushed onto the mode manager, the first game world will be activated. We will add some code to activate the next game whenever the current player loses a life. When a player's game is over, it will be removed from the multi-mode.
 
 Let's start by seeing how we can initiate a two-player game from the title screen:
 
@@ -357,7 +358,7 @@ Let's start by seeing how we can initiate a two-player game from the title scree
    :pyobject: TitleScreenControls
    :linenos:
 
-We added the :meth:`start_two_player` method to the :class:`TitleScreenControls` class (line 8 above). This creates the :class:`grease.mode.Multi` mode containing two game worlds and pushes it onto the window. By default, when a multi-mode is first activated, it activates its first submode. This will begin the game for player one.
+We added the :meth:`start_two_player` method to the :class:`TitleScreenControls` class (line 8 above). This creates the |Multi| mode containing two game worlds and pushes it onto the window. By default, when a multi-mode is first activated, it activates its first submode. This will begin the game for player one.
 
 Notice that we pass some label strings into the :class:`Game` class constructor to identify each game. We'll need to modify that class to support these labels:
 

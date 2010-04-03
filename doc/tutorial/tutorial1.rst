@@ -1,4 +1,5 @@
 .. Grease tutorial chapter 1
+.. include:: ../include.rst 
 
 .. _tut-chapter-1:
 
@@ -44,6 +45,8 @@ The above is a complete Pyglet program that creates a window and enters the even
 
 If you have not seen it before, the ``if`` statement at the end may appear a bit odd. This is a python idiom used in module files that can be run as scripts. Each module has a built-in :attr:`__name__` attribute set by the interpreter. The name ``"__main__"`` is used for a module that is being executed as a script. In our example this means that the :meth:`main()` function will be executed when the module is run as a script, but not it is imported by another module. Although our program is not intended to be imported by other programs, it can still be handy to do so from the python prompt for debugging. Without using this check, importing the module would unexpectedly execute :func:`pyglet.app.run()` to start the event loop, which would not return control to the importing program.
 
+.. note:: You'll notice if you run the code above that the window may be filled with random garbage. That's because we don't clear the window using ``window.clear()``. Grease will take care of that for us soon, so bear with it for right now.
+
 .. _tut-world-example:
 
 .. index::
@@ -52,7 +55,7 @@ If you have not seen it before, the ``if`` statement at the end may appear a bit
 The World of Grease
 ===================
 
-Now that we have a window, we can move on to setting up our game environment. Grease provides a :class:`grease.World` class to organize and orchestrate all of the basic parts that we need. A convenient way to specify a world configuration is the subclass :class:`grease.World` and override the :meth:`configure()` method. This method gets called after the world is instantiated so that the application can configure it as desired. We need to configure the world with three different types of parts: components, systems and renderers. We'll start with components.
+Now that we have a window, we can move on to setting up our game environment. Grease provides a |World| class to organize and orchestrate all of the basic parts that we need. A convenient way to specify a world configuration is the subclass |World| and override the :meth:`configure()` method. This method gets called after the world is instantiated so that the application can configure it as desired. We need to configure the world with three different types of parts: components, systems and renderers. We'll start with components.
 
 .. index::
    single: Component (tutorial overview)
@@ -62,7 +65,7 @@ Components
 
 Components specify the data fields for the entities in the game and store all of their data. If you are familiar with relational databases, components can be thought of like tables with entities as their primary keys. Don't worry too much about what an entity is just yet, once we get the world configuration setup, we'll delve more deeply into how they work.
 
-Below is the first part of our world configuration that subclasses the :class:`grease.World` base class and configures some basic components:
+Below is the first part of our world configuration that subclasses the |World| base class and configures some basic components:
 
 .. literalinclude:: blasteroids1.py
    :pyobject: GameWorld
@@ -100,9 +103,11 @@ Now that we have some components for our world, let's move on to systems. System
    :end-before: self.renderers
    :linenos:
 
-Similar to components, the world attribute :attr:`systems` is used to access the systems. Systems are also named using attributes, like components. Unlike components, however, the order of systems in the world is important. When the systems are executed each time step, they are executed in the order they were assigned to the :attr:`systems` attribute. Many times systems use the results calculated by other systems to do their work. System ordering allows the application to ensure that the world is updated in a consistent way. Of course since we only have a single system so far, we can't go too far wrong with the order. When we add more systems later, we'll come back and address ordering again.
+Similar to components, the world attribute :attr:`systems` is used to access the systems. Systems are also named using attributes, like components. Unlike components, however, the order of systems in the world is important. When the systems are executed each time step, they are executed in the order they were assigned to the :attr:`systems` attribute. Many times systems use the results calculated by other systems to do their work. System ordering allows the application to ensure that the world is updated in a consistent way. Of course since we only have a single system so far, we can't go too far wrong with the order.
 
-The :class:`controller.EulerMovement` system is responsible for updating the position and movement components. It performs a Euler integration each time step to update the :attr:`movement.velocity`, :attr:`position.position` and :attr:`position.angle` fields for all entities with both position and movement data. Systems access components in the world by name. By default, the :class:`EulerMovement` controller assumes the position component it will use is named "position" and the movement controller is named "movement". This is just a convention, however. In fact you can have multiple position and movement components with different names if desired. For this application the defaults work fine, and require less configuration.
+.. note:: It is possible to insert a system out of order using the :meth:`world.systems.insert` method.
+
+The :class:`~grease.controller.EulerMovement` system is responsible for updating the position and movement components. It performs a Euler integration each time step to update the :attr:`movement.velocity`, :attr:`position.position` and :attr:`position.angle` fields for all entities with both position and movement data. Systems access components in the world by name. By default, the :class:`~grease.controller.EulerMovement` controller assumes the position component it will use is named "position" and the movement controller is named "movement". This is just a convention, however. In fact you can have multiple position and movement components with different names if desired. For this application the defaults work fine, and require less configuration.
 
 .. index::
    single: Renderer (tutorial overview)
@@ -119,7 +124,7 @@ Like systems, renderer order is important. Renderers are always invoked in the o
 
 Although renderers typically make an immediate visual change to the window, some, like :class:`renderer.Camera` change the drawing state for subsequent renderers to use. A camera renderer is a high-level way to setup the OpenGL state for further rendering. Setting the position of the camera translates all of the subsequent drawing. In our example, we position the origin point (0, 0) in the center of the window instead of the Pyglet default, which is the lower left corner. You can also set a zoom and angle for the camera to scale and rotate respectively. The camera's settings may also be changed at run time to easily implement features like panning and zooming.
 
-The main workhorse renderer in our example is the :class:`renderer.Vector`. This renderer will draw shapes from the shape component in an old-school vector graphics style. As you may have guessed the :attr:`line_width` argument controls how fat the vector lines are drawn. This renderer draws all of the shapes in the component in a single batch using :const:`GL_LINES`. Because of this, all shapes drawn by this renderer must have the same line width. Even with this restriction, it is not difficult to use this renderer in cases where multiple line widths are needed. You will just need one :class:`Renderable` component and one :class:`renderer.Vector` per desired line width.
+The main workhorse renderer in our example is the :class:`~grease.renderer.Vector` renderer class. This renderer will draw shapes from the shape component in an old-school vector graphics style. As you may have guessed the :attr:`line_width` argument controls how fat the vector lines are drawn. This renderer draws all of the shapes in the component in a single batch using :const:`GL_LINES`. Because of this, all shapes drawn by this renderer must have the same line width. Even with this restriction, it is not difficult to use this renderer in cases where multiple line widths are needed. You will just need one :class:`~grease.component.Renderable` component and one :class:`~grease.renderer.Vector` renderer per desired line width.
 
 We now have all the parts configured for our second goal: to create polygonal shapes, move and draw them. Now we just need to create some entities that store data in our components.
 
@@ -135,7 +140,7 @@ Defining an Entity Class
 
 In the abstract, entities represent the actionable items in a game. Anything that can interact or be interacted with is typically an entity. Entities are usually visible to the player and may have dynamic behavior such as movement, collision, or animation. In our example game we will be defining entities for several game objects, starting with one of the stars of the show, asteroids.
 
-In concrete terms, Grease entities are rather simple things. Grease entities are instances of :class:`grease.Entity`. Typically applications will define various entity types by sublclassing :class:`grease.Entity`. Since entity data is stored in components, they have only two instance attributes: :attr:`entity_id` and :attr:`world`. The entity id is a unique identifier for the entity in the world. This is automatically assigned when the entity is created, and is usually invisible to application. The world is of course the :class:`grease.World` object where the entity resides. Entities are really just typed identifiers, so they are only meaningful in the context of a world, and actually cannot be created independently of a world.
+In concrete terms, Grease entities are rather simple things. Grease entities are instances of the |Entity| class. Typically applications will define various entity types by sublclassing |Entity|. Since entity data is stored in components, they have only two instance attributes: :attr:`entity_id` and :attr:`world`. The entity id is a unique identifier for the entity in the world. This is automatically assigned when the entity is created, and is usually invisible to application. The world is of course the |World| object where the entity resides. Entities are really just typed identifiers, so they are only meaningful in the context of a world, and actually cannot be created independently of a world.
 
 Not let's put that theory into practice and define the :class:`Asteroid` entity class. Since asteroids are fairly static objects, we just need to establish their initial state. This is done in the conventional way by defining an :meth:`__init__()` method:
 
@@ -143,7 +148,7 @@ Not let's put that theory into practice and define the :class:`Asteroid` entity 
    :pyobject: Asteroid
    :linenos:
 
-Let's dissect this to see what's going on. The class declaration is straightforward enough, we simply subclass :class:`grease.Entity`. It's worth stating that this is not optional. The :class:`Entity` base class contains several essential facilities to make it fit into a world context.
+Let's dissect this to see what's going on. The class declaration is straightforward enough, we simply subclass |Entity|. It's worth stating that this is not optional. The :class:`Entity` base class contains several essential facilities to make it fit into a world context.
 
 After the docstring (always a good idea), we have a standard class attribute declaration:
 
@@ -172,6 +177,7 @@ Now let's tackle movement:
 
 .. literalinclude:: blasteroids1.py
    :pyobject: Asteroid.__init__
+   :start-after: window.height
    :end-before: verts
 
 The velocity is a 2D vector much like position. We set it to a random value, that on average will be faster for asteroids with a smaller radius.
@@ -184,6 +190,7 @@ Next up is the shape:
 
 .. literalinclude:: blasteroids1.py
    :pyobject: Asteroid.__init__
+   :start-after: rotation
    :end-before: renderable
 
 I broke this into two lines to make it a little easier to follow, it could be done on one line if desired. The first line sets up a list of 2D vertex coordinates for a polygon shape. The shape is offset and rotated by the position component values when it is used, so the coordinates here are relative to the "local origin" which in this case is at the center of each asteroid shape. To create the desired irregular shape, we step through the unit circle multiplying each unit coordinate by the radius. The gaussian random function adds a random deviation to each vertex location. The amount of deviation is proportional to the asteroid size.
@@ -194,6 +201,8 @@ Lastly, we set the asteroid color, to a nice dusty light gray:
 
 .. literalinclude:: blasteroids1.py
    :pyobject: Asteroid.__init__
+   :start-after: self.shape.verts
+   :end-before: bugworkaroundthisis
 
 In order for the vector renderer to draw the entity, it must be a member of the position, shape and renderable components. Now that we have added data for our asteroids in all of those components, the renderer will draw them.
 

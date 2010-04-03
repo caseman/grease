@@ -1,3 +1,4 @@
+.. include:: ../include.rst 
 .. _tut-chapter-2:
 
 #######################
@@ -16,9 +17,10 @@ The start should look pretty familar, and even a bit simpler than the asteroids:
 
 .. literalinclude:: blasteroids2.py
    :pyobject: PlayerShip
-   :end-before: def turn
+   :end-before: collision
+   :linenos:
 
-First we have some class attributes that configure various aspects of the ship, including thrust acceleration, turn rate, shape (vertex points) and color. Separating these out of the code makes them easier to tweak while testing the game, and also will allow us to refer to them from other code, which can be convenient.
+First we have some class attributes that configure various aspects of the ship, including thrust acceleration, turn rate, shape (vertex points) and color. Separating these values out of the code makes them easier to tweak while testing the game, and also will allow us to refer to them from other code, which can be convenient.
 
 It's probably difficult to envision the shape from just the vertex coordinates, so here's what the ship will look like renderered:
 
@@ -26,23 +28,23 @@ It's probably difficult to envision the shape from just the vertex coordinates, 
    :align: left
    :figwidth: 100
 
-The shape has some intentionally duplicated vertices (the part labelled `flame`), so we can easily create a simple animated flame effect coming from the rear of the ship when the thrust is activated.
+The shape has some intentionally overlapping vertices (the part labelled `flame` on line 7), so we can easily create a simple animated flame effect coming from the rear of the ship when the thrust is activated.
 
-In the constructor, we setup the initial position and angle (centered and pointing up), stationary movement and rotation. Next the shape is initialized, this time with the :attr:`closed` field set to false since we have overlapping vertices in the shape. Last, we set the color. This puts the ship entity into all of the components we need for movement and rendering.
+In the constructor, we setup the initial position and angle (centered and pointing up), stationary movement and rotation (lines 15-18). Next the shape is initialized, this time with the :attr:`closed` field set to false since we have overlapping vertices in the shape. Last, we set the color. This puts the ship entity into all of the components we need for movement and rendering.
 
 Unlike asteroids, the player's ship needs to be able to move dynamically in response to player inputs. Specifically, the ship needs to be able to turn (rotate) left and right, and accelerate forward in the direction it is facing to simulate thrust. Let's start with the turn method:
 
 .. literalinclude:: blasteroids2.py
    :pyobject: PlayerShip.turn
 
-This simple method lets us turn the ship left or right by supplying the proper direction value: -1 for turn left, 1 for turn right, 0 for straight ahead.
+This simple method lets us turn the ship left or right by supplying the proper direction value: ``-1`` for turn left, ``1`` for turn right, ``0`` for straight ahead.
 
 Let's move on to the thrust method:
 
 .. literalinclude:: blasteroids2.py
    :pyobject: PlayerShip.thrust_on
 
-This method accelerates the ship in the direction it is facing. We start by defining an upward-facing vector with a magnitude set to the class's :attr:`THRUST_ACCEL` value. This vector is then rotated in-place to face the direction of the ship using :meth:`Vec2d.rotate()`. The :attr:`accel` field of the entity's movment component is then set to the rotated thrust vector. The :class:`controller.EulerMovement` system, already in the world takes care of calculating the ship's velocity and position over time based on the acceleration. 
+This method accelerates the ship in the direction it is facing. We start by defining an upward-facing vector with a magnitude set to the class's :attr:`THRUST_ACCEL` value. This vector is then rotated in-place to face the direction of the ship using :meth:`Vec2d.rotate()`. The :attr:`accel` field of the entity's movment component is then set to the rotated thrust vector. The :class:`~grease.controller.EulerMovement` system, already in the world takes care of calculating the ship's velocity and position over time based on the acceleration. 
 
 The last line changes one of the shape vertices, moving it to a random position behind the ship. This will create a simple flickering flame animation that will act as an import cue to the player that the thrust is active. Notice that the vertex is simply moved to a random position vertically relative to the origin, the renderer will automatically take care of translating and rotating the vertex to the proper window coordinates according to the ship's current position and rotation, as well as the current camera settings.
 
@@ -66,7 +68,7 @@ Controlling the Ship
 
 None of the capabilities we've coded for the player's ship mean anything unless the player can control them. Here we are going to see how easy it is to wire up our game logic to the keyboard.
 
-To do this, we are going to create our own custom :class:`grease.System` to house our top-level game state, logic, and keyboard bindings. Because the example game is simple, we can easily fit all of these things into a single system class.
+To do this, we are going to create our own custom |System| to house our top-level game state, logic, and keyboard bindings. Because the example game is simple, we can easily fit all of these things into a single system class.
 
 Remember that systems are behavioral aspects of our application, and are invoked each time step. So they are the perfect place to define and glue together the logic for the game.
 
@@ -74,7 +76,7 @@ Remember that systems are behavioral aspects of our application, and are invoked
    :pyobject: GameSystem
    :end-before: @
 
-We start by defining our :class:`GameSystem` as a subclass of :class:`KeyControls`. :class:`KeyControls` is a system subclass that provides a convenient mechanism for binding its methods to keyboard events.
+We start by defining our :class:`GameSystem` as a subclass of :class:`~grease.controls.KeyControls`. :class:`KeyControls` is a system subclass that provides a convenient mechanism for binding its methods to keyboard events.
 
 The :meth:`set_world` method is overridden to include a call to create a :class:`PlayerShip` entity and store it in the game state. Since there is only one player ship, this is an easy way to keep track of it so that we can call it's methods in response to particular key presses. We make the entity here in this method -- instead of, say :meth:`__init__` -- because this method is called when the system is added to the world. Since we need a reference to the world in order to create an entity, this is the most convenient place to do so.
 
@@ -87,7 +89,7 @@ Next let's add a method to turn the ship left when either the "a" or left arrow 
 
 The first thing of interest are the two decorators at the top. The :meth:`KeyControls.key_press` decorator binds a method to a key press event for a specific key. As you can see from the code, we can have multiple key binding decorators for a given method to bind it to multiple keys. The decorator method takes one or two arguments. The first argument is the Pyglet key code from :obj:`pyglet.window.key`. The second optional argument is to specify modifier keys (shift, alt, etc). By default, no modifier keys are assumed.
 
-The logic in this method is quite simple. First we check that the :obj:`player_ship` entity exists. This ensures that the entity has not been deleted from the world before we use it. Just holding a reference to an entity does not prevent it from being deleted. In this way entity references in your code are like weak references. This check will prove useful when the player ship can be destroyed later on. Next we call the ship entity's :meth:`turn_left` method we defined earlier passing it a direction of -1.
+The logic in this method is quite simple. First we check that the :obj:`player_ship` entity exists. This ensures that the entity has not been deleted from the world before we use it. Just holding a reference to an entity does not prevent it from being deleted. In this way entity references in your code are like weak references. This check will prove useful when the player ship can be destroyed later on. Next we call the ship entity's :meth:`turn_left` method we defined earlier passing it a direction of ``-1``.
 
 Next we add a complimentary method to stop turning left:
 
@@ -105,7 +107,7 @@ The methods for handling turning right are the same as above with the direction 
    :start-after: turn(0)
    :end-before: key.SPACE
 
-For activating thrust, we use the :meth:`KeyControls.key_hold` decorator. This works differently than the key press and release decorators we used for turning. The press and release decorators configure a method to fire once for each specific key event. The key hold decorator configures a method to fire continuously, once per time step, as long as the specified key is held down. This is perfect for thrust, which needs to be adjusted continously as the ship turns, and runs a continuous animation while activated.
+For activating thrust, we use the :meth:`~grease.controls.KeyControls.key_hold` decorator. This works differently than the key press and release decorators we used for turning. The press and release decorators configure a method to fire once for each specific key event. The key hold decorator configures a method to fire continuously, once per time step, as long as the specified key is held down. This is perfect for thrust, which needs to be adjusted continously as the ship turns, and runs a continuous animation while activated.
 
 The :meth:`stop_thrust` method is simply bound to key release, to ensure the thrust is deactivated at the proper time.
 
@@ -137,13 +139,13 @@ Flying around is way too safe at the moment, since you can't actually run into a
    :pyobject: GameWorld
    :linenos:
 
-The :class:`component.Collision` component (line 9 above) has the fields we need to make the collision system (line 13-14 above) work. The fields in this component are:
+The :class:`~grease.component.Collision` component (line 9 above) has the fields we need to make the collision system (line 13-14 above) work. The fields in this component are:
 
 `aabb`
     This is the axis-aligned bounding box that contains the entity. This box is used in the collision detection system to quickly reduce the number of collision checks that need to be performed. We can also use it for our own purposes when we need to find the top, left, bottom or right edges of entities.
 
 `radius`
-   The meaning of this field is up to the specific collision system used. For :class:`collision.Circular` systems, entities are approximated as circles for the purposes of collision detection. The radius value is simply the radius of the collision circle for an entity.
+   The meaning of this field is up to the specific collision system used. For :class:`~grease.collision.Circular` systems, entities are approximated as circles for the purposes of collision detection. The radius value is simply the radius of the collision circle for an entity.
 
 `from_mask` and `into_mask`
    Not all entities in the collision component need to be able to collide with each other. These two mask fields let you specify which entities can collide. Both mask fields are 32 bit integer bitmasks. When two entities are compared for collision, the :attr:`from_mask` value from each entity is bit-anded with the :attr:`into_mask` of the other. If this bit-and operation returns a non-zero result, then a collision is possible, if the result is zero, the entities cannot collide. Note that this happens in both directions, so a collision can occur between entity A and B if ``A.collision.from_mask & B.collision.into_mask != 0 or B.collision.from_mask & A.collision.into_mask != 0``.
@@ -153,11 +155,11 @@ Let's take a closer look at how the collision system is configured above:
 .. literalinclude:: blasteroids2.py
    :pyobject: GameWorld
    :start-after: self.systems.game
-   :end-before: self.renderers.camera
+   :end-before: sweeper
 
 There are two major steps to collision handling in Grease: *collision detection* and *collision response*. The detection step happens within the collision system. A set of pairs of the currently colliding entities can be found in the :attr:`collision_pairs` attribute of the collision system. Applications are free to use :attr:`collision_pairs` directly, but they can also register one or more handlers for more automated collision response. Collision handlers are simply functions that accept the collision system they are configured for as an argument. The handler functions are called each time step to deal with collision response.
 
-Above we have configured :func:`grease.collision.dispatch_events` as the collision handler. This function calls :meth:`on_collide` on all entities that are colliding. The entities' :meth:`on_collide` handler methods can contain whatever logic desired to handle the collision. This method accepts three arguments: :attr:`other_entity`, :attr:`collision_point`, and :attr:`collision_normal`. These arguments are the other entity collided with, the point where the collision occured and the normal vector at the point of collision respectively. It is up to the handler method to decide how these values are used. Note that when two entities collide, both of their :meth:`on_collide` handler methods will be called, if defined.
+Above we have configured :func:`~grease.collision.dispatch_events` as the collision handler. This function calls :meth:`on_collide` on all entities that are colliding. The entities' :meth:`on_collide` handler methods can contain whatever logic desired to handle the collision. This method accepts three arguments: :attr:`other_entity`, :attr:`collision_point`, and :attr:`collision_normal`. These arguments are the other entity collided with, the point where the collision occured and the normal vector at the point of collision respectively. It is up to the handler method to decide how these values are used. Note that when two entities collide, both of their :meth:`on_collide` handler methods will be called, if defined.
 
 In our game we will leverage the collision masks to make it so that the player's ship collides with asteroids, but the asteroids do not collide with each other. To do that we need to modify the :class:`Asteroid` and :class:`PlayerShip` constructors to set the collision component fields.
 
@@ -237,11 +239,11 @@ Blowing stuff up is great fun, of course, but at some point we need to clean up 
    :pyobject: Sweeper
    :linenos:
 
-This is first system we've created from scratch, so let's look a little deeper at what a system actually is. You'll notice we are subclassing :class:`grease.System`, an abstract base class defined by the framework. Subclassing :class:`grease.System` is optional, though it helps make it clear what type of part the class defines.
+This is first system we've created from scratch, so let's look a little deeper at what a system actually is. You'll notice we are subclassing |System| an abstract base class defined by the framework. Subclassing |System| is optional, though it helps make it clear what type of part the class defines.
 
 The only method that a system must implement is :meth:`step`. The :meth:`step` method is called by the world every time step, passing in the time delta since the last time step as a float. This is where the system implements its business logic.
 
-Optionally a system can implement a :meth:`set_world` method. If defined, this method is called when the system is added to a world, passing the :class:`grease.World` instance as its argument. This can be a good place to do system initialization where you need a world object, such as we did with the :class:`GameWorld` system implementation earlier. The :class:`grease.System` base class defines a simple implementation of :meth:`set_world` that stores a reference to the system's world for convenient access to its entities, components or even other systems.
+Optionally a system can implement a :meth:`set_world` method. If defined, this method is called when the system is added to a world, passing the |World| instance as its argument. This can be a good place to do system initialization where you need a world object, such as we did with the :class:`GameWorld` system implementation earlier. The |System| base class defines a simple implementation of :meth:`set_world` that stores a reference to the system's world for convenient access to its entities, components or even other systems.
 
 The :attr:`SWEEP_TIME` value defined on our class specifies the time debris will live before it is "swept up" by the system and deleted. As this time elapses, the alpha value of each debris entity's color is slowly reduced, fading the debris away.
 
@@ -303,13 +305,13 @@ The first thing we need is a component to store some gun state. This will be use
             last_fire_time=float, 
             cool_down=float)
 
-The :class:`grease.component.Component` class lets us create custom components with user-defined fields. To construct a custom component, we specify the fields as keyword arguments. The names of the arguments specify the names of the fields. The value of each argument specifies the data type for each field. Since the data type is fixed, this makes component fields more rigid than conventional Python attributes, but it provides some important benefits:
+The |Component| class lets us create custom components with user-defined fields. To construct a custom component, we specify the fields as keyword arguments. The names of the arguments specify the names of the fields. The value of each argument specifies the data type for each field. Since the data type is fixed, this makes component fields more rigid than conventional Python attributes, but it provides some important benefits:
 
 #. Component values can be stored in compact data structures using native data types where possible (int, float, Vec2d, etc).
 #. Component data can be stored in contiguous data blocks for much faster batch operations.
 #. Fields have sensible default values.
 #. Input values can be automatically cast to the proper field type 
-   (e.g., 2-tuples to :class:`Vec2d`, hex strings to :class:`color.RGBA`)
+   (e.g., 2-tuples to |Vec2d|, hex strings to |RGBA|)
 #. Systems and other users of component data know exactly what type of data to expect
    for each field.
 
