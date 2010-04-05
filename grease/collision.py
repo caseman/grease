@@ -49,6 +49,10 @@ class Pair(tuple):
 	
 	Also stores additional collision point and normal vectors
 	for each entity.
+
+	Sets of ``Pair`` objects are exposed in the ``collision_pairs``
+	attribute of collision systems to indicate the entity pairs in
+	collision.
 	"""
 	info = None
 	"""A sequence of (entity, collision point, collision normal)
@@ -91,14 +95,13 @@ class BroadSweepAndPrune(object):
 	stationary bodies, bodies that are always evenly distributed, or ad-hoc
 	queries.
 
-	Args:
-		collision_component: Name of the collision component used by this
+	:param collision_component: Name of the collision component used by this
 		system, defaults to 'collision'. This component supplies each
 		entities' aabb and collision masks.
-	
+	:type collision_component: str
 	"""
 	world = None
-	""":class:`grease.World` object this system belongs to"""
+	"""|World| object this system belongs to"""
 
 	collision_component = None
 	"""Name of world's collision component used by this system"""
@@ -120,7 +123,7 @@ class BroadSweepAndPrune(object):
 	
 	def step(self, dt):
 		"""Update the system for this time step, updates and sorts the 
-		axis arrays
+		axis arrays.
 		"""
 		component = getattr(self.world.components, self.collision_component)
 		LEFT = self.LEFT_ATTR
@@ -185,7 +188,7 @@ class BroadSweepAndPrune(object):
 	
 	@property
 	def collision_pairs(self):
-		"""Candidate collision pairs for this timestep"""
+		"""Set of candidate collision pairs for this timestep"""
 		if self._collision_pairs is None:
 			if self._by_x is None:
 				# Axis arrays not ready
@@ -251,21 +254,18 @@ class BroadSweepAndPrune(object):
 	def query_point(self, x_or_point, y=None, from_mask=0xffffffff):
 		"""Hit test at the point specified. 
 
-		Args:
-			x_or_point: x coordinate (float) or sequence of (x, y) floats.
+		:param x_or_point: x coordinate (float) or sequence of (x, y) floats.
 
-			y: y coordinate (float) if x is not a sequence
+		:param y: y coordinate (float) if x is not a sequence
 
-			from_mask: Bit mask used to filter query results. This value
-				is bit ANDed with candidate entities' `collision.into_mask`.
-				If the result is non-zero, then it is considered a hit. By
-				default all entities colliding with the input point are
-				returned.
+		:param from_mask: Bit mask used to filter query results. This value
+			is bit ANDed with candidate entities' ``collision.into_mask``.
+			If the result is non-zero, then it is considered a hit. By
+			default all entities colliding with the input point are
+			returned.
 
-		Returns:
-			Return a set of entities where the point is inside their bounding
+		:return: A set of entities where the point is inside their bounding
 			boxes as of the last time step.
-
 		"""
 		if self._by_x is None:
 			# Axis arrays not ready
@@ -337,28 +337,31 @@ class Circular(object):
 	"""Basic narrow-phase collision detector which treats all entities as
 	circles with their radius defined in the collision component.
 
-	Args:
-		`handlers`: A sequence of collision handler functions that are invoked
+	:param handlers: A sequence of collision handler functions that are invoked
 		after collision detection.
-		
-		`collision_component`: Name of collision component for this system,
-			defaults to 'collision'. This supplies each entity's collision
-			radius and masks.
+	:type handlers: sequence of functions
+	
+	:param collision_component: Name of collision component for this system,
+		defaults to 'collision'. This supplies each entity's collision
+		radius and masks.
+	:type collision_component: str
 
-		`position_component`: Name of position component for this system,
-			defaults to 'position'. This supplies each entity's position.
+	:param position_component: Name of position component for this system,
+		defaults to 'position'. This supplies each entity's position.
+	:type position_component: str
 
-		`update_aabbs` (bool): If True (the default), then the entities'
-			`collision.aabb` fields will be updated using their position
-			and collision radius before invoking the broad phase system. 
-			Set this False if another system updates the aabbs.
+	:param update_aabbs: If True (the default), then the entities'
+		`collision.aabb` fields will be updated using their position
+		and collision radius before invoking the broad phase system. 
+		Set this False if another system updates the aabbs.
+	:type update_aabbs: bool
 
-		`broad_phase`: A broad-phase collision system to use as a source
-			for collision pairs. If not specified, a :class:`BroadSweepAndPrune`
-			system will be created automatically.
+	:param broad_phase: A broad-phase collision system to use as a source
+		for collision pairs. If not specified, a :class:`BroadSweepAndPrune`
+		system will be created automatically.
 	"""
 	world = None
-	""":class:`grease.World` object this system belongs to"""
+	"""|World| object this system belongs to"""
 
 	position_component = None
 	"""Name of world's position component used by this system"""
@@ -442,19 +445,17 @@ class Circular(object):
 	def query_point(self, x_or_point, y=None, from_mask=0xffffffff):
 		"""Hit test at the point specified. 
 
-		Args:
-			x_or_point: x coordinate (float) or sequence of (x, y) floats.
+		:param x_or_point: x coordinate (float) or sequence of (x, y) floats.
 
-			y: y coordinate (float) if x is not a sequence
+		:param y: y coordinate (float) if x is not a sequence
 
-			from_mask: Bit mask used to filter query results. This value
-				is bit ANDed with candidate entities' `collision.into_mask`.
-				If the result is non-zero, then it is considered a hit. By
-				default all entities colliding with the input point are
-				returned.
+		:param from_mask: Bit mask used to filter query results. This value
+			is bit ANDed with candidate entities' ``collision.into_mask``.
+			If the result is non-zero, then it is considered a hit. By
+			default all entities colliding with the input point are
+			returned.
 
-		Returns:
-			Return a set of entities where the point is inside their collision
+		:return: A set of entities where the point is inside their collision
 			radii as of the last time step.
 
 		"""
@@ -481,17 +482,16 @@ def dispatch_events(collision_system):
 		def on_collide(self, other_entity, collision_point, collision_normal):
 			'''Handle A collision between this entity and `other_entity`
 
-			Args:
-				`other_entity` (Entity): The other entity in collision with
-				`self`
+			- other_entity (Entity): The other entity in collision with 
+			  `self`
 
-				`collision_point` (Vec2d): The point on this entity (`self`)
-				where the collision occurred. Note this may be `None` for some
-				collision systems that do not report it.
+			- collision_point (Vec2d): The point on this entity (`self`)
+			  where the collision occurred. Note this may be `None` for 
+			  some collision systems that do not report it.
 
-				`collision_normal` (Vec2d): The normal vector at the point of
-				collision. As with `collision_point`, this may be None for
-				some collision systems.
+			- collision_normal (Vec2d): The normal vector at the point of
+			  collision. As with `collision_point`, this may be None for
+			  some collision systems.
 			'''
 
 	Note the arguments to `on_collide()` are always passed positionally, so you
