@@ -10,6 +10,22 @@
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 #
 #############################################################################
+"""Components store all entity data in a given |World|. You can
+think of components as tables with entities as their primary keys. Like
+database tables, components are defined with a "schema" that specifies
+the data fields. Each field in a component has a name and a type.
+
+Component objects themselves have a dict-like interface with entities
+as keys and data records as values. An application will typically 
+interact with components via entity attributes, entity extents or
+by joining them. For more information see:
+
+- :class:`~grease.entity.Entity` class.
+- :class:`~grease.world.EntityExtent` class.
+- :meth:`~grease.world.ComponentParts.join` method of ComponentParts.
+
+See also :ref:`defining custom components in the tutorial <custom-component-example>`.
+"""
 
 __version__ = '$Id$'
 

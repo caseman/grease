@@ -295,6 +295,8 @@ The best way to implement such aspects, as we've seen, is to use a system. It mi
 
 If any one of the above is true, you should consider implementing the behavior as a system. In our case, we will be defining a custom :obj:`gun` component to store some state for guns, and the behavior recurs periodically over time (If you hold down fire). Right now #3 above is not true, but if we were to implement alien ships that could shoot at the player later, it would be. All in all I think that makes a compelling case for using a system here.
 
+.. _custom-component-example:
+
 .. index::
    pair: Component (tutorial); Custom
 
