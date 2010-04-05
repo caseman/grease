@@ -1,5 +1,5 @@
-Grease
-======
+Grease Overview
+===============
 
 Grease is a pluggable and highly extensible 2D game engine and framework for
 Python.
@@ -31,8 +31,8 @@ The goals of the project include:
   but also provide equivalent parts coded in pure Python for ease
   of installation and distribution.
 
-This being the first release of this project, not all of these goals have
-been realized yet, but I feel the project is well on their path.
+Not all of these goals have been realized yet, but I feel the project is well
+on their path.
 
 Requirements
 ------------
@@ -42,8 +42,15 @@ supporting Python and Pyglet.
 
 The following are required to build and install Grease:
 
-* Python 2.6
-* Pyglet 1.1
+* Python 2.6 (http://www.python.org/)
+* Pyglet 1.1 (http://www.pyglet.org/)
+
+Downloading Grease
+------------------
+
+You can download Grease from the python package index (pypi):
+
+* http://pypi.python.org/pypi/grease/
 
 Development Status
 ------------------

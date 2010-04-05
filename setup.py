@@ -11,7 +11,7 @@ def read(fname):
 
 setup(
 	name='grease',
-    version='0.1', # *** REMEMBER TO UPDATE __init__.py ***
+    version='0.2', # *** REMEMBER TO UPDATE __init__.py ***
 	description='Grease: A component-based game engine and rapid development framework',
 	long_description=read('README.txt'),
 	author='Casey Duncan',

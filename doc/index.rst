@@ -3,6 +3,17 @@
 Grease Documentation Contents
 =============================
 
+Welcome to the documentation for the *Grease* game framework for Python.
+
+Getting Started
+---------------
+
+.. toctree::
+	:maxdepth: 2
+
+	overview
+
+
 Blasteroids Tutorial
 --------------------
 
