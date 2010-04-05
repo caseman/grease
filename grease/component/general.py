@@ -31,10 +31,10 @@ class Component(dict):
 	- :class:`bool`
 	- :class:`str`
 	- :class:`object`
-	- :class:`Vec2d`
-	- :class:`Vec2dArray`
-	- :class:`RGBA`
-	- :class:`Rect`
+	- |Vec2d|
+	- |Vec2dArray|
+	- |RGBA|
+	- |Rect|
 	"""
 
 	deleted_entities = ()

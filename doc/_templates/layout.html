@@ -1,0 +1,16 @@
+{% extends "!layout.html" %}
+
+{% block rootrellink %}
+        <li><a href="{{ pathto('index') }}">Grease home</a><!-- &nbsp;|&nbsp; --></li>
+        <!-- <li><a href="{{ pathto('contents') }}">Documentation</a>&raquo;</li> -->
+{% endblock %}
+
+{% block extrahead %}
+        <link rel="stylesheet" href="{{ pathto("_static/grease.css", 1) }}" type="text/css" />
+{% endblock %}
+
+{% block header %}
+<div style="background-color: white; text-align: left; padding: 10px 10px 15px 15px">
+<img src="{{ pathto("_static/grease.png", 1) }}" alt="Grease logo" />
+</div>
+{% endblock %}

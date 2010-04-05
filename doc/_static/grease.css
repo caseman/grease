@@ -1,0 +1,35 @@
+body {
+        background-color: #ddc;
+}
+
+h1, h2, h3, h4, h5, h6 {
+        font-family: 'Marker Felt', 'Comic Sans MS', 'Comic Sans', sans-serif;
+        font-weight: normal;
+}
+
+dl.class, dl.function, dl.exception {
+        border-top: 1px dotted #aab;
+        padding-top: 0.75em;
+}
+
+em.property {
+        color: #072;
+}
+
+tt.descclassname {
+        color: #777;
+}
+
+dl.class tt.descname {
+        color: #0e84bd;
+}
+
+dl.method tt.descname, dl.function tt.descname {
+        color: #06287e;
+}
+
+dl.attribute tt.descname {
+        color: #222;
+}
+
+

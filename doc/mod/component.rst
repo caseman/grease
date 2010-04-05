@@ -1,3 +1,5 @@
+.. include:: ../include.rst
+
 :mod:`grease.component` -- Entity Data Containers
 =================================================
 

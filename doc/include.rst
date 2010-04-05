@@ -6,6 +6,7 @@
 .. |Renderer| replace:: :class:`~grease.Renderer`
 .. |Entity| replace:: :class:`~grease.entity.Entity`
 .. |Vec2d| replace:: :class:`~grease.geometry.Vec2d`
+.. |Vec2dArray| replace:: :class:`~grease.geometry.Vec2dArray`
 .. |Rect| replace:: :class:`~grease.geometry.Rect`
 .. |RGBA| replace:: :class:`~grease.color.RGBA`
 .. |Mode| replace:: :class:`~grease.mode.Mode`
