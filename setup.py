@@ -4,10 +4,21 @@
 
 import os
 import sys
+import shutil
 from distutils.core import setup, Extension
 
+srcdir = os.path.dirname(__file__)
+
 def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+    return open(os.path.join(srcdir, fname)).read()
+
+# Copy the blasteroids example scripts to the tutorial dir
+# Ideally they would just live there, but inflexibility in
+# distutils wrt packaging data makes this necessary
+for i in range(1, 4):
+	shutil.copyfile(
+		os.path.join(srcdir, 'examples', 'blasteroids%s.py' % i),
+		os.path.join(srcdir, 'doc', 'tutorial', 'blasteroids%s.py' % i))
 
 setup(
 	name='grease',
@@ -16,7 +27,7 @@ setup(
 	long_description=read('README.txt'),
 	author='Casey Duncan',
 	author_email='casey.duncan@gmail.com',
-	#url='http://code.google.com/p/py-grease/',
+	url='http://pygamesf.org/~casey/grease/doc/',
 	license='MIT',
     classifiers = [
         'Development Status :: 3 - Alpha',

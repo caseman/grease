@@ -13,5 +13,5 @@ global-exclude *.o
 global-exclude *.so
 global-exclude *.out
 global-exclude .DS_Store
-global-exclude doc/_*
+global-exclude doc/build
 

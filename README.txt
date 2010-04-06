@@ -34,6 +34,18 @@ The goals of the project include:
 Not all of these goals have been realized yet, but I feel the project is well
 on their path.
 
+License
+-------
+
+Grease is distributed under a permissive MIT-style open source license. This
+license permits you to use grease for commercial or non-commercial purposes
+free of charge. It makes no demands on how, or whether, you license, or
+release the code derived from or built upon Grease, other than preservation of
+copyright notice.
+
+For a complete text of the license see the ``LICENSE.txt`` file in the source
+distrbution.
+
 Requirements
 ------------
 
@@ -72,15 +84,25 @@ first or they will not work properly::
 
 	cd
 	python2.6 -m grease.test.run_all
-	python2.6 -m grease.examples.blasteroids
+	python2.6 -m grease.examples.blasteroids3
 
-Note on some platforms, such as MacOS X, you will need to use `pythonw2.6`
+Note on some platforms, such as MacOS X, you will need to use ``pythonw2.6``
 to run the tests and example game.
 
 Note, you can also try out Grease without installing it by setting your
-PYTHONPATH to the source directory::
+``PYTHONPATH`` to the source directory::
 
 	export PYTHONPATH=`pwd`
 	python2.6 test/run_all.py
-	python2.6 examples/blasteroids.py
+	python2.6 examples/blasteroids3.py
+
+Documentation
+-------------
+
+You can browse the documentation online at:
+
+* http://pygamesf.org/~casey/grease/doc/
+
+The documentation is also available for offline viewing in the
+``doc/build/html`` subdirectory for the source distribution.
 
