@@ -25,12 +25,12 @@ from grease.controls import KeyControls
 ## Utility functions ##
 
 SCRIPT_DIR_PATH = os.path.dirname(__file__)
-pyglet.font.add_file(SCRIPT_DIR_PATH + '/font/Vectorb.ttf')
+pyglet.font.add_file(os.path.join(SCRIPT_DIR_PATH, 'font', 'Vectorb.ttf'))
 
 def load_sound(name, streaming=False):
     """Load a sound from the `sfx` directory"""
     return pyglet.media.load(
-        '%s/sfx/%s' % (SCRIPT_DIR_PATH, name), streaming=streaming)
+        os.path.join(SCRIPT_DIR_PATH, 'sfx', name), streaming=streaming)
 
 def looping_sound(name):
     """Load a sound from the `sfx` directory and configure it too loop
