@@ -13,6 +13,7 @@
 """Control systems for binding controls to game logic"""
 
 import grease
+from pyglet.window import key
 
 class KeyControls(grease.System):
 	"""System that maps subclass-defined action methods to keys. 
@@ -22,6 +23,11 @@ class KeyControls(grease.System):
 	instance methods.
 
 	See :ref:`an example implementation in the tutorial <tut-controls-example>`.
+	"""
+	MODIFIER_MASK = ~(key.MOD_NUMLOCK | key.MOD_SCROLLLOCK)
+	"""The MODIFIER_MASK allows you to filter out modifier keys that should be
+	ignored by the application. By default, numlock and scrolllock are
+	ignored.
 	"""
 
 	world = None
@@ -52,7 +58,7 @@ class KeyControls(grease.System):
 		def bind(f):
 			if not hasattr(f, '_grease_hold_key_binding'):
 				f._grease_hold_key_binding = []
-			f._grease_hold_key_binding.append((symbol, modifiers))
+			f._grease_hold_key_binding.append((symbol, modifiers & cls.MODIFIER_MASK))
 			return f
 		return bind
 
@@ -62,7 +68,7 @@ class KeyControls(grease.System):
 		def bind(f):
 			if not hasattr(f, '_grease_press_key_binding'):
 				f._grease_press_key_binding = []
-			f._grease_press_key_binding.append((symbol, modifiers))
+			f._grease_press_key_binding.append((symbol, modifiers & cls.MODIFIER_MASK))
 			return f
 		return bind
 
@@ -72,7 +78,7 @@ class KeyControls(grease.System):
 		def bind(f):
 			if not hasattr(f, '_grease_release_key_binding'):
 				f._grease_release_key_binding = []
-			f._grease_release_key_binding.append((symbol, modifiers))
+			f._grease_release_key_binding.append((symbol, modifiers & cls.MODIFIER_MASK))
 			return f
 		return bind
 	
@@ -84,10 +90,10 @@ class KeyControls(grease.System):
 		To unbind the key entirely, pass ``None`` for method.
 		"""
 		if method is not None:
-			self._key_hold_map[key, modifiers] = method
+			self._key_hold_map[key, modifiers & self.MODIFIER_MASK] = method
 		else:
 			try:
-				del self._key_hold_map[key, modifiers]
+				del self._key_hold_map[key, modifiers & self.MODIFIER_MASK]
 			except KeyError:
 				pass
 
@@ -97,10 +103,10 @@ class KeyControls(grease.System):
 		the key entirely, pass ``None`` for method.
 		"""
 		if method is not None:
-			self._key_press_map[key, modifiers] = method
+			self._key_press_map[key, modifiers & self.MODIFIER_MASK] = method
 		else:
 			try:
-				del self._key_press_map[key, modifiers]
+				del self._key_press_map[key, modifiers & self.MODIFIER_MASK]
 			except KeyError:
 				pass
 
@@ -110,10 +116,10 @@ class KeyControls(grease.System):
 		the key entirely, pass ``None`` for method.
 		"""
 		if method is not None:
-			self._key_release_map[key, modifiers] = method
+			self._key_release_map[key, modifiers & self.MODIFIER_MASK] = method
 		else:
 			try:
-				del self._key_release_map[key, modifiers]
+				del self._key_release_map[key, modifiers & self.MODIFIER_MASK]
 			except KeyError:
 				pass
 
@@ -126,29 +132,32 @@ class KeyControls(grease.System):
 				already_run.add(func)
 				func(dt)
 
-	def on_key_press(self, *key):
+	def on_key_press(self, key, modifiers):
 		"""Handle pyglet key press. Invoke key press methods and
 		activate key hold functions
 		"""
-		if key in self._key_press_map:
-			self._key_press_map[key]()
-		self.held_keys.add(key)
+		key_mod = (key, modifiers & self.MODIFIER_MASK)
+		if key_mod in self._key_press_map:
+			self._key_press_map[key_mod]()
+		self.held_keys.add(key_mod)
 	
-	def on_key_release(self, *key):
+	def on_key_release(self, key, modifiers):
 		"""Handle pyglet key release. Invoke key release methods and
 		deactivate key hold functions
 		"""
-		if key in self._key_release_map:
-			self._key_release_map[key]()
-		self.held_keys.discard(key)
+		key_mod = (key, modifiers & self.MODIFIER_MASK)
+		if key_mod in self._key_release_map:
+			self._key_release_map[key_mod]()
+		self.held_keys.discard(key_mod)
 
 
 if __name__ == '__main__':
 	import pyglet
-	from pyglet.window import key
 
 	class TestKeyControls(KeyControls):
 		
+		MODIFIER_MASK = ~(key.MOD_NUMLOCK | key.MOD_SCROLLLOCK | key.MOD_CTRL)
+
 		remapped = False
 		
 		@KeyControls.key_hold(key.UP)
@@ -200,7 +209,8 @@ if __name__ == '__main__':
 
 	window = pyglet.window.Window()
 	window.clear()
-	controls = TestKeyControls(window)
-	pyglet.clock.schedule_interval(controls.run, 0.5)
+	controls = TestKeyControls()
+	window.push_handlers(controls)
+	pyglet.clock.schedule_interval(controls.step, 0.5)
 	pyglet.app.run()
 
