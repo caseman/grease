@@ -13,7 +13,7 @@ Making a Game of it
 
 In :ref:`part 1 <tut-chapter-1>` of the tutorial the basis was laid for the *Blasteroids* game, but it is far from complete or even playable. By the end of this chapter, we'll have rectified that. To start with, let's build on the techniques we used to create the :class:`Asteroid` class, and create an entity for the player's ship.
 
-The start should look pretty familar, and even a bit simpler than the asteroids:
+The start should look pretty familiar, and even a bit simpler than the asteroids:
 
 .. literalinclude:: blasteroids2.py
    :pyobject: PlayerShip
@@ -22,7 +22,7 @@ The start should look pretty familar, and even a bit simpler than the asteroids:
 
 First we have some class attributes that configure various aspects of the ship, including thrust acceleration, turn rate, shape (vertex points) and color. Separating these values out of the code makes them easier to tweak while testing the game, and also will allow us to refer to them from other code, which can be convenient.
 
-It's probably difficult to envision the shape from just the vertex coordinates, so here's what the ship will look like renderered:
+It's probably difficult to envision the shape from just the vertex coordinates, so here's what the ship will look like rendered:
 
 .. figure:: ship_shape.png
    :align: left
@@ -68,7 +68,7 @@ Controlling the Ship
 
 None of the capabilities we've coded for the player's ship mean anything unless the player can control them. Here we are going to see how easy it is to wire up our game logic to the keyboard.
 
-To do this, we are going to create our own custom |System| to house our top-level game state, logic, and keyboard bindings. Because the example game is simple, we can easily fit all of these things into a single system class.
+To do this, we are going to create our own custom |System| to house our top-level game state, logic, and keyboard bindings. Because the example game is simple, we can easily fit all of these things into a single system class. In a more complex games, it may be more appropriate to separate these things into separate systems.
 
 Remember that systems are behavioral aspects of our application, and are invoked each time step. So they are the perfect place to define and glue together the logic for the game.
 
@@ -78,7 +78,7 @@ Remember that systems are behavioral aspects of our application, and are invoked
 
 We start by defining our :class:`GameSystem` as a subclass of :class:`~grease.controls.KeyControls`. :class:`KeyControls` is a system subclass that provides a convenient mechanism for binding its methods to keyboard events.
 
-The :meth:`set_world` method is overridden to include a call to create a :class:`PlayerShip` entity and store it in the game state. Since there is only one player ship, this is an easy way to keep track of it so that we can call it's methods in response to particular key presses. We make the entity here in this method -- instead of, say :meth:`__init__` -- because this method is called when the system is added to the world. Since we need a reference to the world in order to create an entity, this is the most convenient place to do so.
+The :meth:`set_world` method is overridden to include a call to create a :class:`PlayerShip` entity and store it in the system as game state. Since there is only one player ship, this is an easy way to keep track of it so that we can call it's methods in response to particular key presses. We make the entity here in this method -- instead of, say :meth:`__init__` -- because this method is called when the system is added to the world. Since we need a reference to the world in order to create an entity, this is the most convenient place to do so.
 
 Next let's add a method to turn the ship left when either the "a" or left arrow keys are pressed:
 
@@ -107,7 +107,7 @@ The methods for handling turning right are the same as above with the direction 
    :start-after: turn(0)
    :end-before: key.SPACE
 
-For activating thrust, we use the :meth:`~grease.controls.KeyControls.key_hold` decorator. This works differently than the key press and release decorators we used for turning. The press and release decorators configure a method to fire once for each specific key event. The key hold decorator configures a method to fire continuously, once per time step, as long as the specified key is held down. This is perfect for thrust, which needs to be adjusted continously as the ship turns, and runs a continuous animation while activated.
+For activating thrust, we use the :meth:`~grease.controls.KeyControls.key_hold` decorator. This works differently than the key press and release decorators we used for turning. The press and release decorators configure a method to fire once for each specific key event. The key hold decorator configures a method to fire continuously, once per time step, as long as the specified key is held down. This is perfect for thrust, which needs to be adjusted continuously as the ship turns, and runs a continuous animation while activated.
 
 The :meth:`stop_thrust` method is simply bound to key release, to ensure the thrust is deactivated at the proper time.
 
@@ -148,7 +148,7 @@ The :class:`~grease.component.Collision` component (line 9 above) has the fields
    The meaning of this field is up to the specific collision system used. For :class:`~grease.collision.Circular` systems, entities are approximated as circles for the purposes of collision detection. The radius value is simply the radius of the collision circle for an entity.
 
 `from_mask` and `into_mask`
-   Not all entities in the collision component need to be able to collide with each other. These two mask fields let you specify which entities can collide. Both mask fields are 32 bit integer bitmasks. When two entities are compared for collision, the :attr:`from_mask` value from each entity is bit-anded with the :attr:`into_mask` of the other. If this bit-and operation returns a non-zero result, then a collision is possible, if the result is zero, the entities cannot collide. Note that this happens in both directions, so a collision can occur between entity A and B if ``A.collision.from_mask & B.collision.into_mask != 0 or B.collision.from_mask & A.collision.into_mask != 0``.
+   Not all entities in the collision component need to be able to collide with each other. These two mask fields let you specify which entities can collide. Both mask fields are 32 bit integer bitmasks. When two entities are compared for collision, the :attr:`from_mask` value from each entity is bit-anded with the :attr:`into_mask` of the other. If this bit-and operation returns a non-zero result, then a collision is possible, if the result is zero, the entities cannot collide. Note that this check happens in both directions, so a collision can occur between entity A and B if ``A.collision.from_mask & B.collision.into_mask != 0 or B.collision.from_mask & A.collision.into_mask != 0``.
 
 Let's take a closer look at how the collision system is configured above:
 
@@ -159,7 +159,7 @@ Let's take a closer look at how the collision system is configured above:
 
 There are two major steps to collision handling in Grease: *collision detection* and *collision response*. The detection step happens within the collision system. A set of pairs of the currently colliding entities can be found in the :attr:`collision_pairs` attribute of the collision system. Applications are free to use :attr:`collision_pairs` directly, but they can also register one or more handlers for more automated collision response. Collision handlers are simply functions that accept the collision system they are configured for as an argument. The handler functions are called each time step to deal with collision response.
 
-Above we have configured :func:`~grease.collision.dispatch_events` as the collision handler. This function calls :meth:`on_collide` on all entities that are colliding. The entities' :meth:`on_collide` handler methods can contain whatever logic desired to handle the collision. This method accepts three arguments: :attr:`other_entity`, :attr:`collision_point`, and :attr:`collision_normal`. These arguments are the other entity collided with, the point where the collision occured and the normal vector at the point of collision respectively. It is up to the handler method to decide how these values are used. Note that when two entities collide, both of their :meth:`on_collide` handler methods will be called, if defined.
+Above we have configured :func:`~grease.collision.dispatch_events` as the collision handler. This function calls :meth:`on_collide` on all entities that are colliding. The entities' :meth:`on_collide` handler methods can contain whatever logic desired to handle the collision. This method accepts three arguments: :attr:`other_entity`, :attr:`collision_point`, and :attr:`collision_normal`. These arguments are the other entity collided with, the point where the collision occurred and the normal vector at the point of collision respectively. It is up to the handler method to decide how these values are used. Note that when two entities collide, both of their :meth:`on_collide` handler methods will be called, if defined.
 
 In our game we will leverage the collision masks to make it so that the player's ship collides with asteroids, but the asteroids do not collide with each other. To do that we need to modify the :class:`Asteroid` and :class:`PlayerShip` constructors to set the collision component fields.
 
@@ -348,11 +348,11 @@ We start with some class attributes (line 4-5) to specify the shot's speed and t
 
 Next we define the constructor, which in addition to the required :obj:`world` argument, takes a :obj:`shooter` entity and :obj:`angle` value. The shooter is the entity that the shot is being fired from. The angle determines the direction of the shot.
 
-Inside the constructor, we first determine the initial position of the shot (lines 8-10). This is done by computing an offset based on the shooter's collision radius and the input angle. This way the shot appears to come from the surface of the shooter, rather than the center. The velocity is calculated by multiplying the angle's unit vector by the shot's speed, plus the shooter's velocity. Without including the shooter's velocity, the shooter could actually outrun his own shots, and strafing would feel very unnatural.
+Inside the constructor, we first determine the initial position of the shot (lines 8-10). This is done by computing an offset based on the shooter's collision radius and the input angle. This way the shot appears to come from the surface of the shooter, rather than the center. The velocity is calculated by multiplying the angle's unit vector by the shot's speed, plus the shooter's velocity. Without including the shooter's velocity, the shooter could actually outrun his own shots, and strafing would feel very unnatural. Would-be skeptics out there should try it with and without adding the shooter's velocity to see what I mean.
 
 The shape of the shot is set to a small triangle (line 13). This is small enough so that it will appear to be a small dot when rendered.  Collision is setup with a small radius and a mask specifically designed to collide with everything except for the shooter (``~`` is Python's bit-invert operator). Setting the color ensures the shot is rendered.
 
-On line 17 we schedule the shot to expire at the proper time. The clock will call the expire method (defined below) when the time-to-live elapses, deleting the entity automatically. This means that we do not need to keep track of when each shot will expire ourselves, which is convenient.
+On line 17 we schedule the shot to expire at the proper time. The world's clock will call the expire method (defined below) when the time-to-live elapses, deleting the entity automatically. This means that we do not need to keep track of when each shot will expire ourselves, which is convenient.
 
 We have two more methods to implement for :class:`Shot`: an :meth:`on_collide` handler for collision and an :meth:`expire` method for handling the shot expiration. Both will simply delete the entity:
 
@@ -389,11 +389,11 @@ This returns a special set of all entities in the :obj:`gun` component. It's spe
 
 		world[...].gun.firing == True
 
-That looks like an innocent boolean expression, but it is actually much more than that. This expression returns a set of all entities where the component field ``gun.firing`` matches the value ``True``. So this expression returns the set of all entities currently firing their gun. We can iterate this set, as we do in line 5 above, to perform the neccessary logic in our system.
+That looks like an ordinary boolean expression, but it is actually much more than that. This expression returns a set of all entities where the component field ``gun.firing`` matches the value ``True``. So this expression returns the set of all entities currently firing their gun. We can iterate this set, as we do in line 5 above, to perform the necessary logic in our system.
 
 On line 6 we check if the entity's gun is ready to fire. ``self.world.time`` is the local timestamp of the world object, updated every time step. If the gun is ready to fire, we create a :class:`Shot` entity and update the ``last_fire_time`` so the gun can begin its cool down cycle again.
 
-As you may have guessed, now that we have our :class:`Gun` system implemented, we need to add it to the :class:`GameWorld` class::
+As you may have guessed, now that we have our :class:`Gun` system class implemented, we need to add an instance of it to the :class:`GameWorld`::
 
 		self.systems.gun = Gun()
 
@@ -418,7 +418,7 @@ With all of this in place we can finally blast those asteroids to smithereens!
 Wrapping Things Up
 ==================
 
-We've now implemented all of the major game mechanics, save one. You'll notice if you fly around for a few seconds, all of the asteroids fly off the screen and disappear. And so will the player's ship if you accelerate it in one direction. We forgot to implement the all-important toroidal space topology! That's fancy-talk for making objects wrap around when they fly off the edge of the screen.
+We've now implemented all of the major game mechanics, save one. You'll notice if you fly around for a few seconds, all of the asteroids fly off the screen and disappear. And so will the player's ship if you accelerate it in one direction. We forgot to implement the all-important toroidal spatial topology! That's fancy-talk for making objects wrap around when they fly off the edge of the screen.
 
 So, how do you suppose we're gonna fix this? Surprise! Another system! This is a textbook example of a behavioral aspect of the application:
 
@@ -426,7 +426,7 @@ So, how do you suppose we're gonna fix this? Surprise! Another system! This is a
    :pyobject: PositionWrapper
    :linenos:
 
-The constructor (lines 4-6) precalculates the half width and height of the window for convenience later. Remember that the origin is in centered in the window, so these values are handy for finding the edges.
+The constructor (lines 4-6) pre-calculates the half width and height of the window for convenience later. Remember that the origin is in centered in the window, so these values are handy for finding the edges.
 
 The :meth:`step` method performs four entity extent queries, in the same spirit as in the :class:`Gun` system. Here we are querying the edges of the entities using their collision bounding boxes, comparing them to the window edges. In the first loop (line 9-10) we iterate over all entities whose right edge has moved left beyond the left edge of the window. This extent query does the job::
 

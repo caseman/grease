@@ -25,7 +25,7 @@ First we define a constant :obj:`SCRIPT_DIR_PATH` to store the path to the scrip
 
 The :func:`load_sound` function is a simple wrapper around :func:`pyglet.media.load` that loads sound files from the ``sfx`` directory adjacent to the script. The false default value for the :attr:`streaming` argument means that by default the files will be preloaded into memory, which is best for short sound effects.
 
-The :func:`load_sound` function creates fire-and-forget sounds that always play all the way through. We also add a :func:`looping_sound` function for continous-play sounds. This creates the sounds as streaming, which is suitable for longer sound effects or music. It also returns a full fledged :class:`pyglet.media.Player` object which affords us more control than a simple sound object.
+The :func:`load_sound` function creates fire-and-forget sounds that always play all the way through. We also add a :func:`looping_sound` function for continuous-play sounds. This creates the sounds as streaming, which is suitable for longer sound effects or music. It also returns a full fledged :class:`pyglet.media.Player` object which affords us more control than a simple sound object.
 
 For a simple game like this, with relatively few sounds, we can ensure that all the sounds are preloaded by storing them as class attributes in the entities that will use them. This will work because these class attributes are evaluated right after the script, or module, is first loaded by Python. In a more complex game with more assets to load, a more sophisticated preloading mechanism that provides feedback to the player is probably warranted.
 
@@ -41,7 +41,7 @@ We can play the death sound when the player's ship is destroyed, by adding a lin
    :pyobject: PlayerShip.on_collide
    :end-before: player_died
 
-The thrust sound is a looping sound. It should loop continously so long as the thrust is on and stop as soon as the thrust is off. This is accomplished by some simple modifications to the :meth:`thrust_on` and :meth:`thrust_off` methods to play and pause the thrust sound:
+The thrust sound is a looping sound. It should loop continuously so long as the thrust is on and stop as soon as the thrust is off. This is accomplished by some simple modifications to the :meth:`thrust_on` and :meth:`thrust_off` methods to play and pause the thrust sound:
 
 .. literalinclude:: blasteroids3.py
    :pyobject: PlayerShip.thrust_on
@@ -121,7 +121,7 @@ There's also some changes to :meth:`on_collide` above. On line 35, we check the 
 Scoring and Levels
 ------------------
 
-We now know how many points the asteroids are worth, but we still need to keep track of the game score for the player. Since the score goes with the game, we can add store it in the :class:`GameSystem` where we bind the keyboard controls. if we had a game with multiple simultaneous players all with separate scores, we might choose to store the scores in a component instead. 
+We now know how many points the asteroids are worth, but we still need to keep track of the game score for the player. Since the score goes with the game, we can add store it in the :class:`GameSystem` where we bind the keyboard controls. If we had a game with multiple simultaneous players all with separate scores, we might choose to store the scores in a component instead. 
 
 We refactor :class:`GameSystem` adding some attributes and methods:
 
@@ -165,7 +165,7 @@ This method will be called when the player's ship is destroyed. It simply decrem
    :pyobject: GameSystem.player_respawn
    :end-before: is_multiplayer
 
-This is a pretty trivial callback that creates a new :class:`PlayerShip` if there are lives remaining. There are a couple of things to note here: one is the :attr:`dt` parameter. This is needed because the clock always passes the time delta in when calling a scheduled method. We don't use it, but we need to receive it for the callback to work. The second thing of note is the :attr:`invincibility` parameter passed into the :class:`PlayerShip` constructor. This will temporarily make the ship invulnerable when it respawns so the player can avoid instant death if the ship materalizes and immediately collides with an asteroid. We will need to modify :class:`PlayerShip` to support this::
+This is a pretty trivial callback that creates a new :class:`PlayerShip` if there are lives remaining. There are a couple of things to note here: one is the :attr:`dt` parameter. This is needed because the clock always passes the time delta in when calling a scheduled method. We don't use it, but we need to receive it for the callback to work. The second thing of note is the :attr:`invincibility` parameter passed into the :class:`PlayerShip` constructor. This will temporarily make the ship invulnerable when it respawns so the player can avoid instant death if the ship materializes and immediately collides with an asteroid. We will need to modify :class:`PlayerShip` to support this::
 
     class PlayerShip(BlasteroidsEntity):
         """Thrust ship piloted by the player"""
@@ -216,7 +216,7 @@ The methods above setup the :class:`Hud` renderer. The :meth:`set_world` method 
 
 .. note:: |Renderer| is an abstract base class much like |System| Like the latter, it not mandatory that custom renderers subclass |Renderer|, but it does serve to make the application code easier to understand.
 
-:meth:`create_lives_entities` describes its own purpose pretty well. It creates some stationary entities that look lke the player's ship to represent the extra lives remaining. These will be displayed at the top-left of the window.
+:meth:`create_lives_entities` describes its own purpose pretty well. It creates some stationary entities that look like the player's ship to represent the extra lives remaining. These will be displayed at the top-left of the window.
 
 Below we get to the heart of the matter, the :meth:`draw` method. All renderers must implement this method, which is called whenever the display needs to be updated:
 
@@ -258,7 +258,7 @@ The basic utility of a mode stack is that the user can start in one mode, enter 
 Windows, Managers, Worlds, and Modes
 ------------------------------------
 
-Although it is possible to create custom modes and managers in your application, there are two concrete implementations provided by Grease that should prove convenient. One, we are already familar with: |World|. Worlds implement the mode interface so that they can be used directly as game modes. When a world is active in a mode manager, its clock receives ticks, its systems receive events, and it will invoke its renderers when the display needs to be redrawn. When a world is deactivated, it is "frozen". Its clock no longer runs, its systems no longer receive events and its renderers are no longer invoked. When the world is later reactivated, it resumes right where it left off.
+Although it is possible to create custom modes and managers in your application, there are two concrete implementations provided by Grease that should prove convenient. One, we are already familiar with: |World|. Worlds implement the mode interface so that they can be used directly as game modes. When a world is active in a mode manager, its clock receives ticks, its systems receive events, and it will invoke its renderers when the display needs to be redrawn. When a world is deactivated, it is "frozen". Its clock no longer runs, its systems no longer receive events and its renderers are no longer invoked. When the world is later reactivated, it resumes right where it left off.
 
 Grease also provides a special mode manager, :class:`~grease.mode.ManagerWindow`. This class is a Pyglet window subclass that implements the mode manager interface. This allows you to push and pop modes, such as |World| objects, directly onto an application window. All of the OS events the window receives will go directly to the active mode. This makes implementing a user interface flow with push and pop semantics a breeze.
 
@@ -350,7 +350,7 @@ Grease provides a special |Multi| class we can leverage for this purpose. A |Mul
 
 Because multi-modes themselves are just modes, they allow a whole group of submodes to be pushed onto a manager at once. They also keep track of which submode is active. Submodes can also be added and removed from the multi-mode at any time.
 
-To implement hotseat multiplayer using a muti-mode is quite simple. When a two-player game is initiated, a |Multi| object will be created containing 2 game worlds. When this is pushed onto the mode manager, the first game world will be activated. We will add some code to activate the next game whenever the current player loses a life. When a player's game is over, it will be removed from the multi-mode.
+To implement hotseat multiplayer using a multi-mode is quite simple. When a two-player game is initiated, a |Multi| object will be created containing 2 game worlds. When this is pushed onto the mode manager, the first game world will be activated. We will add some code to activate the next game whenever the current player loses a life. When a player's game is over, it will be removed from the multi-mode.
 
 Let's start by seeing how we can initiate a two-player game from the title screen:
 

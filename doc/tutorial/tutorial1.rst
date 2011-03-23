@@ -83,7 +83,7 @@ Below the built-in components used above are explained in more detail.
 	The movement component describes how an entity moves over time. It has the fields :attr:`velocity`, :attr:`accel` and :attr:`rotation`.
 
 `Shape`
-	The shape component decribes poylgonal entity shapes. It has the fields :attr:`verts` and :attr:`closed`.
+	The shape component describes polygonal entity shapes. It has the fields :attr:`verts` and :attr:`closed`.
 
 `Renderable`
 	The renderable component stores some data about entity presentation. It has the fields :attr:`depth` and :attr:`color`.
@@ -138,11 +138,11 @@ We now have all the parts configured for our second goal: to create polygonal sh
 Defining an Entity Class
 ========================
 
-In the abstract, entities represent the actionable items in a game. Anything that can interact or be interacted with is typically an entity. Entities are usually visible to the player and may have dynamic behavior such as movement, collision, or animation. In our example game we will be defining entities for several game objects, starting with one of the stars of the show, asteroids.
+In the abstract, entities represent the actionable items in a game. Anything that can interact or be interacted with is typically an entity. Entities are usually visible to the player and may have dynamic behavior such as movement, collision, or animation. In our example game we will be defining entities for several game objects, starting with one of the stars of the show: asteroids.
 
-In concrete terms, Grease entities are rather simple things. Grease entities are instances of the |Entity| class. Typically applications will define various entity types by sublclassing |Entity|. Since entity data is stored in components, they have only two instance attributes: :attr:`entity_id` and :attr:`world`. The entity id is a unique identifier for the entity in the world. This is automatically assigned when the entity is created, and is usually invisible to application. The world is of course the |World| object where the entity resides. Entities are really just typed identifiers, so they are only meaningful in the context of a world, and actually cannot be created independently of a world.
+In concrete terms, Grease entities are rather simple things. Grease entities are instances of the |Entity| class. Typically applications will define various entity types by subclassing |Entity|. Since entity data is stored in components, they have only two instance attributes: :attr:`entity_id` and :attr:`world`. The entity id is a unique identifier for the entity in the world. This is automatically assigned when the entity is created, and is usually invisible to application. The world is of course the |World| object where the entity resides. Entities are really just typed identifiers, so they are only meaningful in the context of a world, and actually cannot be created independently of a world.
 
-Not let's put that theory into practice and define the :class:`Asteroid` entity class. Since asteroids are fairly static objects, we just need to establish their initial state. This is done in the conventional way by defining an :meth:`__init__()` method:
+Now let's put this theory into practice and define the :class:`Asteroid` entity class. Since asteroids are fairly static objects, we just need to establish their initial state. This is done in the conventional pythonic way by defining an :meth:`__init__()` method:
 
 .. literalinclude:: blasteroids1.py
    :pyobject: Asteroid
@@ -165,13 +165,13 @@ Next let's go into the entity constructor:
    :pyobject: Asteroid.__init__
    :end-before: movement
 
-The method declaration is conventional, however the second :attr:`world` argument is mandatory. As you might imagine this is the world object that the entity has been created in. Although you must receive this argument, you do not need to do anything with it in your :meth:`__init__()` method. The :class:`Entity` base class takes care of assigning the :attr:`world` and :attr:`entity_id` attributes for you in its :meth:`__new__()` method. After the :attr:`world` argument you can define any additional arguments you need. Here we add a radius argument so that asteroids of various sizes can be created with this class.
+The method declaration is conventional, however the second :attr:`world` argument is mandatory. As you might imagine this is the world object that the entity has been created in. Although you must receive this argument, you do not need to do anything with it in your :meth:`__init__()` method. The :class:`Entity` base class takes care of assigning the :attr:`world` and :attr:`entity_id` attributes for you in its :meth:`__new__()` method, which is executed before :meth:`__init__()`. After the :attr:`world` argument you can define any additional arguments you need. Here we add a radius argument so that asteroids of various sizes can be created with this class.
 
-The first statement in our constructor sets the position of the asteroid. The position is random, though it avoids placing asteroids directly in the middle of the window. The position value is not stored in the asteroid instance, however. Accessing :attr:`self.position` provides a component accessor for the new entity. This accessor lets you inspect and manipulate data in the world's :attr:`position` component for this entity. The attributes of the position accessor let you read and write the field values for this entity in the position component. This lets you code using a conventional style from the point of view of the entity object, while keeping the data centralized in the components.
+The first statement in our constructor sets the position of the asteroid. The position is random, though it avoids placing asteroids directly in the middle of the window where the player's ship will spawn. The position value is not stored in the asteroid instance, however. Accessing :attr:`self.position` provides a component accessor for the new entity. This accessor lets you inspect and manipulate data in the world's :attr:`position` component for this entity. The attributes of the position accessor let you read and write the field values for this entity in the position component. This lets you code using a conventional style from the point of view of the entity object, while keeping the data centralized in the components.
 
-There is also another important thing happening here. Components are like sets of entities. Initially a new entity belongs to none of the components. By assigning a value to a component field, the entity is automatically added to the component if it is not already a member. So our position assignment above first adds the entity to the position component, then sets the value of the position field for the entity. There is no need to add the entity to the component separately.
+There is also another important thing happening here. Components are also like sets of entities. Initially a new entity belongs to none of the components in the world. By assigning a value to a component field of an entity, the entity is automatically added to the component if it is not already a member. So the position assignment above first adds the entity to the position component, then sets the value of the position field for the entity. There is no need to add the entity to the component separately.
 
-So you can read the above assignment statement as, *"add the entity to the position component and set the position field of the position component to a random 2D vector."*
+So you can read the above assignment statement as, *"add the entity to the position component and set the position field of the position component for this entity to a random 2D vector."*
 
 Now let's tackle movement:
 
@@ -218,7 +218,7 @@ Before we can see our ponderous space boulders plodding through space, we need t
 * Push the :class:`GameWorld`'s event handlers on the window to receive events.
 * Create some :class:`Asteroid` instances.
 
-We'll modify the :func:`main()` function to include this functionality:
+We'll modify the :func:`main()` function to do these things:
 
 .. literalinclude:: blasteroids1.py
    :pyobject: main
