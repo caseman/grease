@@ -102,7 +102,7 @@ Documentation
 
 You can browse the documentation online at:
 
-* http://pygamesf.org/~casey/grease/doc/
+* http://packages.python.org/grease/
 
 The documentation is also available for offline viewing in the
 ``doc/build/html`` subdirectory for the source distribution.
