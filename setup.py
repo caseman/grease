@@ -23,7 +23,7 @@ for i in range(1, 4):
 setup(
 	name='grease',
     version='0.3', # *** REMEMBER TO UPDATE __init__.py ***
-	description='Grease: A component-based game engine and rapid development framework',
+	description='Grease: The highly extensible game engine framework for Python',
 	long_description=read('README.txt'),
 	author='Casey Duncan',
 	author_email='casey.duncan@gmail.com',
