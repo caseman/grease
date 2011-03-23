@@ -26,8 +26,8 @@ class KeyControls(grease.System):
 	"""
 	MODIFIER_MASK = ~(key.MOD_NUMLOCK | key.MOD_SCROLLLOCK | key.MOD_CAPSLOCK)
 	"""The MODIFIER_MASK allows you to filter out modifier keys that should be
-	ignored by the application. By default, numlock and scrolllock are
-	ignored.
+	ignored by the application. By default, capslock, numlock, and scrolllock 
+	are ignored.
 	"""
 
 	world = None
