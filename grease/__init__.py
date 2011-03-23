@@ -11,7 +11,8 @@
 #
 #############################################################################
 
-__version__ = (0, 2, 0)
+__versioninfo__ = (0, 3, 0)
+__version__ = '.'.join(str(n) for n in __versioninfo__)
 
 __all__ = ('World', 'Entity', 'System', 'Renderer')
 
