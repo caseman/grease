@@ -1,3 +1,18 @@
+Release 0.3 (Mar 22, 2011)
+==========================
+
+* Cross-platform compatibility fixes to blasteroids tutorial code.
+  Thanks to Jonathan Hartley!
+
+* Added a feature to KeyControls to allow specific modifier keys to
+  be globally ignored. By default NUMLOCK, SCROLLLOCK, and CAPSLOCK
+  are ignored. This fixes a problem using the tutorial when these
+  modifiers are on. Thanks to Qasim for helping track this down and test!
+
+* Moved code repo to github (https://github.com/caseman/grease)
+
+* Minor doc updates
+
 Release 0.2 (Apr 4, 2010)
 =========================
 
