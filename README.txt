@@ -64,12 +64,13 @@ You can download Grease from the python package index (pypi):
 
 * http://pypi.python.org/pypi/grease/
 
-Development Status
-------------------
+You can also clone the github repository to get the very latest code::
 
-Grease is alpha software under active development. The APIs may change in
-future releases, however efforts will be made to minimize breakage between
-releases.
+	git clone git@github.com:caseman/grease.git
+
+Although there is no guarantee that the latest master branch code will work
+perfectly, or even make it to release, efforts are made to ensure Grease is
+functional at each push.
 
 Installation
 ------------
@@ -105,4 +106,25 @@ You can browse the documentation online at:
 
 The documentation is also available for offline viewing in the
 ``doc/build/html`` subdirectory for the source distribution.
+
+Development Status
+------------------
+
+Grease is alpha software under active development. The APIs may change in
+future releases, however efforts will be made to minimize breakage between
+releases.
+
+Contributing and Getting Support
+--------------------------------
+
+Come visit us at the Grease users google group to get help, moral support,
+lavish praise, complain bitterly, report a bug, or contribute ideas:
+
+* http://groups.google.com/group/grease-users
+
+If you would like to contribute to Grease, feel free to fork the git
+repository and make a pull request to have your changes reviewed. Note that
+bug fixes must be accompanied by unit tests, and features must also be
+documented.  I am happy to help with these tasks if I can, so don't be afraid
+to ask!
 
