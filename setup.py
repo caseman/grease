@@ -27,7 +27,7 @@ setup(
 	long_description=read('README.txt'),
 	author='Casey Duncan',
 	author_email='casey.duncan@gmail.com',
-	url='http://pygamesf.org/~casey/grease/doc/',
+	# url='',
 	license='MIT',
     classifiers = [
         'Development Status :: 3 - Alpha',
