@@ -1,0 +1,6 @@
+MANIFEST
+build
+dist
+doc/build
+doc/tutorial
+*.pyc
