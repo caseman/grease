@@ -28,15 +28,6 @@ types = {int:lambda: 0,
 		 color.RGBA: lambda: color.RGBA(0.0, 0.0, 0.0, 0.0),
 		 Rect: lambda: Rect(0.0, 0.0, 0.0, 0.0)}
 
-class Schema(dict):
-	"""Field schema definition for custom components"""
-
-	def __init__(self, **fields):
-		for ftype in fields.values():
-			assert ftype in types, fname + " has an illegal field type"
-		self.update(fields)
-
-
 class FieldAccessor(object):
 	"""Facade for manipulating a field for a set of entities"""
 
