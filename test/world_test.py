@@ -597,6 +597,92 @@ class WorldTestCase(unittest.TestCase):
 		self.assertEqual(renderer2.order, start + 1)
 
 
+class EntityIdGeneratorTestCase(unittest.TestCase):
+
+	def test_id_length(self):
+		from grease.world import _EntityIdGenerator
+		gen =_EntityIdGenerator()
+		i = gen.new_entity_id(object())
+		self.assertEqual(len(i), 3)
+
+	def test_id_members_ints(self):
+		from grease.world import _EntityIdGenerator
+		gen =_EntityIdGenerator()
+		i = gen.new_entity_id(object())
+		self.assert_(isinstance(i[0], int))
+		self.assert_(isinstance(i[1], int))
+		self.assert_(isinstance(i[2], int))
+
+	def test_id_is_truthy(self):
+		from grease.world import _EntityIdGenerator
+		gen =_EntityIdGenerator()
+		i = gen.new_entity_id(object())
+		self.failUnless(i, i)
+
+	def test_unique_index_same_entity_class(self):
+		from grease.world import _EntityIdGenerator
+		gen =_EntityIdGenerator()
+		id1 = gen.new_entity_id(object())
+		id2 = gen.new_entity_id(object())
+		id3 = gen.new_entity_id(object())
+		self.assertNotEqual(id1, id2)
+		self.assertNotEqual(id1, id3)
+		self.assertNotEqual(id2, id3)
+		self.assertNotEqual(id1[2], id2[2])
+		self.assertNotEqual(id1[2], id3[2])
+		self.assertNotEqual(id2[2], id3[2])
+
+	def test_same_block_same_entity_class(self):
+		from grease.world import _EntityIdGenerator
+		gen =_EntityIdGenerator()
+		id1 = gen.new_entity_id(object())
+		id2 = gen.new_entity_id(object())
+		id3 = gen.new_entity_id(object())
+		self.assertEqual(id1[1], id2[1])
+		self.assertEqual(id1[1], id3[1])
+		self.assertEqual(id2[1], id3[1])
+
+	def test_same_generation_with_no_recycle(self):
+		from grease.world import _EntityIdGenerator
+		gen =_EntityIdGenerator()
+		id1 = gen.new_entity_id(object())
+		id2 = gen.new_entity_id(object())
+		id3 = gen.new_entity_id(object())
+		self.assertEqual(id1[0], id2[0])
+		self.assertEqual(id1[0], id3[0])
+		self.assertEqual(id2[0], id3[0])
+
+	def test_different_block_different_entity_class(self):
+		from grease.world import _EntityIdGenerator
+		gen =_EntityIdGenerator()
+		class E1(object): pass
+		class E2(object): pass
+		id1 = gen.new_entity_id(E1())
+		id2 = gen.new_entity_id(E2())
+		id3 = gen.new_entity_id(E1())
+		self.assertNotEqual(id1[1], id2[1])
+		self.assertNotEqual(id2[1], id3[1])
+		self.assertEqual(id1[1], id3[1])
+	
+	def test_different_generation_after_recycle(self):
+		from grease.world import _EntityIdGenerator
+		gen =_EntityIdGenerator()
+		class E1(object): pass
+		class E2(object): pass
+		e11 = E1()
+		e21 = E2()
+		e12 = E1()
+		e11.entity_id = gen.new_entity_id(E1())
+		e21.entity_id = gen.new_entity_id(E2())
+		gen.recycle(e11)
+		e12.entity_id = gen.new_entity_id(E1())
+		self.assertNotEqual(e12.entity_id, e11.entity_id)
+		self.assertNotEqual(e12.entity_id, e21.entity_id)
+		self.assertNotEqual(e12.entity_id[0], e11.entity_id[0])
+		self.assertEqual(e12.entity_id[1], e11.entity_id[1])
+		self.assertEqual(e12.entity_id[2], e11.entity_id[2])
+
+
 if __name__ == '__main__':
 	unittest.main()
 

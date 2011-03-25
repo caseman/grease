@@ -1,6 +1,14 @@
 import unittest
 import itertools
 
+class TestIdGen(object):
+
+	next_id = itertools.count().next
+
+	def new_entity_id(self, entity):
+		assert not hasattr(entity, 'entity_id')
+		return self.next_id()
+
 
 class TestWorld(object):
 	
@@ -8,8 +16,7 @@ class TestWorld(object):
 		self.__dict__.update(kw)
 		self.components = self
 		self.entities = set()
-		self.new_entity_id = itertools.count().next
-		self.new_entity_id() # skip id 0
+		self.entity_id_generator = TestIdGen()
 		for comp in kw.values():
 			comp.world = self
 

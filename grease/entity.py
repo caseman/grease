@@ -75,7 +75,7 @@ class Entity(object):
 		"""Create a new entity and add it to the world"""
 		entity = object.__new__(cls)
 		entity.world = world
-		entity.entity_id = world.new_entity_id()
+		entity.entity_id = world.entity_id_generator.new_entity_id(entity)
 		world.entities.add(entity)
 		return entity
 	
@@ -120,7 +120,7 @@ class Entity(object):
 		del component[self]
 	
 	def __hash__(self):
-		return self.entity_id
+		return hash(self.entity_id)
 	
 	def __eq__(self, other):
 		return self.world is other.world and self.entity_id == other.entity_id
@@ -140,7 +140,7 @@ class Entity(object):
 	@property
 	def exists(self):
 		"""True if the entity still exists in the world"""
-		return self in self.world.entities
+		return self.entity_id is not None and self in self.world.entities
 
 
 class EntityComponentAccessor(object):

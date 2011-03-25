@@ -83,8 +83,7 @@ class World(mode.Mode):
 		self.components = ComponentParts(self)
 		self.systems = Parts(self)
 		self.renderers = Parts(self)
-		self.new_entity_id = itertools.count().next
-		self.new_entity_id() # skip id 0
+		self.entity_id_generator = _EntityIdGenerator()
 		self.entities = WorldEntitySet(self)
 		self._full_extent = EntityExtent(self, self.entities)
 		self._extents = {}
@@ -230,6 +229,7 @@ class WorldEntitySet(set):
 		for cls in entity.__class__.__mro__:
 			if issubclass(cls, Entity):
 				self.world[cls].entities.discard(entity)
+		self.world.entity_id_generator.recycle(entity)
 	
 	def discard(self, entity):
 		"""Remove the entity from the set if it exists, if not,
@@ -239,6 +239,37 @@ class WorldEntitySet(set):
 			self.remove(entity)
 		except KeyError:
 			pass
+
+
+class _EntityIdGenerator(dict):
+	"""Entity id generator. Entity ids are unique across all entities in a world.
+	
+	Entity ids are tuples of the form:
+
+	(generation #, block #, index #)
+	"""
+	
+	def __init__(self):
+		self.next_block_id = itertools.count().next
+		super(dict, self).__init__()
+
+	def __missing__(self, key):
+		id_gen = self[key] = (self.next_block_id(), itertools.count().next, [])
+		return id_gen
+	
+	def recycle(self, entity):
+		"""Recycle the given entity's id for reuse"""
+		block_id, index_gen, recycled = self[entity.__class__]
+		recycled.append(entity.entity_id)
+	
+	def new_entity_id(self, entity):
+		"""Return a new (unused) entity id for the given entity"""
+		block, index_gen, recycled = self[entity.__class__]
+		if recycled:
+			generation, block, index = recycled.pop()
+			return (generation + 1, block, index)
+		else:
+			return (0, block, index_gen())
 
 
 class EntityExtent(object):
