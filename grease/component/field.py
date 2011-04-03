@@ -95,8 +95,6 @@ class Field(object):
 			else:
 				new_size = (index + 1) * 5 // 4
 			block.resize(new_size, refcheck=False)
-			if self.default is not _missing and self.default != 0:
-				block[new_size - orig_size:].fill(self.default)
 		block[index] = value
 
 

@@ -215,6 +215,15 @@ class FieldTestCase(unittest.TestCase):
 			f[e] = i
 		for i, e in enumerate(entities):
 			self.assertEqual(f[e], i)
+	
+	def test_setitem_many_with_default(self):
+		from grease.component.field import Field
+		f = Field("obj", object, default="foobar")
+		entities = [TestEntity(0,i) for i in range(1000)]
+		for i, e in enumerate(entities):
+			f[e] = str(i)
+		for i, e in enumerate(entities):
+			self.assertEqual(f[e], str(i))
 
 	def test_setitem_many_unordered(self):
 		from grease.component.field import Field
