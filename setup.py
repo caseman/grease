@@ -21,13 +21,13 @@ from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
 try:
-    README = open(os.path.join(here, 'README.rst')).read()
+    README = open(os.path.join(here, 'README.txt')).read()
     CHANGES = open(os.path.join(here, 'CHANGES.txt')).read()
 except IOError:
     README = CHANGES = ''
 
 install_requires=['pyglet']
-tests_require = install_requires + ['Sphinx', 'docutils', 'nose']
+tests_require = install_requires + ['Sphinx', 'docutils', 'nose', 'coverage']
 
 # Copy the blasteroids example scripts to the tutorial dir
 # Ideally they would just live there, but inflexibility in
@@ -70,7 +70,7 @@ setup(
     packages=find_packages(),
     install_requires = install_requires,
     tests_require = tests_require,
-    test_suite="grease.test.run_all",
+    test_suite="nose.collector",
     zip_safe=False,
 )
 
