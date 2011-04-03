@@ -2,11 +2,237 @@ import unittest
 
 world = object()
 
+
 class TestEntity(object):
 	world = world
 
+	def __init__(self, block, index, gen=0):
+		self.entity_id = (gen, block, index)
 
-class GeneralTestCase(unittest.TestCase):
+
+class FieldTestCase(unittest.TestCase):
+
+	def test_field_name(self):
+		from grease.component.field import Field
+		f = Field("foobar", "i")
+		self.assertEquals(f.name, "foobar")
+	
+	def test_python_int_field(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f = Field("myint", int)
+		self.assert_(f.dtype is dtype(int))
+	
+	def test_python_int_field_defaults_to_zero(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f = Field("myint", int)
+		self.assertEquals(f.default, 0)
+	
+	def test_python_float_field(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f = Field("myfloat", float)
+		self.assert_(f.dtype is dtype(float))
+	
+	def test_python_float_field_defaults_to_zero(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f = Field("myfloat", float)
+		self.assertEquals(f.default, 0)
+	
+	def test_python_bool_field(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f = Field("mybool", bool)
+		self.assert_(f.dtype is dtype(bool))
+	
+	def test_python_bool_field_defaults_to_zero(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f = Field("mybool", bool)
+		self.assertEquals(f.default, 0)
+
+	def test_python_complex_field(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f = Field("mycomplex", complex)
+		self.assert_(f.dtype is dtype(complex))
+	
+	def test_python_complex_field_defaults_to_zero(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f = Field("mycomplex", complex)
+		self.assertEquals(f.default, 0)
+	
+	def test_python_object_field(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f = Field("myobject", object)
+		self.assert_(f.dtype is dtype(object))
+	
+	def test_python_object_field_has_no_default(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f = Field("myobject", object)
+		self.assertNotEqual(f.default, 0)
+		self.assert_(f.default is not None)
+	
+	def test_python_object_field_default(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f = Field("myobject", object, None)
+		self.assert_(f.default is None)
+	
+	def test_int_various_sizes(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f8 = Field('8', 'int8')
+		self.assertEqual(f8.dtype, dtype('int8'))
+		f16 = Field('16', 'int16')
+		self.assertEqual(f16.dtype, dtype('int16'))
+		f32 = Field('32', 'int32')
+		self.assertEqual(f32.dtype, dtype('int32'))
+		f64 = Field('64', 'int64')
+		self.assertEqual(f64.dtype, dtype('int64'))
+		
+	def test_uint_various_sizes(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f8 = Field('8', 'uint8')
+		self.assertEqual(f8.dtype, dtype('uint8'))
+		f16 = Field('16', 'uint16')
+		self.assertEqual(f16.dtype, dtype('uint16'))
+		f32 = Field('32', 'uint32')
+		self.assertEqual(f32.dtype, dtype('uint32'))
+		f64 = Field('64', 'uint64')
+		self.assertEqual(f64.dtype, dtype('uint64'))
+
+	def test_float_various_sizes(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		f32 = Field('32', 'float32')
+		self.assertEqual(f32.dtype, dtype('float32'))
+		f64 = Field('64', 'float64')
+		self.assertEqual(f64.dtype, dtype('float64'))
+		f128 = Field('128', 'float128')
+		self.assertEqual(f128.dtype, dtype('float128'))
+	
+	def test_int_vector(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		fiv = Field("intvec", "3i")
+		self.assertEqual(fiv.dtype.base, dtype('int32'))
+		self.assertEqual(fiv.dtype.shape, (3,))
+	
+	def test_int_vector_defaults_to_zero(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		fiv = Field("intvec", "3i")
+		self.assertEqual(fiv.default, 0)
+	
+	def test_double_vector(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		fdv = Field("doublevec", "2d")
+		self.assertEqual(fdv.dtype.base, dtype('float64'))
+		self.assertEqual(fdv.dtype.shape, (2,))
+	
+	def test_double_vector_defaults_to_zero(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		fdv = Field("doublevec", "2d")
+		self.assertEqual(fdv.default, 0)
+	
+	def test_explicit_dtype(self):
+		from numpy import dtype
+		from grease.component.field import Field
+		dt = dtype(('i4', [('r','u1'),('g','u1'),('b','u1'),('a','u1')]))
+		f = Field("colorific", dt)
+		self.assertEqual(f.dtype, dt)
+	
+	def test_getitem_fails_empty_field(self):
+		from grease.component.field import Field
+		e = TestEntity(0, 0)
+		f = Field("bar", "i")
+		try:
+			f[e]
+		except (IndexError, KeyError):
+			pass
+		else:
+			self.fail()
+	
+	def test_getitem_fails_new_block(self):
+		from grease.component.field import Field
+		f = Field("bar", "i")
+		f[TestEntity(0, 0)] = 1
+		try:
+			f[TestEntity(1, 0)]
+		except (IndexError, KeyError):
+			pass
+		else:
+			self.fail()
+
+	def test_setitem_getitem(self):
+		from grease.component.field import Field
+		e1 = TestEntity(0, 0)
+		f = Field("bar", "i")
+		f[e1] = 2
+		self.assertEqual(f[e1], 2)
+		e2 = TestEntity(0, 1)
+		f[e2] = -1
+		self.assertEqual(f[e1], 2)
+		self.assertEqual(f[e2], -1)
+		e3 = TestEntity(1, 0)
+		f[e3] = 5
+		self.assertEqual(f[e1], 2)
+		self.assertEqual(f[e2], -1)
+		self.assertEqual(f[e3], 5)
+		f[e1] = 100
+		self.assertEqual(f[e1], 100)
+		self.assertEqual(f[e2], -1)
+		self.assertEqual(f[e3], 5)
+	
+	def test_setitem_vector_accepts_tuple(self):
+		from grease.component.field import Field
+		e = TestEntity(0, 0)
+		f = Field("bar", "3f")
+		f[e] = (2.5, -1, 0.25)
+		self.assert_((f[e] == (2.5, -1, 0.25)).all())
+	
+	def test_setitem_getitem_object(self):
+		from grease.component.field import Field
+		e = TestEntity(0, 0)
+		f = Field("bar", object)
+		f[e] = "Hello"
+		self.assertEqual(f[e], "Hello")
+	
+	def test_setitem_many(self):
+		from grease.component.field import Field
+		f = Field("baz", "i")
+		entities = [TestEntity(0,i) for i in range(1000)]
+		for i, e in enumerate(entities):
+			f[e] = i
+		for i, e in enumerate(entities):
+			self.assertEqual(f[e], i)
+
+	def test_setitem_many_unordered(self):
+		from grease.component.field import Field
+		ids = [66, 96, 0, 94, 64, 71, 99, 8, 47, 98, 45, 93, 85, 5, 7, 30, 37,
+			12, 92, 70, 10, 69, 39, 28, 42, 89, 33, 90, 13, 4, 43, 1, 56, 60,
+			63, 77, 32, 46, 21, 74, 91, 79, 22, 18, 82, 17, 31, 44, 67, 75,
+			26, 95, 57, 62, 72, 68, 73, 9, 16, 11, 88, 58, 41, 59, 53, 48, 81,
+			40, 51, 61, 24, 52, 54, 50, 38, 6, 83, 25, 65, 3, 36, 34, 23, 87,
+			80, 2, 76, 97, 14, 35, 84, 86, 15, 78, 55, 27, 20, 19, 49, 29]
+		f = Field("baz", "i")
+		entities = [TestEntity(0,i) for i in ids]
+		for i, e in enumerate(entities):
+			f[e] = i
+		for i, e in enumerate(entities):
+			self.assertEqual(f[e], i)
+
+
+class GeneralTestCase(): #unittest.TestCase):
 
 	def test_fields(self):
 		from grease.component import Component

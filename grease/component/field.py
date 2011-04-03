@@ -14,6 +14,8 @@
 __version__ = '$Id$'
 
 import operator
+import numpy
+from copy import copy
 from grease.geometry import Vec2d, Vec2dArray, Rect
 from grease import color
 
@@ -27,6 +29,76 @@ types = {int:lambda: 0,
 		 Vec2dArray:lambda: Vec2dArray(),
 		 color.RGBA: lambda: color.RGBA(0.0, 0.0, 0.0, 0.0),
 		 Rect: lambda: Rect(0.0, 0.0, 0.0, 0.0)}
+
+_missing = object()
+
+
+class Field(object):
+	"""Component data field definition and storage.
+	
+	:param name: Field name, must be unique within its parent component.
+	:type name: str
+	:param dtype: Field data type. Must be a value that can be used
+		as the dtype to construct a numpy array. This could be a Python type
+		(like ``float``, ``int``, ``object``, etc), a string dtype spec (like
+		``"3d"`, ``"2i"``, or ``"S32"``), a numpy built-in type (like
+		numpy.uint32) or an actual ``numpy.dtype`` object.  See `the numpy
+		documentation
+		<http://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html>`_ for
+		full details.
+	:param default: The default value for this field if no value is 
+		specified when an entity is added. This value must be able to be
+		coerced into the dtype specified. If not specified, a generic default
+		value will be used, such as zeros for numeric types, and None for
+		object types.
+	"""
+
+	def __init__(self, name, dtype, default=_missing):
+		self.name = name
+		if not isinstance(dtype, numpy.dtype):
+			# coerce to a numpy dtype so invalid types
+			# passed as strings or other objects fail early
+			dtype = numpy.dtype(dtype)
+		self.dtype = dtype
+		if default is _missing and dtype.base.kind in 'biufc':
+			# Generic default for numeric dtypes
+			self.default = 0
+		else:
+			self.default = default
+		self.blocks = {}
+
+	def _block_factory(self, size):
+		if self.default == 0:
+			return numpy.zeros(shape=size, dtype=self.dtype)
+		else:
+			block = numpy.ndarray(shape=size, dtype=self.dtype)
+			if self.default is not _missing:
+				block.fill(self.default)
+			return block
+
+	def __getitem__(self, entity):
+		"""Retrieve the field value for a given entity"""
+		_, block, index = entity.entity_id
+		return self.blocks[block][index]
+
+	def __setitem__(self, entity, value):
+		"""Set the field value for a given entity"""
+		_, block_id, index = entity.entity_id
+		try:
+			block = self.blocks[block_id]
+		except KeyError:
+			block = self.blocks[block_id] = self._block_factory(index + 1)
+		orig_size = len(block)
+		if orig_size <= index:
+			if index < 64:
+				new_size = max((index + 1) * 2, 4)
+			else:
+				new_size = (index + 1) * 5 // 4
+			block.resize(new_size, refcheck=False)
+			if self.default is not _missing and self.default != 0:
+				block[new_size - orig_size:].fill(self.default)
+		block[index] = value
+
 
 class FieldAccessor(object):
 	"""Facade for manipulating a field for a set of entities"""
@@ -60,7 +132,7 @@ class FieldAccessor(object):
 	
 	def __setattr__(self, name, value):
 		if value is self:
-			return # returned by mutators
+			return # returned by in-place mutators
 		if hasattr(self.__class__, name):
 			# Set local attr
 			self.__dict__[name] = value
@@ -261,32 +333,4 @@ class FieldAccessor(object):
 
 	def __ixor__(self, value):
 		return self.__mutate(value, operator.ixor)
-
-
-class Field(object):
-	"""Component field metadata and accessor interface"""
-
-	def __init__(self, component, name, type, accessor_factory=FieldAccessor):
-		self.component = component
-		self.name = name
-		self.type = type
-		self.default = types.get(type)
-		self.accessor_factory = accessor_factory
-	
-	def cast(self, value):
-		"""Cast value to the appropriate type for thi field"""
-		if self.type is not object:
-			return self.type(value)
-		else:
-			return value
-			
-	def accessor(self, entities=None):
-		"""Return the field accessor for the entities in the component,
-		or all entities in the set specified that are also in the component
-		"""
-		if entities is None or entities is self.component.entities:
-			entities = self.component.entities
-		else:
-			entities = entities & self.component.entities
-		return self.accessor_factory(self, entities)
 

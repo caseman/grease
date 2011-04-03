@@ -25,51 +25,6 @@ class TestField(object):
 		self.cast = int
 
 
-class TestAccessor(object):
-
-	def __init__(self, field, entities):
-		self.field = field
-		self.entities = entities
-		
-
-class FieldTestCase(unittest.TestCase):
-
-	def test_basics(self):
-		from grease.component.field import Field
-		comp = TestComponent()
-
-		f = Field(comp, "myfield", int)
-		self.assertTrue(f.component is comp, (f.component, comp))
-		self.assertTrue(f.type is int, f.type)
-		self.assertEqual(f.default(), 0)
-	
-	def test_cast(self):
-		from grease.component.field import Field
-		from grease.geometry import Vec2d
-		f = Field(None, "string", str)
-		self.assertEqual(f.cast(22), "22")
-		f = Field(None, "int", int)
-		self.assertEqual(f.cast("42"), 42)
-		f = Field(None, "vec", Vec2d)
-		self.assertEqual(f.cast((11,12)), Vec2d(11,12))
-	
-	def test_accessor_default_set(self):
-		from grease.component.field import Field
-		comp = TestComponent()
-		f = Field(comp, "acc_default", str, TestAccessor)
-		acc = f.accessor()
-		self.assertTrue(acc.field is f, (acc.field, f))
-		self.assertTrue(acc.entities is comp.entities, (acc.entities, comp.entities))
-	
-	def test_accessor_subset(self):
-		from grease.component.field import Field
-		comp = TestComponent((1,2,3,4))
-		f = Field(comp, "acc_default", str, TestAccessor)
-		acc = f.accessor(set([2,4,6,8]))
-		self.assertTrue(acc.field is f, (acc.field, f))
-		self.assertEqual(acc.entities, set([2,4]))
-
-
 class FieldAccessorTestCase(unittest.TestCase):
 
 	def test_iter(self):
