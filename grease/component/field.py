@@ -96,6 +96,12 @@ class Field(object):
 				new_size = (index + 1) * 5 // 4
 			block.resize(new_size, refcheck=False)
 		block[index] = value
+	
+	def __repr__(self):
+		return "%s(name='%s', dtype=%r)" % (
+			self.__class__.__name__, self.name, self.dtype)
+
+	__str__ = __repr__
 
 
 class FieldAccessor(object):

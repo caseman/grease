@@ -3,6 +3,7 @@
 .. |World| replace:: :class:`~grease.world.World`
 .. |System| replace:: :class:`~grease.System`
 .. |Component| replace:: :class:`~grease.component.Component`
+.. |Field| replace:: :class:`~grease.component.Field`
 .. |Renderer| replace:: :class:`~grease.Renderer`
 .. |Entity| replace:: :class:`~grease.entity.Entity`
 .. |Vec2d| replace:: :class:`~grease.geometry.Vec2d`

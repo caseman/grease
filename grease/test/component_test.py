@@ -1,4 +1,5 @@
 import unittest
+from nose.tools import raises
 
 world = object()
 
@@ -6,7 +7,7 @@ world = object()
 class TestEntity(object):
 	world = world
 
-	def __init__(self, block, index, gen=0):
+	def __init__(self, block=0, index=0, gen=0):
 		self.entity_id = (gen, block, index)
 
 
@@ -151,6 +152,11 @@ class FieldTestCase(unittest.TestCase):
 		f = Field("colorific", dt)
 		self.assertEqual(f.dtype, dt)
 	
+	@raises(TypeError)
+	def test_bad_dtype(self):
+		from grease.component.field import Field
+		Field("vvvv", "invalidtype")
+
 	def test_getitem_fails_empty_field(self):
 		from grease.component.field import Field
 		e = TestEntity(0, 0)
@@ -239,101 +245,126 @@ class FieldTestCase(unittest.TestCase):
 			f[e] = i
 		for i, e in enumerate(entities):
 			self.assertEqual(f[e], i)
+	
+	def test_repr(self):
+		from grease.component.field import Field
+		self.assertEqual(repr(Field("goober", float)), 
+			"Field(name='goober', dtype=dtype('float64'))")
+		self.assertEqual(repr(Field("goober", '3d')), 
+			"Field(name='goober', dtype=dtype(('float64',(3,))))")
 
 
-class GeneralTestCase(): #unittest.TestCase):
+class TestField(dict):
+	def __init__(self, name, dtype):
+		import numpy
+		self.name = name
+		self.dtype = numpy.dtype(dtype)
+		self.default = None
 
-	def test_fields(self):
+
+class TestEntitySet(set):
+	def __init__(self, component):
+		self.component = component
+
+
+class ComponentTestCase(unittest.TestCase):
+
+	def mkcomponent(self, **fields):
 		from grease.component import Component
-		c = Component()
+		old_esf = Component.entity_set_factory
+		Component.entity_set_factory = TestEntitySet
+		old_ff = Component.field_factory
+		Component.field_factory = TestField
+		try:
+			c = Component(**fields)
+		finally:
+			Component.entity_set_factory = old_esf
+			Component.field_factory = old_ff
+		c.set_world(world)
+		return c
+
+	def test_no_fields(self):
+		c = self.mkcomponent()
 		self.assertEqual(len(c.fields), 0)
 
-		c = Component(f1=int, f2=float, f3=str)
+	def test_fields(self):
+		from numpy import dtype
+		c = self.mkcomponent(f1=int, f2=float, f3='3d')
 		self.assertEqual(len(c.fields), 3)
 		self.assertEqual(c.fields['f1'].name, 'f1')
-		self.assertEqual(c.fields['f1'].type, int)
-		self.assertTrue(c.fields['f1'].component is c)
+		self.assertEqual(c.fields['f1'].dtype, dtype(int))
 		self.assertEqual(c.fields['f2'].name, 'f2')
-		self.assertEqual(c.fields['f2'].type, float)
-		self.assertTrue(c.fields['f2'].component is c)
+		self.assertEqual(c.fields['f2'].dtype, dtype(float))
 		self.assertEqual(c.fields['f3'].name, 'f3')
-		self.assertEqual(c.fields['f3'].type, str)
-		self.assertTrue(c.fields['f3'].component is c)
+		self.assertEqual(c.fields['f3'].dtype, dtype('3d'))
 	
+	@raises(TypeError)
 	def test_invalid_field_type(self):
-		from grease.component import Component
-		self.assertRaises(AssertionError, Component, t=tuple)
+		self.mkcomponent(f="blahblah")
 	
-	def test_add_no_data(self):
-		from grease.component import Component
-		c = Component()
-		c.set_world(world)
+	def test_set_new_entity_no_data(self):
+		c = self.mkcomponent()
 		entity = TestEntity()
 		self.assertFalse(entity in c)
-		ed = c.set(entity)
+		c.set(entity)
 		self.assertTrue(entity in c)
-		self.assertEqual(list(c), [entity])
+		self.assertEqual(list(c.entities), [entity])
 	
-	def test_add_kw_data(self):
-		from grease.component import Component
-		c = Component(x=float, y=float, name=str)
-		c.set_world(world)
+	def test_set_new_entity_no_data_field_defaults(self):
+		c = self.mkcomponent(i=int, o=object)
+		c.fields['i'].default = 0
+		c.fields['o'].default = "nothing"
+		entity = TestEntity()
+		c.set(entity)
+		self.assertEqual(c.fields['i'][entity], 0)
+		self.assertEqual(c.fields['o'][entity], "nothing")
+
+	def test_set_new_entity_data(self):
+		c = self.mkcomponent(x=float, y=float, name=object)
 		entity = TestEntity()
 		self.assertFalse(entity in c)
-		ed = c.set(entity, x=10, y=-1, name="timmy!")
+		c.set(entity, x=10, y=-1, name="timmy!")
 		self.assertTrue(entity in c)
-		self.assertEqual(ed.x, 10)
-		self.assertEqual(ed.y, -1)
-		self.assertEqual(ed.name, "timmy!")
+		self.assertEqual(c.fields['x'][entity], 10)
+		self.assertEqual(c.fields['y'][entity], -1)
+		self.assertEqual(c.fields['name'][entity], "timmy!")
 	
-	def test_add_data_object(self):
-		from grease.component import Component
-		c = Component(sweat=int, odor=str)
-		c.set_world(world)
-		class Data: pass
-		d = Data()
-		d.sweat = 100
-		d.odor = "rank"
-		entity = TestEntity()
-		ed = c.set(entity, d)
-		self.assertTrue(entity in c)
-		self.assertEqual(ed.sweat, 100)
-		self.assertEqual(ed.odor, "rank")
-	
-	def test_add_with_data_object_and_kw(self):
-		from grease.component import Component
-		c = Component(state=str, time=float)
-		c.set_world(world)
-		class Data: pass
-		d = Data()
-		d.state = "grimey"
-		d.time = 12.5
-		entity = TestEntity()
-		ed = c.set(entity, d, state="greasy")
-		self.assertTrue(entity in c)
-		self.assertEqual(ed.state, "greasy")
-		self.assertEqual(ed.time, 12.5)
-	
-	def test_data_defaults(self):
-		from grease.component import Component
-		from grease.geometry import Vec2d
-		c = Component(speed=int, accel=Vec2d, state=str)
-		c.set_world(world)
+	def test_set_new_entity_data_field_defaults(self):
+		c = self.mkcomponent(speed=int, accel="3d", state=object)
+		c.fields['speed'].default = 1
+		c.fields['accel'].default = (0,0,0)
+		c.fields['state'].default = "start"
 		e1 = TestEntity()
 		e2 = TestEntity()
-		ed = c.set(e1, accel=(10,5))
-		self.assertEqual(ed.speed, 0)
-		self.assertEqual(ed.accel, (10,5))
-		self.assertEqual(ed.state, "")
-		ed = c.set(e2, state="uber")
-		self.assertEqual(ed.speed, 0)
-		self.assertEqual(ed.accel, (0,0))
-		self.assertEqual(ed.state, "uber")
+		c.set(e1, accel=(10,5,0), speed=-1)
+		c.set(e2, state="uber")
+		self.assertEqual(c.fields['speed'][e1], -1)
+		self.assertEqual(c.fields['accel'][e1], (10,5,0))
+		self.assertEqual(c.fields['state'][e1], "start")
+		self.assertEqual(c.fields['speed'][e2], 1)
+		self.assertEqual(c.fields['accel'][e2], (0,0,0))
+		self.assertEqual(c.fields['state'][e2], "uber")
+	
+	@raises(ValueError)
+	def test_set_new_entity_different_world(self):
+		c = self.mkcomponent()
+		e = TestEntity()
+		e.world = object()
+		c.set(e)
+	
+	def test_set_existing_entity_update_fields(self):
+		c = self.mkcomponent(i=int, f=float)
+		entity = TestEntity()
+		c.set(entity, i=1, f=2.5)
+		c.set(entity, i=10)
+		self.assertEqual(c.fields['i'][entity], 10)
+		self.assertEqual(c.fields['f'][entity], 2.5)
+		c.set(entity, f=-1.5)
+		self.assertEqual(c.fields['i'][entity], 10)
+		self.assertEqual(c.fields['f'][entity], -1.5)
 	
 	def test_step_updates_new_and_deleted_lists(self):
-		from grease.component import Component
-		c = Component(x=float, y=float)
-		c.set_world(world)
+		c = self.mkcomponent()
 		self.assertEqual(list(c.new_entities), [])
 		self.assertEqual(list(c.deleted_entities), [])
 		e1 = TestEntity()
@@ -348,82 +379,56 @@ class GeneralTestCase(): #unittest.TestCase):
 		c.step(0)
 		self.assertEqual(list(c.new_entities), [])
 		self.assertEqual(list(c.deleted_entities), [])
-		del c[e1]
-		del c[e2]
+		c.delete(e1)
+		c.delete(e2)
 		self.assertEqual(list(c.new_entities), [])
 		self.assertEqual(list(c.deleted_entities), [])
 		c.step(0)
 		self.assertEqual(list(c.new_entities), [])
 		self.assertEqual(list(c.deleted_entities), [e1, e2])
 	
-	def test_getitem(self):
-		from grease.component import Component
-		c = Component()
-		c.set_world(world)
-		entity = TestEntity()
-		self.assertRaises(KeyError, lambda: c[entity])
-		ed = c.set(entity)
-		self.assertTrue(c[entity] is ed)
+	@raises(KeyError)
+	def test_get_entity_not_in(self):
+		c = self.mkcomponent()
+		c.get(TestEntity())
 	
-	def test_remove_and_contains(self):
-		from grease.component import Component
-		c = Component()
-		c.set_world(world)
+	def test_get_no_fields(self):
+		c = self.mkcomponent()
+		e1 = TestEntity()
+		c.set(e1)
+		self.assertEqual(c.get(e1), {})
+	
+	def test_get(self):
+		c = self.mkcomponent(x=float, y=float)
+		e1 = TestEntity()
+		c.set(e1, x=2, y=3.25)
+		self.assertEqual(c.get(e1), {'x':2, 'y':3.25})
+	
+	def test_delete_and_contains(self):
+		c = self.mkcomponent()
 		e1 = TestEntity()
 		e2 = TestEntity()
-		self.assertFalse(c.remove(e1))
+		self.assertFalse(c.delete(e1))
 		c.set(e1)
 		c.set(e2)
-		self.assertTrue(c.remove(e1))
-		self.assertTrue(e1 in c)
-		c.step(0)
+		self.assertTrue(c.delete(e1))
 		self.assertFalse(e1 in c)
 		self.assertTrue(e2 in c)
-		self.assertFalse(c.remove(e1))
-		c.step(0)
-		self.assertTrue(c.remove(e2))
-		self.assertTrue(e2 in c)
-		c.step(0)
+		self.assertFalse(c.delete(e1))
+		self.assertTrue(c.delete(e2))
+		self.assertFalse(e1 in c)
 		self.assertFalse(e2 in c)
-		self.assertFalse(e2 in c)
-	
-	def test_len(self):
-		from grease.component import Component
-		c = Component()
-		c.set_world(world)
-		self.assertEqual(len(c), 0)
-		self.assertEqual(len(c.entities), 0)
-		entities = [TestEntity() for _ in range(50)]
-		[c.set(e) for e in entities]
-		self.assertEqual(len(c), 50)
-		self.assertEqual(len(c.entities), 50)
-		[c.remove(e) for e in entities[:25]]
-		self.assertEqual(len(c.entities), 25)
-		self.assertEqual(len(c), 50)
-		c.step(0)
-		self.assertEqual(len(c), 25)
-		self.assertEqual(len(c.entities), 25)
-	
-	def test_iter(self):
-		from grease.component import Component
-		c = Component()
-		c.set_world(world)
-		self.assertEqual(list(c), [])
-		ed = [c.set(TestEntity()), c.set(TestEntity()), c.set(TestEntity())]
-		self.assertEqual(sorted(c.itervalues()), sorted(ed))
 	
 	def test_set_world(self):
-		from grease.component import Component
-		c = Component()
+		c = self.mkcomponent()
 		world = object()
 		c.set_world(world)
 		self.assertTrue(c.world is world)
 	
 	def test_entities_set(self):
-		from grease.component import Component
-		c = Component()
-		c.set_world(world)
+		c = self.mkcomponent()
 		self.assertEqual(len(c.entities), 0)
+		self.assert_(c.entities.component is c)
 		entity1 = TestEntity()
 		entity2 = TestEntity()
 		entity3 = TestEntity()
@@ -434,11 +439,16 @@ class GeneralTestCase(): #unittest.TestCase):
 		self.assertTrue(entity1 in c.entities)
 		self.assertTrue(entity2 in c.entities)
 		self.assertTrue(entity3 in c.entities)
-		c.remove(entity2)
+		c.delete(entity2)
 		self.assertEqual(len(c.entities), 2)
 		self.assertTrue(entity1 in c.entities)
 		self.assertFalse(entity2 in c.entities)
 		self.assertTrue(entity3 in c.entities)
+	
+	def test_repr(self):
+		c = self.mkcomponent()
+		self.assertEqual(repr(c), "<Component %x of %r>" % (id(c), world))
+		
 
 
 if __name__ == '__main__':

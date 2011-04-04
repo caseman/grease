@@ -10,45 +10,56 @@
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 #
 #############################################################################
-
-__version__ = '$Id$'
-
-from grease.component import base
 from grease.component import field
 from grease.entity import ComponentEntitySet
 
 
-class Component(dict):
-	"""General component with a configurable schema
+class Component(object):
+	"""Component with a configurable schema.
 
-	The field schema is defined via keyword args where the 
-	arg name is the field name and the value is the type object.
+	The component field schema is defined via keyword args where the 
+	arg name is the field name and the value is the field
+	dtype. See the |Field| class reference and
+	`the numpy documentation
+	<http://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html>`_
+	for complete details.
 
-	The following types are supported for fields:
+	Here are some examples of common field types:
 
-	- :class:`int`
-	- :class:`float`
-	- :class:`bool`
-	- :class:`str`
-	- :class:`object`
-	- |Vec2d|
-	- |Vec2dArray|
-	- |RGBA|
-	- |Rect|
+	- :class:`int` (native integer)
+	- :class:`float` (double-precision float)
+	- :class:`bool` (1-bit boolean)
+	- :class:`object` (arbitrary Python object)
+	- "int8", "int16", "int32" (various integer sizes)
+	- "float32", "float64", "float128" (various float sizes)
+	- "2d", "3d", "4d" (double-precision vectors)
+	- "2f", "3f", "4f" (single-precision vectors)
+	- "2i", "3i", "4i" (integer vectors)
 	"""
 
+	entities = None
+	"""Set of |Entity| objects that have data in this component."""
+
+	fields = None
+	"""Mapping of field names to the component's |Field| objects."""
+
 	deleted_entities = ()
-	"""List of entities deleted from the component since the last time step"""
+	"""List of entities deleted from the component since the last time step."""
 
 	new_entities = ()
-	"""List of entities added to the component since the last time step"""
+	"""List of entities added to the component since the last time step."""
+
+	world = None
+	"""The |World| this component belongs to."""
+
+	entity_set_factory = ComponentEntitySet
+	field_factory = field.Field
 
 	def __init__(self, **fields):
 		self.fields = {}
-		for fname, ftype in fields.items():
-			assert ftype in field.types, fname + " has an illegal field type"
-			self.fields[fname] = field.Field(self, fname, ftype)
-		self.entities = ComponentEntitySet(self)
+		for fname, dtype in fields.items():
+			self.fields[fname] = self.field_factory(fname, dtype)
+		self.entities = self.entity_set_factory(self)
 		self._added = []
 		self._deleted = []
 	
@@ -56,88 +67,55 @@ class Component(dict):
 		self.world = world
 	
 	def step(self, dt):
-		"""Update the component for the next timestep"""
-		delitem = super(Component, self).__delitem__
-		for entity in self._deleted:
-			delitem(entity)
+		"""Update the component for the next timestep."""
 		self.new_entities = self._added
 		self.deleted_entities = self._deleted
 		self._added = []
 		self._deleted = []
 	
-	def set(self, entity, data=None, **data_kw):
-		"""Set the component data for an entity, adding it to the
-		component if it is not already a member.
-
-		If data is specified, its data for the new entity's fields are
-		copied from its attributes, making it easy to copy another
-		entity's data. Keyword arguments are also matched to fields.
-		If both a data attribute and keyword argument are supplied for
-		a single field, the keyword arg is used.
+	def set(self, entity, **data_kw):
+		"""Set the component data for an entity, adding it to the component if
+		it is not already a member. Any fields not specified when the entity
+		is added will be set to their respective defaults.
 		"""
-		if data is not None:
-			for fname, field in self.fields.items():
-				if fname not in data_kw and hasattr(data, fname):
-					data_kw[fname] = getattr(data, fname)
-		data = self[entity] = Data(self.fields, entity, **data_kw)
-		return data
-	
-	def __setitem__(self, entity, data):
-		assert entity.world is self.world, "Entity not in component's world"
 		if entity not in self.entities:
+			if entity.world is not self.world:
+				raise ValueError(
+					"Cannot add entity to component, not in same world")
 			self._added.append(entity)
 			self.entities.add(entity)
-		super(Component, self).__setitem__(entity, data)
+			for fname, field in self.fields.items():
+				field[entity] = data_kw.get(fname, field.default)
+		else:
+			# Entity already in component, set only those fields specified
+			for fname, value in data_kw.items():
+				self.fields[fname][entity] = value
 	
-	def remove(self, entity):
+	def get(self, entity):
+		"""Return the component data of all fields for this entity as a dict"""
+		if entity not in self.entities:
+			raise KeyError(entity)
+		data = {}
+		for fname, field in self.fields.items():
+			data[fname] = field[entity]
+		return data
+	
+	def delete(self, entity):
+		"""Delete an entity from the component. Return True if the entity was
+		in the component, False if not. In the latter case this method does
+		nothing.
+		"""
 		if entity in self.entities:
 			self._deleted.append(entity)
 			self.entities.remove(entity)
 			return True
 		return False
 	
-	__delitem__ = remove
+	def __contains__(self, entity):
+		return entity in self.entities
 
 	def __repr__(self):
 		return '<%s %x of %r>' % (
-			self.__class__.__name__, id(self), getattr(self, 'world', None))
+			self.__class__.__name__, id(self), self.world)
 
-
-class Singleton(Component):
-	"""Component that may contain only a single entity"""
-
-	def add(self, entity_id, data=None, **data_kw):
-		if entity_id not in self._data:
-			self.entity_id_set.clear()
-			self._data.clear()
-		Component.add(self, entity_id, data, **data_kw)
-	
-	@property
-	def entity(self):
-		"""Return the entity in the component, or None if empty"""
-		if self._data:
-			return self.manager[self._data.keys()[0]]
-	
-
-class Data(object):
-
-	def __init__(self, fields, entity, **data):
-		self.__dict__['_Data__fields'] = fields
-		self.__dict__['entity'] = entity
-		for field in fields.values():
-			if field.name in data:
-				setattr(self, field.name, data[field.name])
-			else:
-				setattr(self, field.name, field.default())
-	
-	def __setattr__(self, name, value):
-		if name in self.__fields:
-			self.__dict__[name] = self.__fields[name].cast(value)
-		else:
-			raise AttributeError("Invalid data field: " + name)
-	
-	def __repr__(self):
-		return '<%s(%r)>' % (self.__class__.__name__, self.__dict__)
-
-			
 
