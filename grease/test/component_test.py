@@ -419,6 +419,16 @@ class ComponentTestCase(unittest.TestCase):
 		self.assertFalse(e1 in c)
 		self.assertFalse(e2 in c)
 	
+	def test_contains_different_world(self):
+		c = self.mkcomponent()
+		e1 = TestEntity()
+		e2 = TestEntity()
+		self.assertEqual(e1.entity_id, e2.entity_id)
+		e2.world = object()
+		c.set(e1)
+		assert e1 in c
+		assert e2 not in c
+	
 	def test_set_world(self):
 		c = self.mkcomponent()
 		world = object()
