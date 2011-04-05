@@ -25,7 +25,7 @@ class Component(object):
 
 	- :class:`int` (native integer)
 	- :class:`float` (double-precision float)
-	- :class:`bool` (1-bit boolean)
+	- :class:`bool` (1 byte boolean)
 	- :class:`object` (arbitrary Python object)
 	- "int8", "int16", "int32" (various integer sizes)
 	- "float32", "float64", "float128" (various float sizes)
