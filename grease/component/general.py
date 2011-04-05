@@ -15,16 +15,13 @@ from grease.entity import ComponentEntitySet
 
 
 class Component(object):
-	"""Component with a configurable schema.
+	"""General component with a configurable schema.
 
-	The component field schema is defined via keyword args where the 
-	arg name is the field name and the value is the field
-	dtype. See the |Field| class reference and
-	`the numpy documentation
-	<http://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html>`_
-	for complete details.
+	The component field schema is defined via keyword args where the arg name
+	is the field name and the value is the field data type spec (dtype) stored
+	for each entity "row".
 
-	Here are some examples of common field types:
+	Here are some examples of common field data types:
 
 	- :class:`int` (native integer)
 	- :class:`float` (double-precision float)
@@ -32,9 +29,16 @@ class Component(object):
 	- :class:`object` (arbitrary Python object)
 	- "int8", "int16", "int32" (various integer sizes)
 	- "float32", "float64", "float128" (various float sizes)
-	- "2d", "3d", "4d" (double-precision vectors)
+	- "2d", "3d", "4d" (double-precision vectors of 2, 3, and 4 dimensions)
 	- "2f", "3f", "4f" (single-precision vectors)
 	- "2i", "3i", "4i" (integer vectors)
+
+	The dtype specified is used to create numpy arrays that store the field
+	data. numpy dtypes are extremely powerful and support just about any
+	arbitrary static data structure. See the |Field| class reference and `the
+	numpy dtype documentation
+	<http://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html>`_ for
+	complete details.
 	"""
 
 	entities = None
@@ -77,6 +81,9 @@ class Component(object):
 		"""Set the component data for an entity, adding it to the component if
 		it is not already a member. Any fields not specified when the entity
 		is added will be set to their respective defaults.
+
+		``ValueError`` is raised if an entity belonging to a different |World|
+		is provided.
 		"""
 		if entity not in self.entities:
 			if entity.world is not self.world:
@@ -92,7 +99,7 @@ class Component(object):
 				self.fields[fname][entity] = value
 	
 	def get(self, entity):
-		"""Return the component data of all fields for this entity as a dict"""
+		"""Return the component data of all fields for this entity in a dict"""
 		if entity not in self.entities:
 			raise KeyError(entity)
 		data = {}
@@ -112,6 +119,7 @@ class Component(object):
 		return False
 	
 	def __contains__(self, entity):
+		"""Return True if the specified entity is in the component"""
 		return entity in self.entities
 
 	def __repr__(self):
