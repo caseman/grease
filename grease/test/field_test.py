@@ -25,6 +25,28 @@ class TestField(object):
 		self.cast = int
 
 
+class BlockTestCase(unittest.TestCase):
+	
+	def test_block_init(self):
+		from grease.block import Block
+		b = Block(shape=5, dtype=int)
+		self.assertEqual(len(b), 5)
+	
+	def test_block_grow_small(self):
+		from grease.block import Block
+		b = Block(shape=0, dtype=int)
+		self.assertEqual(len(b), 0)
+		b.grow(1)
+		self.assertEqual(len(b), 4)
+	
+	def test_block_grow_larger(self):
+		from grease.block import Block
+		b = Block(shape=100, dtype=int)
+		self.assertEqual(len(b), 100)
+		b.grow(101)
+		self.assert_(len(b) >= 101)
+
+
 class FieldAccessorTestCase(unittest.TestCase):
 
 	def test_iter(self):

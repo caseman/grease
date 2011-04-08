@@ -18,6 +18,7 @@ import numpy
 from copy import copy
 from grease.geometry import Vec2d, Vec2dArray, Rect
 from grease import color
+from grease.block import Block
 
 # Allowed field types -> default values
 types = {int:lambda: 0, 
@@ -68,13 +69,7 @@ class Field(object):
 		self.blocks = {}
 
 	def _block_factory(self, size):
-		if self.default == 0:
-			return numpy.zeros(shape=size, dtype=self.dtype)
-		else:
-			block = numpy.ndarray(shape=size, dtype=self.dtype)
-			if self.default is not _missing:
-				block.fill(self.default)
-			return block
+		return Block(shape=size, dtype=self.dtype)
 
 	def __getitem__(self, entity):
 		"""Retrieve the field value for a given entity"""
@@ -88,13 +83,7 @@ class Field(object):
 			block = self.blocks[block_id]
 		except KeyError:
 			block = self.blocks[block_id] = self._block_factory(index + 1)
-		orig_size = len(block)
-		if orig_size <= index:
-			if index < 64:
-				new_size = max((index + 1) * 2, 4)
-			else:
-				new_size = (index + 1) * 5 // 4
-			block.resize(new_size, refcheck=False)
+		block.grow(index + 1)
 		block[index] = value
 	
 	def __repr__(self):
