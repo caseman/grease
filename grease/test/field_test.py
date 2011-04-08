@@ -45,6 +45,17 @@ class BlockTestCase(unittest.TestCase):
 		self.assertEqual(len(b), 100)
 		b.grow(101)
 		self.assert_(len(b) >= 101)
+	
+	def test_block_fill_value(self):
+		from grease.block import Block
+		b = Block(shape=2, dtype=int)
+		b[0] = 1
+		b[1] = 1
+		b.grow(5, -1)
+		b[4] = 2
+		b.grow(7, -1)
+		b[6] = 3
+		self.assertEqual(tuple(b)[:7], (1,1,-1,-1,2,-1,3))
 
 
 class FieldAccessorTestCase(unittest.TestCase):
