@@ -21,8 +21,6 @@ over time and react to internal and external interaction.
 See :ref:`an example of world configuration in the tutorial <tut-world-example>`.
 """
 
-__version__ = '$Id$'
-
 import itertools
 import pyglet
 from pyglet import gl
@@ -258,18 +256,18 @@ class _EntityIdGenerator(dict):
 		return id_gen
 	
 	def recycle(self, entity):
-		"""Recycle the given entity's id for reuse"""
+		"""Recycle the given entity's id for reuse in a new generation"""
 		block_id, index_gen, recycled = self[entity.__class__]
 		recycled.append(entity.entity_id)
 	
 	def new_entity_id(self, entity):
-		"""Return a new (unused) entity id for the given entity"""
+		"""Return a new entity id for the given entity"""
 		block, index_gen, recycled = self[entity.__class__]
 		if recycled:
 			generation, block, index = recycled.pop()
 			return (generation + 1, block, index)
 		else:
-			return (0, block, index_gen())
+			return (1, block, index_gen())
 
 
 class EntityExtent(object):
