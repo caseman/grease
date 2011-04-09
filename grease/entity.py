@@ -28,7 +28,8 @@ You might use entities to represent:
 See :ref:`an example entity class in the tutorial <tut-entity-example>`.
 """
 
-__version__ = '$Id$'
+import numpy
+from grease.block import Block
 
 __all__ = ('Entity', 'EntityComponentAccessor', 'ComponentEntitySet')
 
@@ -209,4 +210,151 @@ class ComponentEntitySet(set):
 		if self._component is not None and name in self._component.fields:
 			self._component.fields[name].accessor(self).__set__(value)
 		raise AttributeError(name)
+
+
+class EntitySet(object):
+	"""Set of entities in a world"""
+
+	def __init__(self, world):
+		self.world = world
+		self.blocks = {}
+	
+	def new_empty(self):
+		"""Create a new empty set of the same type and world.
+		This is a common interface for creating a set with no
+		arguments.
+		"""
+		new = EntitySet.__new__(self.__class__)
+		new.world = self.world
+		new.blocks = {}
+	
+	def _get_block(self, block_id, index):
+		try:
+			block = self.blocks[block_id]
+			block.grow(index + 1, 0)
+		except KeyError:
+			block = self.blocks[block_id] = Block(
+				shape=index + 1, dtype="int32")
+			block.fill(0)
+		return block
+	
+	def add(self, entity):
+		"""Add an entity to the set.
+		
+		:raises ValueError: If the entity is not part of the same
+		world as the set, also for deleted entities.
+		"""
+		if entity.world is not self.world:
+			raise ValueError("Cannot add entity from different world")
+		if entity not in self.world.entities:
+			raise ValueError("Cannot add deleted entity")
+		gen, block, index = entity.entity_id
+		self._get_block(block, index)[index] = gen
+	
+	def remove(self, entity):
+		"""Remove an entity from the set. 
+		
+		:raises KeyError: if entity is not in the set.
+		"""
+		gen, block, index = entity.entity_id
+		try:
+			gen_in = self.blocks[block][index]
+		except (KeyError, IndexError):
+			raise KeyError(entity)
+		if entity.world is self.world and gen_in == gen:
+			self.blocks[block][index] = 0
+		else:
+			raise KeyError(entity)
+	
+	def discard(self, entity):
+		"""Remove an entity from the set, do nothing if the entity is
+		not in the set
+		"""
+		gen, block, index = entity.entity_id
+		try:
+			gen_in_set = self.blocks[block][index]
+		except (KeyError, IndexError):
+			return
+		if entity.world is self.world and gen_in_set == gen:
+			self.blocks[block][index] = 0
+	
+	def __contains__(self, entity):
+		if entity.world is self.world:
+			gen, block, index = entity.entity_id
+			try:
+				return self.blocks[block][index] == gen
+			except (KeyError, IndexError):
+				return False
+		return False
+	
+	def __iter__(self):
+		id_to_entity = self.world.entities.id_to_entity
+		for block_id, block in self.blocks.items():
+			for index, gen in enumerate(block):
+				try:
+					yield id_to_entity[gen, block_id, index]
+				except KeyError:
+					pass
+	
+	def __nonzero__(self):
+		for block in self.blocks.values():
+			if block.any():
+				return True
+		return False
+
+	def __len__(self):
+		return sum(len(block.nonzero()[0]) for block in self.blocks.values())
+
+	def intersection(self, other):
+		"""Return a set which is the intersection of this set and another"""
+		if self.world is not other.world:
+			raise ValueError("Can't combine sets from different worlds")
+		result = self.new_empty()
+		for blk_id, blk in self.blocks.items():
+			if blk_id in other.blocks:
+				result_blk = numpy.where(blk == other.blocks[blk_id], 0)
+				if result_blk.any():
+					result.blocks[blk_id] = result_blk
+		return result
+	
+	__and__ = intersection
+
+	def union(self, other):
+		"""Return a set which is the union of this set and another"""
+		if self.world is not other.world:
+			raise ValueError("Can't combine sets from different worlds")
+		result = self.new_empty()
+		for blk_id, blk in self.blocks.items():
+			result.blocks[blk_id] = self.blocks[blk_id].copy()
+		for blk_id, blk in other.blocks.items():
+			if blk_id not in result.blocks:
+				result.blocks[blk_id] = blk.copy()
+			else:
+				result.blocks[blk_id] = numpy.where(
+					self.blocks[blk_id] >= blk, self.blocks[blk_id], blk)
+		return result
+	
+	__or__ = union
+
+	def difference(self, other):
+		"""Return a set which is the difference of this set and another"""
+		if self.world is not other.world:
+			raise ValueError("Can't combine sets from different worlds")
+		result = self.new_empty()
+		for blk_id, blk in self.blocks.items():
+			if blk_id not in other.blocks:
+				result.blocks[blk_id] = blk.copy()
+			else:
+				result_blk = numpy.where(
+					blk >= other.blocks[blk_id], blk, 0)
+				if result_blk.any():
+					result.blocks[blk_id] = result_blk
+		return result
+	
+	__sub__ = difference
+
+
+
+
+
 
