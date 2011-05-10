@@ -227,6 +227,7 @@ class EntitySet(object):
 		new = EntitySet.__new__(self.__class__)
 		new.world = self.world
 		new.blocks = {}
+		return new
 	
 	def _get_block(self, block_id, index):
 		try:
@@ -344,7 +345,12 @@ class EntitySet(object):
 		result = self.new_empty()
 		for blk_id, blk in self.blocks.items():
 			if blk_id in other.blocks:
-				result_blk = numpy.where(blk == other.blocks[blk_id], 0)
+				other_blk = other.blocks[blk_id]
+				if len(blk) < len(other_blk):
+					other_blk = other_blk[:len(blk)]
+				elif len(blk) > len(other_blk):
+					blk = blk[:len(other_blk)]
+				result_blk = numpy.where(blk == other_blk, blk, 0)
 				if result_blk.any():
 					result.blocks[blk_id] = result_blk
 		return result

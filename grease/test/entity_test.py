@@ -631,6 +631,104 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(not s1 == None)
 		self.assert_(s1 != object())
 
+	def test_intersect_both_empty(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		s3 = s1.intersection(s2)
+		self.assertEqual(len(s3), 0)
+		self.assert_(s3 is not s1)
+		self.assert_(s3 is not s2)
+
+	def test_intersect_one_empty(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		s2.add(e1)
+		s3 = s1.intersection(s2)
+		self.assertEqual(len(s3), 0)
+
+	@raises(ValueError)
+	def test_intersect_different_worlds(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		world2 = TestWorld()
+		s2 = EntitySet(world2)
+		s1.intersection(s2)
+
+	def test_intersect_simple(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=2)
+		s1.add(e1)
+		s2.add(e1)
+		s2.add(e2)
+		s3 = s1 & s2
+		self.assertEqual(list(s3), [e1])
+
+	def test_intersect_more(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		e5 = TestEntity(world, block=15, index=2)
+		s1 = EntitySet(world)
+		s1.add(e1)
+		s1.add(e2)
+		s1.add(e4)
+		s1.add(e5)
+		s2 = EntitySet(world)
+		s2.add(e3)
+		s2.add(e2)
+		s2.add(e4)
+		self.assertEqual(sorted(s1 & s2), sorted([e2, e4]))
+		s2.remove(e2)
+		self.assertEqual(sorted(s1 & s2), sorted([e4]))
+	
+	def test_intersect_same(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		s1 = EntitySet(world)
+		s1.add(e1)
+		s1.add(e2)
+		s1.add(e3)
+		s1.add(e4)
+		s2 = EntitySet(world)
+		s2.add(e2)
+		s2.add(e4)
+		s2.add(e3)
+		s2.add(e1)
+		s3 = s1.intersection(s2)
+		self.assertEqual(sorted(s3), sorted([e1,e2,e3,e4]))
+
+	def test_intersect_disjoint(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		s1 = EntitySet(world)
+		s1.add(e2)
+		s1.add(e3)
+		s2 = EntitySet(world)
+		s1.add(e1)
+		s1.add(e4)
+		s3 = s1.intersection(s2)
+		self.assertEqual(len(s3), 0)
 
 if __name__ == '__main__':
 	unittest.main()
