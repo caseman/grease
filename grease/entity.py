@@ -304,6 +304,38 @@ class EntitySet(object):
 
 	def __len__(self):
 		return sum(len(block.nonzero()[0]) for block in self.blocks.values())
+	
+	def __eq__(self, other):
+		if self is other:
+			return True
+		if isinstance(other, EntitySet):
+			self_blk_ids = set(self.blocks)
+			other_blk_ids = set(other.blocks)
+			for blk_id in (self_blk_ids - other_blk_ids):
+				if self.blocks[blk_id].any():
+					return False
+			for blk_id in (other_blk_ids - self_blk_ids):
+				if other.blocks[blk_id].any():
+					return False
+			for blk_id, blk in self.blocks.items():
+				if blk_id in other.blocks:
+					other_blk = other.blocks[blk_id]
+					if len(blk) > len(other_blk):
+						if not ((blk[:len(other_blk)] == other_blk).all() and
+							(blk[len(other_blk):] == 0).all()):
+							return False
+					elif len(blk) < len(other_blk):
+						if not ((other_blk[:len(blk)] == blk).all() and
+							(other_blk[len(blk):] == 0).all()):
+							return False
+					elif not (blk == other_blk).all():
+						return False
+			return True
+		else:
+			return False
+
+	def __ne__(self, other):
+		return not self.__eq__(other)
 
 	def intersection(self, other):
 		"""Return a set which is the intersection of this set and another"""

@@ -522,6 +522,114 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(len(s), 1)
 		s.remove(e3)
 		self.assertEqual(len(s), 0)
+	
+	def test_eq_self(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s = EntitySet(world)
+		self.assertEqual(s, s)
+		s.add(TestEntity(world))
+		self.assert_(s == s)
+		self.assert_(not s != s)
+
+	
+	def test_eq_empty(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		self.assertEqual(s1, s2)
+	
+	def test_eq_simple(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=2)
+		s1.add(e1)
+		s1.add(e2)
+		s2.add(e1)
+		s2.add(e2)
+		self.assert_(s1 == s2)
+		self.assert_(s2 == s1)
+		self.assert_(not s1 != s2)
+	
+	def test_eq_more(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		entities = [
+			TestEntity(world),
+			TestEntity(world, index=2),
+			TestEntity(world, index=3),
+			TestEntity(world, block=5),
+			TestEntity(world, block=5, index=1),
+			TestEntity(world, block=15, index=2),
+		]
+		for e in entities:
+			s1.add(e)
+			s2.add(e)
+		self.assert_(s1 == s2)
+		self.assert_(s2 == s1)
+		self.assert_(not s1 != s2)
+
+	def test_eq_different_additions(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		entities = [
+			TestEntity(world),
+			TestEntity(world, index=2),
+			TestEntity(world, index=3),
+			TestEntity(world, block=15, index=2),
+		]
+		for e in entities:
+			s1.add(e)
+			s2.add(e)
+		e1 = TestEntity(world, block=5)
+		s1.add(e1)
+		s1.remove(e1)
+		e2 = TestEntity(world, block=5, index=1)
+		s2.add(e2)
+		s2.remove(e2)
+		self.assert_(s1 == s2)
+		self.assert_(s2 == s1)
+		self.assert_(not s1 != s2)
+
+	def test_not_eq_simple(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=2)
+		s1.add(e1)
+		s2.add(e1)
+		s2.add(e2)
+		self.assert_(not s1 == s2)
+		self.assert_(not s2 == s1)
+		self.assert_(s1 != s2)
+	
+	def test_not_eq_one_empty(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		s2.add(e1)
+		self.assert_(not s1 == s2)
+		self.assert_(not s2 == s1)
+		self.assert_(s1 != s2)
+	
+	def test_not_eq_different_types(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		self.assert_(not s1 == None)
+		self.assert_(s1 != object())
 
 
 if __name__ == '__main__':
