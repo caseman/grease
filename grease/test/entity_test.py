@@ -727,8 +727,8 @@ class EntitySetTestCase(unittest.TestCase):
 		s1.add(e2)
 		s1.add(e3)
 		s2 = EntitySet(world)
-		s1.add(e1)
-		s1.add(e4)
+		s2.add(e1)
+		s2.add(e4)
 		self.assertEqual(len(s1.intersection(s2)), 0)
 		self.assertEqual(len(s2.intersection(s1)), 0)
 
@@ -830,8 +830,8 @@ class EntitySetTestCase(unittest.TestCase):
 		s1.add(e2)
 		s1.add(e3)
 		s2 = EntitySet(world)
-		s1.add(e1)
-		s1.add(e4)
+		s2.add(e1)
+		s2.add(e4)
 		self.assertEqual(sorted(s1.union(s2)), sorted([e1,e2,e3,e4]))
 		self.assertEqual(sorted(s2.union(s1)), sorted([e1,e2,e3,e4]))
 
