@@ -648,8 +648,8 @@ class EntitySetTestCase(unittest.TestCase):
 		s2 = EntitySet(world)
 		e1 = TestEntity(world)
 		s2.add(e1)
-		s3 = s1.intersection(s2)
-		self.assertEqual(len(s3), 0)
+		self.assertEqual(len(s1.intersection(s2)), 0)
+		self.assertEqual(len(s2.intersection(s1)), 0)
 
 	@raises(ValueError)
 	def test_intersect_different_worlds(self):
@@ -670,8 +670,8 @@ class EntitySetTestCase(unittest.TestCase):
 		s1.add(e1)
 		s2.add(e1)
 		s2.add(e2)
-		s3 = s1 & s2
-		self.assertEqual(list(s3), [e1])
+		self.assertEqual(list(s1 & s2), [e1])
+		self.assertEqual(list(s2 & s1), [e1])
 
 	def test_intersect_more(self):
 		from grease.entity import EntitySet
@@ -691,8 +691,10 @@ class EntitySetTestCase(unittest.TestCase):
 		s2.add(e2)
 		s2.add(e4)
 		self.assertEqual(sorted(s1 & s2), sorted([e2, e4]))
+		self.assertEqual(sorted(s2 & s1), sorted([e2, e4]))
 		s2.remove(e2)
 		self.assertEqual(sorted(s1 & s2), sorted([e4]))
+		self.assertEqual(sorted(s2 & s1), sorted([e4]))
 	
 	def test_intersect_same(self):
 		from grease.entity import EntitySet
@@ -711,8 +713,8 @@ class EntitySetTestCase(unittest.TestCase):
 		s2.add(e4)
 		s2.add(e3)
 		s2.add(e1)
-		s3 = s1.intersection(s2)
-		self.assertEqual(sorted(s3), sorted([e1,e2,e3,e4]))
+		self.assertEqual(sorted(s1.intersection(s2)), sorted([e1,e2,e3,e4]))
+		self.assertEqual(sorted(s2.intersection(s1)), sorted([e1,e2,e3,e4]))
 
 	def test_intersect_disjoint(self):
 		from grease.entity import EntitySet
@@ -727,7 +729,8 @@ class EntitySetTestCase(unittest.TestCase):
 		s2 = EntitySet(world)
 		s1.add(e1)
 		s1.add(e4)
-		s3 = s1.intersection(s2)
+		self.assertEqual(len(s1.intersection(s2)), 0)
+		self.assertEqual(len(s2.intersection(s1)), 0)
 		self.assertEqual(len(s3), 0)
 
 if __name__ == '__main__':
