@@ -363,13 +363,30 @@ class EntitySet(object):
 			raise ValueError("Can't combine sets from different worlds")
 		result = self.new_empty()
 		for blk_id, blk in self.blocks.items():
-			result.blocks[blk_id] = self.blocks[blk_id].copy()
-		for blk_id, blk in other.blocks.items():
-			if blk_id not in result.blocks:
-				result.blocks[blk_id] = blk.copy()
+			if blk_id not in other.blocks:
+				result.blocks[blk_id] = self.blocks[blk_id].copy()
+		for blk_id, other_blk in other.blocks.items():
+			if blk_id not in self.blocks:
+				result.blocks[blk_id] = other_blk.copy()
 			else:
-				result.blocks[blk_id] = numpy.where(
-					self.blocks[blk_id] >= blk, self.blocks[blk_id], blk)
+				blk = self.blocks[blk_id]
+				if len(blk) < len(other_blk):
+					lblk = blk
+					rblk = other_blk[:len(blk)]
+				elif len(blk) > len(other_blk):
+					lblk = blk[:len(other_blk)]
+					rblk = other_blk
+				else:
+					lblk = blk
+					rblk = other_blk
+				result_blk = numpy.where(lblk >= rblk, lblk, rblk)
+				if len(blk) < len(other_blk):
+					result_blk = numpy.concatenate(
+						(result_blk, other_blk[len(blk):]))
+				elif len(blk) > len(other_blk):
+					result_blk = numpy.concatenate(
+						(result_blk, blk[len(other_blk):]))
+				result.blocks[blk_id] = result_blk
 		return result
 	
 	__or__ = union
