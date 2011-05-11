@@ -400,8 +400,15 @@ class EntitySet(object):
 			if blk_id not in other.blocks:
 				result.blocks[blk_id] = blk.copy()
 			else:
-				result_blk = numpy.where(
-					blk >= other.blocks[blk_id], blk, 0)
+				other_blk = other.blocks[blk_id]
+				if len(blk) > len(other_blk):
+					lblk = blk[:len(other_blk)]
+					result_blk = numpy.where(lblk > other_blk, lblk, 0)
+					result_blk = numpy.concatenate(
+						(result_blk, blk[len(other_blk):]))
+				else:
+					result_blk = numpy.where(
+						blk > other_blk[:len(blk)], blk, 0)
 				if result_blk.any():
 					result.blocks[blk_id] = result_blk
 		return result

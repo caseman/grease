@@ -835,6 +835,108 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(sorted(s1.union(s2)), sorted([e1,e2,e3,e4]))
 		self.assertEqual(sorted(s2.union(s1)), sorted([e1,e2,e3,e4]))
 
+	def test_difference_both_empty(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		s3 = s1.difference(s2)
+		self.assertEqual(len(s3), 0)
+		self.assert_(s3 is not s1)
+		self.assert_(s3 is not s2)
+
+	def test_difference_one_empty(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		s2.add(e1)
+		self.assertEqual(list(s1.difference(s2)), [])
+		self.assertEqual(list(s2.difference(s1)), [e1])
+
+	@raises(ValueError)
+	def test_difference_different_worlds(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		world2 = TestWorld()
+		s2 = EntitySet(world2)
+		s1.difference(s2)
+
+	def test_difference_simple(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=2)
+		s1.add(e1)
+		s2.add(e1)
+		s2.add(e2)
+		self.assertEqual(list(s1 - s2), [])
+		self.assertEqual(list(s2 - s1), [e2])
+
+	def test_difference_more(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		e5 = TestEntity(world, block=15, index=2)
+		s1 = EntitySet(world)
+		s1.add(e1)
+		s1.add(e2)
+		s1.add(e5)
+		s2 = EntitySet(world)
+		s2.add(e3)
+		s2.add(e2)
+		s2.add(e4)
+		self.assertEqual(sorted(s1 - s2), sorted([e1, e5]))
+		self.assertEqual(sorted(s2 - s1), sorted([e3, e4]))
+		s2.remove(e3)
+		s2.remove(e2)
+		s1.remove(e5)
+		self.assertEqual(sorted(s1 - s2), sorted([e1, e2]))
+		self.assertEqual(sorted(s2 - s1), [e4])
+	
+	def test_difference_same(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		s1 = EntitySet(world)
+		s1.add(e1)
+		s1.add(e2)
+		s1.add(e3)
+		s1.add(e4)
+		s2 = EntitySet(world)
+		s2.add(e2)
+		s2.add(e4)
+		s2.add(e3)
+		s2.add(e1)
+		self.assertEqual(list(s1.difference(s2)), [])
+		self.assertEqual(list(s2.difference(s1)), [])
+
+	def test_difference_disjoint(self):
+		from grease.entity import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		s1 = EntitySet(world)
+		s1.add(e2)
+		s1.add(e3)
+		s2 = EntitySet(world)
+		s2.add(e1)
+		s2.add(e4)
+		self.assertEqual(sorted(s1.difference(s2)), sorted([e2,e3]))
+		self.assertEqual(sorted(s2.difference(s1)), sorted([e1,e4]))
+
 
 if __name__ == '__main__':
 	unittest.main()
