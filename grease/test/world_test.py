@@ -196,17 +196,17 @@ class WorldTestCase(unittest.TestCase):
 		self.assertFalse(entity in comp3)
 	
 	def test_entity_extent_component_access(self):
-		from grease import World, Entity
-		from grease.entity import ComponentEntitySet
+		# Integration test
+		from grease import World, Entity, component
 		world = World()
-		comp = world.components.test = TestComponent()
+		comp = world.components.test = component.Component()
 		e1 = Entity(world)
 		e2 = Entity(world)
 		comp.add(e1)
 		comp.add(e2)
 		extent = world[Entity]
 		comp_set = extent.test
-		self.assertEqual(comp_set, set([e1, e2]))
+		self.assertEqual(sorted(comp_set), sorted([e1, e2]))
 		self.assertRaises(AttributeError, getattr, extent, "hummina")
 	
 	def test_entity_extent_membership_simple(self):
@@ -282,11 +282,31 @@ class WorldTestCase(unittest.TestCase):
 		world = World()
 		entities = [Entity1(world), Entity2(world), Entity2(world), Entity3(world)]
 		union_extent_1_2 = world[Entity1, Entity2]
-		self.assertEqual(union_extent_1_2.entities, set(entities[:-1]))
+		self.assertEqual(sorted(union_extent_1_2.entities), sorted(entities[:-1]))
 		union_extent_2_3 = world[Entity2, Entity3]
-		self.assertEqual(union_extent_2_3.entities, set(entities[1:]))
+		self.assertEqual(sorted(union_extent_2_3.entities), sorted(entities[1:]))
 		union_extent_1_3 = world[Entity1, Entity3]
-		self.assertEqual(union_extent_1_3.entities, set(entities))
+		self.assertEqual(sorted(union_extent_1_3.entities), sorted(entities))
+	
+	def test_empty_extent(self):
+		from grease import World, Entity
+		world = World()
+		e = Entity(world)
+		class Entity1(Entity):
+			pass
+		self.assertEqual(len(world[Entity1].entities), 0)
+		
+	def test_empty_union_extent(self):
+		from grease import World, Entity
+		world = World()
+		e = Entity(world)
+		class Entity1(Entity):
+			pass
+		class Entity2(Entity):
+			pass
+		class Entity3(Entity1):
+			pass
+		self.assertEqual(len(world[Entity2, Entity3].entities), 0)
 
 	def test_full_extent(self):
 		from grease import World, Entity
@@ -299,10 +319,10 @@ class WorldTestCase(unittest.TestCase):
 		world = World()
 		full_extent = world[...]
 		self.assertEqual(world.entities, full_extent.entities)
-		entities = set([Entity1(world), Entity2(world), Entity3(world), Entity1(world)])
-		self.assertEqual(world.entities, entities)
-		self.assertEqual(full_extent.entities, entities)
-		self.assertEqual(world[...].entities, entities)
+		entities = sorted([Entity1(world), Entity2(world), Entity3(world), Entity1(world)])
+		self.assertEqual(sorted(world.entities), entities)
+		self.assertEqual(sorted(full_extent.entities), entities)
+		self.assertEqual(sorted(world[...].entities), entities)
 
 	def test_configure_components(self):
 		from grease import World

@@ -1,6 +1,6 @@
 #############################################################################
 #
-# Copyright (c) 2010 by Casey Duncan and contributors
+# Copyright (c) 2010, 2011 by Casey Duncan and contributors
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the MIT License
@@ -11,7 +11,9 @@
 #
 #############################################################################
 from grease.component import field
-from grease.entity import ComponentEntitySet
+from grease.set import EntitySet
+
+__all__ = ('Component', 'ComponentAccessor')
 
 
 class Component(object):
@@ -56,19 +58,19 @@ class Component(object):
 	world = None
 	"""The |World| this component belongs to."""
 
-	entity_set_factory = ComponentEntitySet
+	entity_set_factory = EntitySet
 	field_factory = field.Field
 
 	def __init__(self, **fields):
 		self.fields = {}
 		for fname, dtype in fields.items():
 			self.fields[fname] = self.field_factory(fname, dtype)
-		self.entities = self.entity_set_factory(self)
 		self._added = []
 		self._deleted = []
 	
 	def set_world(self, world):
 		self.world = world
+		self.entities = self.entity_set_factory(world)
 	
 	def step(self, dt):
 		"""Update the component for the next timestep."""
@@ -77,35 +79,18 @@ class Component(object):
 		self._added = []
 		self._deleted = []
 	
-	def set(self, entity, **data_kw):
-		"""Set the component data for an entity, adding it to the component if
-		it is not already a member. Any fields not specified when the entity
-		is added will be set to their respective defaults.
-
-		``ValueError`` is raised if an entity belonging to a different |World|
-		is provided.
-		"""
+	def add(self, entity):
+		if entity.world is not self.world:
+			if self.world is None:
+				raise RuntimeError(
+					"Cannot add entity, component world not set")
+			raise ValueError(
+				"Cannot add entity to component, not in same world")
 		if entity not in self.entities:
-			if entity.world is not self.world:
-				raise ValueError(
-					"Cannot add entity to component, not in same world")
 			self._added.append(entity)
 			self.entities.add(entity)
-			for fname, field in self.fields.items():
-				field[entity] = data_kw.get(fname, field.default)
-		else:
-			# Entity already in component, set only those fields specified
-			for fname, value in data_kw.items():
-				self.fields[fname][entity] = value
-	
-	def get(self, entity):
-		"""Return the component data of all fields for this entity in a dict"""
-		if entity not in self.entities:
-			raise KeyError(entity)
-		data = {}
-		for fname, field in self.fields.items():
-			data[fname] = field[entity]
-		return data
+			for field in self.fields.values():
+				field[entity] = field.default
 	
 	def delete(self, entity):
 		"""Delete an entity from the component. Return True if the entity was
@@ -126,4 +111,87 @@ class Component(object):
 		return '<%s %x of %r>' % (
 			self.__class__.__name__, id(self), self.world)
 
+
+class ComponentAccessor(object):
+	"""A facade for accessing specific component data for a single entity.
+	If an attribute is set for a component that the entity is not yet a member
+	of, it is automatically added to the component first.
+
+	:param component: The :class:`grease.Component` being accessed
+	:param entity: The :class:`Entity` being accessed
+	"""
+
+	def __init__(self, component, entity):
+		self.__component = component
+		self.__entity = entity
+	
+	def __nonzero__(self):
+		"""The accessor is True if the entity is in the component,
+		False if not, for convenient membership tests
+		"""
+		return self.__entity in self.__component
+	
+	def __getattr__(self, name):
+		if self.__entity in self.__component.entities:
+			try:
+				return self.__component.fields[name][self.__entity]
+			except (KeyError, IndexError):
+				raise AttributeError(name)
+		raise AttributeError(name)
+	
+	def __setattr__(self, name, value):
+		"""Set the data for the specified field of the entity's component"""
+		if not name.startswith('_'):
+			if self.__entity not in self.__component.entities:
+				self.__component.add(self.__entity)
+			try:
+				self.__component.fields[name][self.__entity] = value
+			except KeyError:
+				raise AttributeError(name)
+		else:
+			super(ComponentAccessor, self).__setattr__(name, value)
+
+	def __repr__(self):
+		return '<%s %x for %r, %r>' % (
+			self.__class__.__name__, id(self), self.__entity, self.__component)
+
+
+class Property(object):
+	"""A descriptor for accessing and manipulating component values as 
+	attributes of an entity::
+
+		class MyEntity(Entity):
+			movement = component.Property()
+
+			def __init__(self, world, velocity):
+				self.movement.velocity = velocity
+	
+	:arg component_name: The name of the component to access via the
+		property. If omitted, it will be derived automatically from
+		the attribute name when assigned to an |Entity| subclass.
+	:type component_name: str
+	:arg doc: Optional doc string for this property.
+	:type doc: str
+	"""
+
+	def __init__(self, component_name=None, doc=None):
+		self.name = component_name
+		self.__doc__ = doc
+
+	def __get__(self, entity, cls):
+		component = getattr(entity.world.components, self.name)
+		return ComponentAccessor(component, entity)
+
+	def __set__(self, entity, value):
+		component = getattr(entity.world.components, self.name)
+		for fname, field in component.fields:
+			if hasattr(value, fname):
+				field[entity] = getattr(value, fname)
+
+	def __delete__(self, entity):
+		component = getattr(entity.world.components, self.name)
+		component.delete(entity)
+	
+	def __repr__(self):
+		return '<component.Property for component %s>' % self.name
 

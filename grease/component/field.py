@@ -1,6 +1,6 @@
 #############################################################################
 #
-# Copyright (c) 2010 by Casey Duncan and contributors
+# Copyright (c) 2010, 2011 by Casey Duncan and contributors
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the MIT License
@@ -10,9 +10,6 @@
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 #
 #############################################################################
-
-__version__ = '$Id$'
-
 import operator
 import numpy
 from copy import copy
@@ -20,16 +17,7 @@ from grease.geometry import Vec2d, Vec2dArray, Rect
 from grease import color
 from grease.block import Block
 
-# Allowed field types -> default values
-types = {int:lambda: 0, 
-         float:lambda: 0.0, 
-		 bool:lambda: False,
-		 str:lambda:"", 
-		 object:lambda:None,
-		 Vec2d:lambda: Vec2d(0,0), 
-		 Vec2dArray:lambda: Vec2dArray(),
-		 color.RGBA: lambda: color.RGBA(0.0, 0.0, 0.0, 0.0),
-		 Rect: lambda: Rect(0.0, 0.0, 0.0, 0.0)}
+__all__ = ('Field',)
 
 _missing = object()
 
@@ -55,6 +43,10 @@ class Field(object):
 	"""
 
 	def __init__(self, name, dtype, default=_missing):
+		if name.startswith('_'):
+			raise ValueError(
+				'invalid component field name "%s", '
+				'cannot begin with underscore' % name)
 		self.name = name
 		if not isinstance(dtype, numpy.dtype):
 			# coerce to a numpy dtype so invalid types

@@ -1,14 +1,60 @@
 import unittest
+import itertools
 from nose.tools import raises
 
-world = object()
 
+class TestIdGen(object):
+
+	next_id = itertools.count().next
+
+	def new_entity_id(self, entity):
+		assert not hasattr(entity, 'entity_id')
+		return self.next_id()
+
+
+class WorldEntities(set):
+	
+	def __init__(self):
+		self.id_to_entity = {}
+	
+	def add(self, e):
+		super(WorldEntities, self).add(e)
+		self.id_to_entity[e.entity_id] = e
+
+
+class TestWorld(object):
+	
+	def __init__(self):
+		self.entities = WorldEntities()
+		self.entity_id_generator = TestIdGen()
+
+
+world = TestWorld()
 
 class TestEntity(object):
 	world = world
 
 	def __init__(self, block=0, index=0, gen=0):
 		self.entity_id = (gen, block, index)
+		self.world.entities.add(self)
+
+
+class TestComponent(object):
+	world = world
+	
+	def __init__(self, field=None):
+		self.entities = set()
+		if field is not None:
+			self.fields = {field: {}}
+	
+	def add(self, entity):
+		self.entities.add(entity)
+	
+	def delete(self, entity):
+		self.entities.remove(entity)
+	
+	def __contains__(self, entity):
+		return entity in self.entities
 
 
 class FieldTestCase(unittest.TestCase):
@@ -263,8 +309,8 @@ class TestField(dict):
 
 
 class TestEntitySet(set):
-	def __init__(self, component):
-		self.component = component
+	def __init__(self, world):
+		self.world = world
 
 
 class ComponentTestCase(unittest.TestCase):
@@ -277,10 +323,10 @@ class ComponentTestCase(unittest.TestCase):
 		Component.field_factory = TestField
 		try:
 			c = Component(**fields)
+			c.set_world(world)
 		finally:
 			Component.entity_set_factory = old_esf
 			Component.field_factory = old_ff
-		c.set_world(world)
 		return c
 
 	def test_no_fields(self):
@@ -302,66 +348,29 @@ class ComponentTestCase(unittest.TestCase):
 	def test_invalid_field_type(self):
 		self.mkcomponent(f="blahblah")
 	
-	def test_set_new_entity_no_data(self):
+	def test_set_add_entity(self):
 		c = self.mkcomponent()
 		entity = TestEntity()
 		self.assertFalse(entity in c)
-		c.set(entity)
+		c.add(entity)
 		self.assertTrue(entity in c)
 		self.assertEqual(list(c.entities), [entity])
 	
-	def test_set_new_entity_no_data_field_defaults(self):
+	def test_add_new_entity_defaults(self):
 		c = self.mkcomponent(i=int, o=object)
 		c.fields['i'].default = 0
 		c.fields['o'].default = "nothing"
 		entity = TestEntity()
-		c.set(entity)
+		c.add(entity)
 		self.assertEqual(c.fields['i'][entity], 0)
 		self.assertEqual(c.fields['o'][entity], "nothing")
-
-	def test_set_new_entity_data(self):
-		c = self.mkcomponent(x=float, y=float, name=object)
-		entity = TestEntity()
-		self.assertFalse(entity in c)
-		c.set(entity, x=10, y=-1, name="timmy!")
-		self.assertTrue(entity in c)
-		self.assertEqual(c.fields['x'][entity], 10)
-		self.assertEqual(c.fields['y'][entity], -1)
-		self.assertEqual(c.fields['name'][entity], "timmy!")
-	
-	def test_set_new_entity_data_field_defaults(self):
-		c = self.mkcomponent(speed=int, accel="3d", state=object)
-		c.fields['speed'].default = 1
-		c.fields['accel'].default = (0,0,0)
-		c.fields['state'].default = "start"
-		e1 = TestEntity()
-		e2 = TestEntity()
-		c.set(e1, accel=(10,5,0), speed=-1)
-		c.set(e2, state="uber")
-		self.assertEqual(c.fields['speed'][e1], -1)
-		self.assertEqual(c.fields['accel'][e1], (10,5,0))
-		self.assertEqual(c.fields['state'][e1], "start")
-		self.assertEqual(c.fields['speed'][e2], 1)
-		self.assertEqual(c.fields['accel'][e2], (0,0,0))
-		self.assertEqual(c.fields['state'][e2], "uber")
 	
 	@raises(ValueError)
-	def test_set_new_entity_different_world(self):
+	def test_add_new_entity_different_world(self):
 		c = self.mkcomponent()
 		e = TestEntity()
 		e.world = object()
-		c.set(e)
-	
-	def test_set_existing_entity_update_fields(self):
-		c = self.mkcomponent(i=int, f=float)
-		entity = TestEntity()
-		c.set(entity, i=1, f=2.5)
-		c.set(entity, i=10)
-		self.assertEqual(c.fields['i'][entity], 10)
-		self.assertEqual(c.fields['f'][entity], 2.5)
-		c.set(entity, f=-1.5)
-		self.assertEqual(c.fields['i'][entity], 10)
-		self.assertEqual(c.fields['f'][entity], -1.5)
+		c.add(e)
 	
 	def test_step_updates_new_and_deleted_lists(self):
 		c = self.mkcomponent()
@@ -369,8 +378,8 @@ class ComponentTestCase(unittest.TestCase):
 		self.assertEqual(list(c.deleted_entities), [])
 		e1 = TestEntity()
 		e2 = TestEntity()
-		c.set(e1)
-		c.set(e2)
+		c.add(e1)
+		c.add(e2)
 		self.assertEqual(list(c.new_entities), [])
 		self.assertEqual(list(c.deleted_entities), [])
 		c.step(0)
@@ -387,30 +396,13 @@ class ComponentTestCase(unittest.TestCase):
 		self.assertEqual(list(c.new_entities), [])
 		self.assertEqual(list(c.deleted_entities), [e1, e2])
 	
-	@raises(KeyError)
-	def test_get_entity_not_in(self):
-		c = self.mkcomponent()
-		c.get(TestEntity())
-	
-	def test_get_no_fields(self):
-		c = self.mkcomponent()
-		e1 = TestEntity()
-		c.set(e1)
-		self.assertEqual(c.get(e1), {})
-	
-	def test_get(self):
-		c = self.mkcomponent(x=float, y=float)
-		e1 = TestEntity()
-		c.set(e1, x=2, y=3.25)
-		self.assertEqual(c.get(e1), {'x':2, 'y':3.25})
-	
 	def test_delete_and_contains(self):
 		c = self.mkcomponent()
 		e1 = TestEntity()
 		e2 = TestEntity()
 		self.assertFalse(c.delete(e1))
-		c.set(e1)
-		c.set(e2)
+		c.add(e1)
+		c.add(e2)
 		self.assertTrue(c.delete(e1))
 		self.assertFalse(e1 in c)
 		self.assertTrue(e2 in c)
@@ -425,7 +417,7 @@ class ComponentTestCase(unittest.TestCase):
 		e2 = TestEntity()
 		self.assertEqual(e1.entity_id, e2.entity_id)
 		e2.world = object()
-		c.set(e1)
+		c.add(e1)
 		assert e1 in c
 		assert e2 not in c
 	
@@ -438,13 +430,13 @@ class ComponentTestCase(unittest.TestCase):
 	def test_entities_set(self):
 		c = self.mkcomponent()
 		self.assertEqual(len(c.entities), 0)
-		self.assert_(c.entities.component is c)
+		self.assert_(c.entities.world is world)
 		entity1 = TestEntity()
 		entity2 = TestEntity()
 		entity3 = TestEntity()
-		c.set(entity1)
-		c.set(entity2)
-		c.set(entity3)
+		c.add(entity1)
+		c.add(entity2)
+		c.add(entity3)
 		self.assertEqual(len(c.entities), 3)
 		self.assertTrue(entity1 in c.entities)
 		self.assertTrue(entity2 in c.entities)
@@ -458,7 +450,64 @@ class ComponentTestCase(unittest.TestCase):
 	def test_repr(self):
 		c = self.mkcomponent()
 		self.assertEqual(repr(c), "<Component %x of %r>" % (id(c), world))
-		
+
+
+class ComponentAccessorTestCase(unittest.TestCase):
+
+	def test_getattr(self):
+		from grease.component.general import ComponentAccessor
+		from grease import Entity
+		world = TestWorld()
+		entity = Entity(world)
+		component = TestComponent('foo')
+		component.add(entity)
+		component.fields['foo'][entity] = 42
+		accessor = ComponentAccessor(component, entity)
+		self.assertEqual(accessor.foo, 42)
+		self.assertRaises(AttributeError, getattr, accessor, 'bar')
+
+		entity2 = Entity(world)
+		accessor = ComponentAccessor(component, entity2)
+		self.assertRaises(AttributeError, getattr, accessor, 'foo')
+		self.assertRaises(AttributeError, getattr, accessor, 'bar')
+	
+	def test_setattr_member_entity(self):
+		from grease.component.general import ComponentAccessor
+		from grease import Entity
+		world = TestWorld()
+		entity = Entity(world)
+		component = TestComponent('foo')
+		component.add(entity)
+		component.fields['foo'][entity] = 5
+		accessor = ComponentAccessor(component, entity)
+		accessor.foo = 66
+		self.assertEqual(component.fields['foo'][entity], 66)
+	
+	def test_setattr_nonmember_entity(self):
+		from grease.component.general import ComponentAccessor
+		from grease import Entity
+		world = TestWorld()
+		entity = Entity(world)
+		component = TestComponent('baz')
+		accessor = ComponentAccessor(component, entity)
+		self.assertRaises(AttributeError, getattr, entity, 'baz')
+		self.assertTrue(entity not in component)
+		accessor.baz = 1000
+		self.assertTrue(entity in component)
+		self.assertEqual(accessor.baz, 1000)
+		self.assertEqual(component.fields['baz'][entity], 1000)
+	
+	def test_truthiness(self):
+		from grease.component.general import ComponentAccessor
+		from grease import Entity
+		world = TestWorld()
+		entity = Entity(world)
+		component = TestComponent()
+		accessor = ComponentAccessor(component, entity)
+		self.assertFalse(accessor)
+		component.add(entity)
+		self.assertTrue(accessor)
+
 
 
 if __name__ == '__main__':

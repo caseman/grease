@@ -37,12 +37,6 @@ class TestComponent(dict):
 	def __init__(self):
 		self.entities = set()
 	
-	def set(self, entity):
-		data = TestData()
-		self[entity] = data
-		self.entities.add(entity)
-		return data
-	
 	def remove(self, entity):
 		del self[entity]
 	
@@ -63,53 +57,6 @@ class EntityTestCase(unittest.TestCase):
 			'<Entity id: %s of TestWorld' % entity.entity_id), 
 			('<Entity id: %s of TestWorld' % entity.entity_id, repr(entity)))
 	
-	def test_accessor_getattr_for_nonexistant_component(self):
-		from grease import Entity
-		comp = TestComponent()
-		world = TestWorld(test=comp)
-		entity = Entity(world)
-		self.assertTrue(entity not in comp)
-		self.assertRaises(AttributeError, getattr, entity, 'foo')
-	
-	def test_accessor_getattr_for_non_member_entity(self):
-		from grease import Entity
-		comp = TestComponent()
-		world = TestWorld(test=comp)
-		entity = Entity(world)
-		accessor = entity.test
-		self.assertFalse(entity in comp)
-		self.assertRaises(AttributeError, getattr, accessor, 'attr')
-	
-	def test_accessor_getattr_for_member_entity(self):
-		from grease import Entity
-		comp = TestComponent()
-		world = TestWorld(test=comp)
-		entity = Entity(world)
-		comp.set(entity)
-		self.assertTrue(entity in comp)
-		self.assertEqual(entity.test.attr, 'deadbeef')
-	
-	def test_accessor_setattr_adds_non_member_entity(self):
-		from grease import Entity
-		comp = TestComponent()
-		world = TestWorld(test=comp)
-		entity = Entity(world)
-		self.assertFalse(entity in comp)
-		entity.test.attr = 'foobar'
-		self.assertEqual(entity.test.attr, 'foobar')
-		self.assertTrue(entity in comp)
-
-	def test_accessor_setattr_for_member_entity(self):
-		from grease import Entity
-		comp = TestComponent()
-		world = TestWorld(test=comp)
-		entity = Entity(world)
-		comp.set(entity)
-		self.assertNotEqual(entity.test.attr, 'spam')
-		entity.test.attr = 'spam'
-		self.assertTrue(entity in comp)
-		self.assertEqual(entity.test.attr, 'spam')
-	
 	def test_eq(self):
 		from grease import Entity
 		world = TestWorld()
@@ -125,16 +72,6 @@ class EntityTestCase(unittest.TestCase):
 		e3.entity_id = e1.entity_id
 		self.assertNotEqual(e1, e3)
 		self.assertNotEqual(e2, e3)
-	
-	def test_delattr(self):
-		from grease import Entity
-		comp = TestComponent()
-		world = TestWorld(test=comp)
-		entity = Entity(world)
-		comp.set(entity)
-		self.failUnless(entity in comp)
-		del entity.test
-		self.failIf(entity in comp)
 	
 	def test_entity_id(self):
 		from grease import Entity
@@ -163,19 +100,6 @@ class EntityTestCase(unittest.TestCase):
 		self.assertFalse(entity1.exists)
 		self.assertFalse(entity2.exists)
 	
-	def test_entity_subclass_slots(self):
-		from grease import Entity
-		class NewEntity(Entity):
-			pass
-		world = TestWorld()
-		entity = NewEntity(world)
-		self.assertRaises(AttributeError, setattr, entity, 'notanattr', 1234)
-	
-	def test_entity_subclass_cant_have_slots(self):
-		from grease import Entity
-		self.assertRaises(TypeError, 
-			type, 'Test', (Entity,), {'__slots__': ('foo', 'bar')})
-	
 	def test_entity_subclass_init(self):
 		from grease import Entity
 		stuff = []
@@ -186,62 +110,17 @@ class EntityTestCase(unittest.TestCase):
 		world = TestWorld()
 		TestEntity(world, self)
 		self.assertEqual(stuff, [world, self])
-
-
-class EntityComponentAccessorTestCase(unittest.TestCase):
-
-	def test_getattr(self):
-		from grease.entity import EntityComponentAccessor
-		from grease import Entity
-		world = TestWorld()
-		entity = Entity(world)
-		component = {entity: TestData(foo=5)}
-		accessor = EntityComponentAccessor(component, entity)
-		self.assertEqual(accessor.foo, 5)
-		self.assertRaises(AttributeError, getattr, accessor, 'bar')
-
-		entity2 = Entity(world)
-		accessor = EntityComponentAccessor(component, entity2)
-		self.assertRaises(AttributeError, getattr, accessor, 'foo')
-		self.assertRaises(AttributeError, getattr, accessor, 'bar')
 	
-	def test_setattr_member_entity(self):
-		from grease.entity import EntityComponentAccessor
-		from grease import Entity
-		world = TestWorld()
-		entity = Entity(world)
-		data = TestData(foo=5)
-		accessor = EntityComponentAccessor({entity: data}, entity)
-		self.assertEqual(data.foo, 5)
-		accessor.foo = 66
-		self.assertEqual(data.foo, 66)
-		accessor.bar = '!!'
-		self.assertEqual(data.bar, '!!')
-	
-	def test_setattr_nonmember_entity(self):
-		from grease.entity import EntityComponentAccessor
-		from grease import Entity
-		world = TestWorld()
-		entity = Entity(world)
-		component = TestComponent()
-		accessor = EntityComponentAccessor(component, entity)
-		self.assertRaises(AttributeError, getattr, entity, 'baz')
-		self.assertTrue(entity not in component)
-		accessor.baz = 1000
-		self.assertTrue(entity in component)
-		self.assertEqual(accessor.baz, 1000)
-		self.assertEqual(component[entity].baz, 1000)
-	
-	def test_truthiness(self):
-		from grease.entity import EntityComponentAccessor
-		from grease import Entity
-		world = TestWorld()
-		entity = Entity(world)
-		component = TestComponent()
-		accessor = EntityComponentAccessor(component, entity)
-		self.assertFalse(accessor)
-		component[entity] = 456
-		self.assertTrue(accessor)
+	def test_component_property_names(self):
+		from grease import Entity, component
+		class TestEntity(Entity):
+			foo = component.Property("NotFoo")
+			bar = component.Property()
+			baz = component.Property()
+			spam = object()
+		self.assertEqual(TestEntity.__dict__['foo'].name, "NotFoo")
+		self.assertEqual(TestEntity.__dict__['bar'].name, "bar")
+		self.assertEqual(TestEntity.__dict__['baz'].name, "baz")
 
 
 class TestEntity(object):
@@ -255,13 +134,37 @@ class TestEntity(object):
 class EntitySetTestCase(unittest.TestCase):
 
 	def test_world(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = object()
 		s = EntitySet(world)
 		self.assert_(s.world is world)
 	
+	def test_new_empty(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		e1 = TestEntity(world)
+		s1.add(e1)
+		self.assertEqual(len(s1), 1)
+		s2 = s1.new_empty()
+		self.assert_(s2.__class__ is EntitySet)
+		self.assertEqual(len(s2), 0)
+		
+	def test_new_empty_subclass(self):
+		from grease.set import EntitySet
+		class MyEntitySet(EntitySet):
+			pass
+		world = TestWorld()
+		s1 = MyEntitySet(world)
+		e1 = TestEntity(world)
+		s1.add(e1)
+		self.assertEqual(len(s1), 1)
+		s2 = s1.new_empty()
+		self.assert_(s2.__class__ is MyEntitySet)
+		self.assertEqual(len(s2), 0)
+	
 	def test_add_contains(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		e1 = TestEntity(world)
@@ -285,7 +188,7 @@ class EntitySetTestCase(unittest.TestCase):
 	
 	@raises(ValueError)
 	def test_add_different_world(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		world2 = TestWorld()
@@ -295,7 +198,7 @@ class EntitySetTestCase(unittest.TestCase):
 
 	@raises(ValueError)
 	def test_add_deleted_entity(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		e = TestEntity(world)
@@ -303,7 +206,7 @@ class EntitySetTestCase(unittest.TestCase):
 		s.add(e)
 
 	def test_add_remove(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		e1 = TestEntity(world)
@@ -330,14 +233,14 @@ class EntitySetTestCase(unittest.TestCase):
 	
 	@raises(KeyError)
 	def test_remove_not_in_set(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		s.remove(TestEntity(world))
 	
 	@raises(KeyError)
 	def test_remove_different_world(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world1 = TestWorld()
 		world2 = TestWorld()
 		e1 = TestEntity(world1)
@@ -348,7 +251,7 @@ class EntitySetTestCase(unittest.TestCase):
 		s1.remove(e2)
 
 	def test_discard(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		e1 = TestEntity(world)
@@ -374,13 +277,13 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(e3 not in s)
 	
 	def test_discard_not_in_set(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		s.discard(TestEntity(world))
 
 	def test_discard_different_world(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world1 = TestWorld()
 		world2 = TestWorld()
 		e1 = TestEntity(world1)
@@ -393,7 +296,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(e1 in s1)
 
 	def test_contains_different_world(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world1 = TestWorld()
 		world2 = TestWorld()
 		e1 = TestEntity(world1)
@@ -417,13 +320,13 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(e2 in s2)
 	
 	def test_iter_empty(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		self.assertEqual(tuple(s), ())
 	
 	def test_iter(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		e1 = TestEntity(world)
@@ -439,7 +342,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(e3 in s)
 	
 	def test_iter_mutate(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		e1 = TestEntity(world)
@@ -461,13 +364,13 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(e4 in s)
 	
 	def test_truthiness_false(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		self.failIf(s)
 	
 	def test_truthiness_mutate(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		e = TestEntity(world)
@@ -476,20 +379,20 @@ class EntitySetTestCase(unittest.TestCase):
 		self.failIf(s)
 	
 	def test_truthiness_true(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		s.add(TestEntity(world))
 		self.failUnless(s)
 	
 	def test_len_empty(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		self.assertEqual(len(s), 0)
 	
 	def test_len_mutate(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		e1 = TestEntity(world)
@@ -524,7 +427,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(len(s), 0)
 	
 	def test_eq_self(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s = EntitySet(world)
 		self.assertEqual(s, s)
@@ -534,14 +437,14 @@ class EntitySetTestCase(unittest.TestCase):
 
 	
 	def test_eq_empty(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
 		self.assertEqual(s1, s2)
 	
 	def test_eq_simple(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -556,7 +459,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(not s1 != s2)
 	
 	def test_eq_more(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -576,7 +479,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(not s1 != s2)
 
 	def test_eq_different_additions(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -600,7 +503,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(not s1 != s2)
 
 	def test_not_eq_simple(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -614,7 +517,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(s1 != s2)
 	
 	def test_not_eq_one_empty(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -625,14 +528,14 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(s1 != s2)
 	
 	def test_not_eq_different_types(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		self.assert_(not s1 == None)
 		self.assert_(s1 != object())
 
 	def test_intersect_both_empty(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -642,7 +545,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(s3 is not s2)
 
 	def test_intersect_one_empty(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -653,7 +556,7 @@ class EntitySetTestCase(unittest.TestCase):
 
 	@raises(ValueError)
 	def test_intersect_different_worlds(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		world2 = TestWorld()
@@ -661,7 +564,7 @@ class EntitySetTestCase(unittest.TestCase):
 		s1.intersection(s2)
 
 	def test_intersect_simple(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -674,7 +577,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(list(s2 & s1), [e1])
 
 	def test_intersect_more(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		e1 = TestEntity(world)
 		e2 = TestEntity(world, index=3)
@@ -697,7 +600,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(sorted(s2 & s1), sorted([e4]))
 	
 	def test_intersect_same(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		e1 = TestEntity(world)
 		e2 = TestEntity(world, index=3)
@@ -717,7 +620,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(sorted(s2.intersection(s1)), sorted([e1,e2,e3,e4]))
 
 	def test_intersect_disjoint(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		e1 = TestEntity(world)
 		e2 = TestEntity(world, index=3)
@@ -732,8 +635,107 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(len(s1.intersection(s2)), 0)
 		self.assertEqual(len(s2.intersection(s1)), 0)
 
+	def test_intersect_update_both_empty(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		s3 = s1.intersection_update(s2)
+		self.assertEqual(len(s3), 0)
+		self.assert_(s3 is s1)
+		self.assert_(s3 is not s2)
+
+	def test_intersect_update_one_empty(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		s2.add(e1)
+		s = s1
+		s1 &= s2
+		self.assert_(s1 is s)
+		self.assertEqual(len(s1), 0)
+
+	@raises(ValueError)
+	def test_intersect_update_different_worlds(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		world2 = TestWorld()
+		s2 = EntitySet(world2)
+		s1.intersection_update(s2)
+
+	def test_intersect_update_simple(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=2)
+		s1.add(e1)
+		s2.add(e1)
+		s2.add(e2)
+		s1 &= s2
+		self.assertEqual(list(s1), [e1])
+
+	def test_intersect_update_more(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		e5 = TestEntity(world, block=15, index=2)
+		s1 = EntitySet(world)
+		s1.add(e1)
+		s1.add(e2)
+		s1.add(e4)
+		s1.add(e5)
+		s2 = EntitySet(world)
+		s2.add(e3)
+		s2.add(e2)
+		s2.add(e4)
+		s1 &= s2
+		self.assertEqual(sorted(s1), sorted([e2, e4]))
+	
+	def test_intersect_update_same(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		s1 = EntitySet(world)
+		s1.add(e1)
+		s1.add(e2)
+		s1.add(e3)
+		s1.add(e4)
+		s2 = EntitySet(world)
+		s2.add(e2)
+		s2.add(e4)
+		s2.add(e3)
+		s2.add(e1)
+		s1.intersection_update(s2)
+		self.assertEqual(sorted(s1), sorted([e1,e2,e3,e4]))
+
+	def test_intersect_update_disjoint(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		s1 = EntitySet(world)
+		s1.add(e2)
+		s1.add(e3)
+		s2 = EntitySet(world)
+		s2.add(e1)
+		s2.add(e4)
+		self.assertEqual(len(s1.intersection_update(s2)), 0)
+
 	def test_union_both_empty(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -743,7 +745,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(s3 is not s2)
 
 	def test_union_one_empty(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -754,7 +756,7 @@ class EntitySetTestCase(unittest.TestCase):
 
 	@raises(ValueError)
 	def test_union_different_worlds(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		world2 = TestWorld()
@@ -762,7 +764,7 @@ class EntitySetTestCase(unittest.TestCase):
 		s1.union(s2)
 
 	def test_union_simple(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -775,7 +777,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(sorted(s2 | s1), sorted([e1, e2]))
 
 	def test_union_more(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		e1 = TestEntity(world)
 		e2 = TestEntity(world, index=3)
@@ -800,7 +802,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(sorted(s2 | s1), sorted([e1, e2, e4]))
 	
 	def test_union_same(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		e1 = TestEntity(world)
 		e2 = TestEntity(world, index=3)
@@ -820,7 +822,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(sorted(s2.union(s1)), sorted([e1,e2,e3,e4]))
 
 	def test_union_disjoint(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		e1 = TestEntity(world)
 		e2 = TestEntity(world, index=3)
@@ -835,8 +837,105 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(sorted(s1.union(s2)), sorted([e1,e2,e3,e4]))
 		self.assertEqual(sorted(s2.union(s1)), sorted([e1,e2,e3,e4]))
 
+	def test_update_both_empty(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		s3 = s1.update(s2)
+		self.assertEqual(len(s3), 0)
+		self.assert_(s3 is s1)
+		self.assert_(s3 is not s2)
+
+	def test_update_one_empty(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		s2.add(e1)
+		self.assertEqual(list(s1.update(s2)), [e1])
+
+	@raises(ValueError)
+	def test_update_different_worlds(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		world2 = TestWorld()
+		s2 = EntitySet(world2)
+		s1.update(s2)
+
+	def test_update_simple(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=2)
+		s1.add(e1)
+		s2.add(e1)
+		s2.add(e2)
+		s = s1
+		s1 |= s2
+		self.assert_(s1 is s)
+		self.assertEqual(sorted(s1), sorted([e1, e2]))
+
+	def test_update_more(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		e5 = TestEntity(world, block=15, index=2)
+		s1 = EntitySet(world)
+		s1.add(e1)
+		s1.add(e2)
+		s1.add(e4)
+		s1.add(e5)
+		s2 = EntitySet(world)
+		s2.add(e3)
+		s2.add(e2)
+		s2.add(e4)
+		s1 |= s2
+		self.assertEqual(sorted(s1), sorted([e1, e2, e3, e4, e5]))
+	
+	def test_update_same(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		s1 = EntitySet(world)
+		s1.add(e1)
+		s1.add(e2)
+		s1.add(e3)
+		s1.add(e4)
+		s2 = EntitySet(world)
+		s2.add(e2)
+		s2.add(e4)
+		s2.add(e3)
+		s2.add(e1)
+		self.assertEqual(sorted(s1.update(s2)), sorted([e1,e2,e3,e4]))
+
+	def test_update_disjoint(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		s1 = EntitySet(world)
+		s1.add(e2)
+		s1.add(e3)
+		s2 = EntitySet(world)
+		s2.add(e1)
+		s2.add(e4)
+		self.assertEqual(sorted(s1.update(s2)), sorted([e1,e2,e3,e4]))
+
 	def test_difference_both_empty(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -846,7 +945,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assert_(s3 is not s2)
 
 	def test_difference_one_empty(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -857,7 +956,7 @@ class EntitySetTestCase(unittest.TestCase):
 
 	@raises(ValueError)
 	def test_difference_different_worlds(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		world2 = TestWorld()
@@ -865,7 +964,7 @@ class EntitySetTestCase(unittest.TestCase):
 		s1.difference(s2)
 
 	def test_difference_simple(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		s1 = EntitySet(world)
 		s2 = EntitySet(world)
@@ -878,7 +977,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(list(s2 - s1), [e2])
 
 	def test_difference_more(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		e1 = TestEntity(world)
 		e2 = TestEntity(world, index=3)
@@ -902,7 +1001,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(sorted(s2 - s1), [e4])
 	
 	def test_difference_same(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		e1 = TestEntity(world)
 		e2 = TestEntity(world, index=3)
@@ -922,7 +1021,7 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(list(s2.difference(s1)), [])
 
 	def test_difference_disjoint(self):
-		from grease.entity import EntitySet
+		from grease.set import EntitySet
 		world = TestWorld()
 		e1 = TestEntity(world)
 		e2 = TestEntity(world, index=3)
@@ -937,6 +1036,102 @@ class EntitySetTestCase(unittest.TestCase):
 		self.assertEqual(sorted(s1.difference(s2)), sorted([e2,e3]))
 		self.assertEqual(sorted(s2.difference(s1)), sorted([e1,e4]))
 
+	def test_difference_update_both_empty(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		s3 = s1.difference_update(s2)
+		self.assertEqual(len(s3), 0)
+		self.assert_(s3 is s1)
+		self.assert_(s3 is not s2)
+
+	def test_difference_update_one_empty(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		s2.add(e1)
+		s = s1
+		s1.difference_update(s2)
+		self.assert_(s1 is s)
+		self.assertEqual(list(), [])
+
+	@raises(ValueError)
+	def test_difference_update_different_worlds(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		world2 = TestWorld()
+		s2 = EntitySet(world2)
+		s1.difference_update(s2)
+
+	def test_difference_update_simple(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		s1 = EntitySet(world)
+		s2 = EntitySet(world)
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=2)
+		s1.add(e1)
+		s2.add(e1)
+		s2.add(e2)
+		s1 -= s2
+		self.assertEqual(list(s1), [])
+
+	def test_difference_update_more(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		e5 = TestEntity(world, block=15, index=2)
+		s1 = EntitySet(world)
+		s1.add(e1)
+		s1.add(e2)
+		s1.add(e5)
+		s2 = EntitySet(world)
+		s2.add(e3)
+		s2.add(e2)
+		s2.add(e4)
+		s1 -= s2
+		self.assertEqual(sorted(s1), sorted([e1, e5]))
+	
+	def test_difference_update_same(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		s1 = EntitySet(world)
+		s1.add(e1)
+		s1.add(e2)
+		s1.add(e3)
+		s1.add(e4)
+		s2 = EntitySet(world)
+		s2.add(e2)
+		s2.add(e4)
+		s2.add(e3)
+		s2.add(e1)
+		self.assertEqual(list(s1.difference_update(s2)), [])
+
+	def test_difference_update_disjoint(self):
+		from grease.set import EntitySet
+		world = TestWorld()
+		e1 = TestEntity(world)
+		e2 = TestEntity(world, index=3)
+		e3 = TestEntity(world, block=5)
+		e4 = TestEntity(world, block=5, index=1)
+		s1 = EntitySet(world)
+		s1.add(e2)
+		s1.add(e3)
+		s2 = EntitySet(world)
+		s2.add(e1)
+		s2.add(e4)
+		self.assertEqual(sorted(s1.difference_update(s2)), sorted([e2,e3]))
 
 if __name__ == '__main__':
 	unittest.main()

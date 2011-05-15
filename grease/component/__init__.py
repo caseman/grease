@@ -27,12 +27,10 @@ by joining them. For more information see:
 See also :ref:`defining custom components in the tutorial <custom-component-example>`.
 """
 
-__version__ = '$Id$'
-
 __all__ = ('Component', 'Field,', 'ComponentError', 
 'Position', 'Transform', 'Movement', 'Shape', 'Renderable', 'Collision')
 
-from grease.component.general import Component
+from grease.component.general import Component, Property
 from grease.component.field import Field
 from grease.geometry import Vec2d, Vec2dArray, Rect
 from grease import color

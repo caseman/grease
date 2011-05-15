@@ -26,7 +26,8 @@ import pyglet
 from pyglet import gl
 from grease import mode
 from grease.component import ComponentError
-from grease.entity import Entity, ComponentEntitySet
+from grease.entity import Entity
+from grease.set import EntitySet, ComponentEntitySet
 
 
 class World(mode.Mode):
@@ -48,7 +49,8 @@ class World(mode.Mode):
 	"""
 
 	systems = None
-	""":class:`Parts` object containing all world systems. 
+	""":class:`Parts` object containing all worldentity_set_factory systems. 
+	r
 	:class:`grease.System` objects define world and entity behavior
 	"""
 
@@ -117,8 +119,14 @@ class World(mode.Mode):
 			you to conveniently query all entities using ``world[...]``.
 		"""
 		if isinstance(entity_class, tuple):
-			entities = set()
-			for cls in entity_class:
+			classes = iter(entity_class)
+			for cls in classes:
+				if cls in self._extents:
+					entities = self._extents[cls].entities
+					break
+			else:
+				entities = EntitySet(self)
+			for cls in classes:
 				if cls in self._extents:
 					entities |= self._extents[cls].entities
 			return EntityExtent(self, entities)
@@ -127,7 +135,7 @@ class World(mode.Mode):
 		try:
 			return self._extents[entity_class]
 		except KeyError:
-			extent = self._extents[entity_class] = EntityExtent(self, set())
+			extent = self._extents[entity_class] = EntityExtent(self, EntitySet(self))
 			return extent
 		
 	def activate(self, manager):
@@ -198,18 +206,21 @@ class World(mode.Mode):
 			renderer.draw()
 
 
-class WorldEntitySet(set):
+class WorldEntitySet(EntitySet):
 	"""Entity set for a :class:`World`"""
 
 	def __init__(self, world):
-		self.world = world
+		super(WorldEntitySet, self).__init__(world)
+		self.id_to_entity = {}
 	
 	def add(self, entity):
 		"""Add the entity to the set and all necessary class sets
 		Return the unique entity id for the entity, creating one
 		as needed.
 		"""
-		super(WorldEntitySet, self).add(entity)
+		gen, block, index = entity.entity_id
+		self._get_block(block, index)[index] = gen
+		self.id_to_entity[entity.entity_id] = entity
 		for cls in entity.__class__.__mro__:
 			if issubclass(cls, Entity):
 				self.world[cls].entities.add(entity)
@@ -219,6 +230,7 @@ class WorldEntitySet(set):
 		and all necessary class sets
 		"""
 		super(WorldEntitySet, self).remove(entity)
+		del self.id_to_entity[entity.entity_id]
 		for component in self.world.components:
 			try:
 				del component[entity]
