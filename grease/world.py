@@ -23,11 +23,14 @@ See :ref:`an example of world configuration in the tutorial <tut-world-example>`
 
 import itertools
 import pyglet
+import numpy
 from pyglet import gl
 from grease import mode
+from grease.block import Block
 from grease.component import ComponentError
 from grease.entity import Entity
-from grease.set import EntitySet, ComponentEntitySet
+from grease.set import EntitySet
+from grease.extent import WorldExtent
 
 
 class World(mode.Mode):
@@ -85,8 +88,7 @@ class World(mode.Mode):
 		self.renderers = Parts(self)
 		self.entity_id_generator = _EntityIdGenerator()
 		self.entities = WorldEntitySet(self)
-		self._full_extent = EntityExtent(self, self.entities)
-		self._extents = {}
+		self._entities_by_cls = {}
 		self.configure()
 
 	def configure(self):
@@ -99,45 +101,43 @@ class World(mode.Mode):
 		"""
 	
 	def __getitem__(self, entity_class):
-		"""Return an :class:`EntityExtent` for the given entity class. This extent
-		can be used to access the set of entities of that class in the world
-		or to query these entities via their components. 
+		"""Return an |EntitySet| containing all entities of the given entity class,
+		or classes in the world.
 
 		Examples::
 
 			world[MyEntity]
-			world[...]
+			world[EntityFoo, EntityBar, EntityBaz]
 
-		:param entity_class: The entity class for the extent.
-
-			May also be a tuple of entity classes, in which case
-			the extent returned contains union of all entities of the classes
-			in the world.
-
-			May also be the special value ellipsis (``...``), which
-			returns an extent containing all entities in the world.  This allows
-			you to conveniently query all entities using ``world[...]``.
+		:param entity_class: The entity class(es) of the entities contained
+			in the resulting |EntitySet|. If no entities of this class exist
+			in the world, return an empty set.
 		"""
-		if isinstance(entity_class, tuple):
+		if isinstance(entity_class, type) and issubclass(entity_class, Entity):
+			try:
+				return self._entities_by_cls[entity_class]
+			except KeyError:
+				extent = self._entities_by_cls[entity_class] = EntitySet(self)
+			return extent
+		else:
 			classes = iter(entity_class)
 			for cls in classes:
-				if cls in self._extents:
-					entities = self._extents[cls].entities
+				if cls in self._entities_by_cls:
+					entities = self._entities_by_cls[cls]
 					break
 			else:
 				entities = EntitySet(self)
 			for cls in classes:
-				if cls in self._extents:
-					entities |= self._extents[cls].entities
-			return EntityExtent(self, entities)
-		elif entity_class is Ellipsis:
-			return self._full_extent
-		try:
-			return self._extents[entity_class]
-		except KeyError:
-			extent = self._extents[entity_class] = EntityExtent(self, EntitySet(self))
-			return extent
-		
+				if cls in self._entities_by_cls:
+					entities |= self._entities_by_cls[cls]
+			return entities
+	
+	def delete(self, entity_set):
+		"""Delete all entities in entity_set from the world."""
+		self.entities.discard_set(entity_set)
+		for cls_set in self._entities_by_cls.values():
+			cls_set -= entity_set
+
 	def activate(self, manager):
 		"""Activate the world/mode for the given manager, if the world is already active, 
 		do nothing. This method is typically not used directly, it is called
@@ -207,30 +207,62 @@ class World(mode.Mode):
 
 
 class WorldEntitySet(EntitySet):
-	"""Entity set for a :class:`World`"""
+	"""Entity set for a :class:`World`. Also stores references
+	to entities accessible by entity id.
+	"""
 
 	def __init__(self, world):
 		super(WorldEntitySet, self).__init__(world)
-		self.id_to_entity = {}
-	
+		self.store_blocks = {}
+
+	def new_empty(self):
+		"""Create a new empty set of the same type and world.
+		This is a common interface for creating a set with no
+		arguments.
+		"""
+		return EntitySet(self.world)
+
+	def _get_store_block(self, block_id, index):
+		try:
+			block = self.store_blocks[block_id]
+			block.grow(index + 1, None)
+		except KeyError:
+			block = self.store_blocks[block_id] = Block(
+				shape=index + 1, dtype=object)
+		return block
+
+	def __getitem__(self, entity_id):
+		"""Return an entity object given its id."""
+		gen, block, index = entity_id
+		try:
+			entity = self.store_blocks[block][index]
+		except (KeyError, IndexError):
+			raise KeyError(entity_id)
+		if entity is None:
+			raise KeyError(entity_id)
+		return entity
+
 	def add(self, entity):
 		"""Add the entity to the set and all necessary class sets
 		Return the unique entity id for the entity, creating one
 		as needed.
 		"""
+		if entity.world is not self.world:
+			raise ValueError("Cannot add entity from different world")
 		gen, block, index = entity.entity_id
 		self._get_block(block, index)[index] = gen
-		self.id_to_entity[entity.entity_id] = entity
+		self._get_store_block(block, index)[index] = entity
 		for cls in entity.__class__.__mro__:
 			if issubclass(cls, Entity):
-				self.world[cls].entities.add(entity)
+				self.world[cls].add(entity)
 
 	def remove(self, entity):
 		"""Remove the entity from the set and, world components,
 		and all necessary class sets
 		"""
 		super(WorldEntitySet, self).remove(entity)
-		del self.id_to_entity[entity.entity_id]
+		gen, block, index = entity.entity_id
+		self.store_blocks[block][index] = None
 		for component in self.world.components:
 			try:
 				del component[entity]
@@ -238,17 +270,54 @@ class WorldEntitySet(EntitySet):
 				pass
 		for cls in entity.__class__.__mro__:
 			if issubclass(cls, Entity):
-				self.world[cls].entities.discard(entity)
+				self.world[cls].discard(entity)
 		self.world.entity_id_generator.recycle(entity)
 	
 	def discard(self, entity):
 		"""Remove the entity from the set if it exists, if not,
-		do nothing
+		do nothing.
 		"""
 		try:
 			self.remove(entity)
 		except KeyError:
 			pass
+	
+	def discard_set(self, entity_set):
+		"""Discard all entities in entity_set in batch."""
+		if entity_set.world is not self.world:
+			raise ValueError("Cannot discard entities from different world")
+		for blk_id, entities_blk in entity_set.blocks.items():
+			if blk_id in self.blocks:
+				discards = entities_blk != 0
+				self.blocks[blk_id][discards] = 0
+				self.world.entity_id_generator.recycle_many(
+					self.store_blocks[blk_id][discards])
+				self.store_blocks[blk_id][discards] = None
+	
+	def __iter__(self):
+		for block in self.store_blocks.values():
+			for entity in block:
+				if entity is not None:
+					yield entity
+	
+	def iter_intersection(self, entity_set):
+		"""Return an iterator of entities also in the specified
+		entity set, which must be from the same |world|.
+		"""
+		if entity_set.world is not self.world:
+			raise ValueError('Cannot intersect entity sets from different worlds')
+		for block_id, block in entity_set.blocks.items():
+			entities = self.blocks[block_id]
+			alive = numpy.where(
+				block == entities[:len(block)], block, 0)
+			for entity in self.store_blocks[block_id][alive != 0]:
+				yield entity
+
+	def not_implemented(self, other):
+		raise NotImplementedError("In-place operations not supported")
+	
+	update = intersection_update = difference_update = not_implemented
+	__ior__ = __iand__ = __isub__ = not_implemented
 
 
 class _EntityIdGenerator(dict):
@@ -272,6 +341,12 @@ class _EntityIdGenerator(dict):
 		block_id, index_gen, recycled = self[entity.__class__]
 		recycled.append(entity.entity_id)
 	
+	def recycle_many(self, entities):
+		if entities:
+			# It is assumed that entities are of the same class
+			block_id, index_gen, recycled = self[entities[0].__class__]
+			recycled.extend(entities)
+	
 	def new_entity_id(self, entity):
 		"""Return a new entity id for the given entity"""
 		block, index_gen, recycled = self[entity.__class__]
@@ -280,34 +355,6 @@ class _EntityIdGenerator(dict):
 			return (generation + 1, block, index)
 		else:
 			return (1, block, index_gen())
-
-
-class EntityExtent(object):
-	"""Encapsulates a set of entities queriable by component. Extents
-	are accessed by using an entity class as a key on the :class:`World`::
-
-		extent = world[MyEntity]
-	"""
-
-	entities = None
-	"""The full set of entities in the extent""" 
-
-	def __init__(self, world, entities):
-		self.__world = world
-		self.entities = entities
-
-	def __getattr__(self, name):
-		"""Return a queriable :class:`ComponentEntitySet` for the named component 
-
-		Example::
-
-			world[MyEntity].movement.velocity > (0, 0)
-
-		Returns a set of entities where the value of the :attr:`velocity` field
-		of the :attr:`movement` component is greater than ``(0, 0)``.
-		"""
-		component = getattr(self.__world.components, name)
-		return ComponentEntitySet(component, self.entities & component.entities)
 
 
 class Parts(object):

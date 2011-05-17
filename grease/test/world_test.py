@@ -195,21 +195,7 @@ class WorldTestCase(unittest.TestCase):
 		self.assertFalse(entity in comp2)
 		self.assertFalse(entity in comp3)
 	
-	def test_entity_extent_component_access(self):
-		# Integration test
-		from grease import World, Entity, component
-		world = World()
-		comp = world.components.test = component.Component()
-		e1 = Entity(world)
-		e2 = Entity(world)
-		comp.add(e1)
-		comp.add(e2)
-		extent = world[Entity]
-		comp_set = extent.test
-		self.assertEqual(sorted(comp_set), sorted([e1, e2]))
-		self.assertRaises(AttributeError, getattr, extent, "hummina")
-	
-	def test_entity_extent_membership_simple(self):
+	def test_entity_class_set_membership_simple(self):
 		from grease import World, Entity
 		class MyEntity(Entity):
 			pass
@@ -217,20 +203,20 @@ class WorldTestCase(unittest.TestCase):
 			pass
 		world = World()
 		self.assertFalse(world.entities)
-		extent = world[MyEntity]
-		self.assertFalse(extent.entities)
+		class_set = world[MyEntity]
+		self.assertFalse(class_set)
 		entity1 = MyEntity(world)
-		self.assertTrue(entity1 in extent.entities)
+		self.assertTrue(entity1 in class_set)
 		entity2 = MyEntity(world)
-		self.assertTrue(entity2 in extent.entities)
+		self.assertTrue(entity2 in class_set)
 		world.entities.remove(entity2)
-		self.assertTrue(entity1 in extent.entities)
-		self.assertFalse(entity2 in extent.entities)
+		self.assertTrue(entity1 in class_set)
+		self.assertFalse(entity2 in class_set)
 		entity3 = Another(world)
-		self.assertFalse(entity3 in extent.entities)
-		self.assertTrue(entity3 in world[Another].entities)
+		self.assertFalse(entity3 in class_set)
+		self.assertTrue(entity3 in world[Another])
 	
-	def test_entity_superclass_extents(self):
+	def test_entity_superclass_class_sets(self):
 		from grease import World, Entity
 		class Superentity(Entity):
 			pass
@@ -241,37 +227,37 @@ class WorldTestCase(unittest.TestCase):
 		class Another(Entity):
 			pass
 		world = World()
-		super_extent = world[Superentity]
+		super_class_set = world[Superentity]
 		super = Superentity(world)
 		sub = Subentity(world)
 		subsub = SubSubentity(world)
 		another = Another(world)
-		self.assertTrue(super in super_extent.entities)
-		self.assertTrue(sub in super_extent.entities)
-		self.assertTrue(subsub in super_extent.entities)
-		self.assertFalse(another in super_extent.entities)
-		sub_extent = world[Subentity]
-		self.assertFalse(super in sub_extent.entities)
-		self.assertTrue(sub in sub_extent.entities)
-		self.assertTrue(subsub in sub_extent.entities)
-		self.assertFalse(another in sub_extent.entities)
-		subsub_extent = world[SubSubentity]
-		self.assertFalse(super in subsub_extent.entities)
-		self.assertFalse(sub in subsub_extent.entities)
-		self.assertTrue(subsub in subsub_extent.entities)
-		self.assertFalse(another in subsub_extent.entities)
-		another_extent = world[Another]
-		self.assertFalse(super in another_extent.entities)
-		self.assertFalse(sub in another_extent.entities)
-		self.assertFalse(subsub in another_extent.entities)
-		self.assertTrue(another in another_extent.entities)
+		self.assertTrue(super in super_class_set)
+		self.assertTrue(sub in super_class_set)
+		self.assertTrue(subsub in super_class_set)
+		self.assertFalse(another in super_class_set)
+		sub_class_set = world[Subentity]
+		self.assertFalse(super in sub_class_set)
+		self.assertTrue(sub in sub_class_set)
+		self.assertTrue(subsub in sub_class_set)
+		self.assertFalse(another in sub_class_set)
+		subsub_class_set = world[SubSubentity]
+		self.assertFalse(super in subsub_class_set)
+		self.assertFalse(sub in subsub_class_set)
+		self.assertTrue(subsub in subsub_class_set)
+		self.assertFalse(another in subsub_class_set)
+		another_class_set = world[Another]
+		self.assertFalse(super in another_class_set)
+		self.assertFalse(sub in another_class_set)
+		self.assertFalse(subsub in another_class_set)
+		self.assertTrue(another in another_class_set)
 		world.entities.remove(subsub)
-		self.assertFalse(subsub in super_extent.entities)
-		self.assertFalse(subsub in sub_extent.entities)
-		self.assertFalse(subsub in subsub_extent.entities)
-		self.assertFalse(subsub in another_extent.entities)
+		self.assertFalse(subsub in super_class_set)
+		self.assertFalse(subsub in sub_class_set)
+		self.assertFalse(subsub in subsub_class_set)
+		self.assertFalse(subsub in another_class_set)
 	
-	def test_union_extent(self):
+	def test_union_class_set(self):
 		from grease import World, Entity
 		class Entity1(Entity):
 			pass
@@ -281,22 +267,19 @@ class WorldTestCase(unittest.TestCase):
 			pass
 		world = World()
 		entities = [Entity1(world), Entity2(world), Entity2(world), Entity3(world)]
-		union_extent_1_2 = world[Entity1, Entity2]
-		self.assertEqual(sorted(union_extent_1_2.entities), sorted(entities[:-1]))
-		union_extent_2_3 = world[Entity2, Entity3]
-		self.assertEqual(sorted(union_extent_2_3.entities), sorted(entities[1:]))
-		union_extent_1_3 = world[Entity1, Entity3]
-		self.assertEqual(sorted(union_extent_1_3.entities), sorted(entities))
+		self.assertEqual(sorted(world[Entity1, Entity2]), sorted(entities[:-1]))
+		self.assertEqual(sorted(world[Entity2, Entity3]), sorted(entities[1:]))
+		self.assertEqual(sorted(world[Entity1, Entity3]), sorted(entities))
 	
-	def test_empty_extent(self):
+	def test_empty_class_set(self):
 		from grease import World, Entity
 		world = World()
 		e = Entity(world)
 		class Entity1(Entity):
 			pass
-		self.assertEqual(len(world[Entity1].entities), 0)
+		self.assertEqual(len(world[Entity1]), 0)
 		
-	def test_empty_union_extent(self):
+	def test_empty_union_class_set(self):
 		from grease import World, Entity
 		world = World()
 		e = Entity(world)
@@ -306,9 +289,9 @@ class WorldTestCase(unittest.TestCase):
 			pass
 		class Entity3(Entity1):
 			pass
-		self.assertEqual(len(world[Entity2, Entity3].entities), 0)
+		self.assertEqual(len(world[Entity2, Entity3]), 0)
 
-	def test_full_extent(self):
+	def test_full_set(self):
 		from grease import World, Entity
 		class Entity1(Entity):
 			pass
@@ -317,12 +300,32 @@ class WorldTestCase(unittest.TestCase):
 		class Entity3(Entity):
 			pass
 		world = World()
-		full_extent = world[...]
-		self.assertEqual(world.entities, full_extent.entities)
+		full_set = world[Entity]
+		self.assertEqual(world.entities, full_set)
 		entities = sorted([Entity1(world), Entity2(world), Entity3(world), Entity1(world)])
 		self.assertEqual(sorted(world.entities), entities)
-		self.assertEqual(sorted(full_extent.entities), entities)
-		self.assertEqual(sorted(world[...].entities), entities)
+		self.assertEqual(sorted(full_set), entities)
+	
+	def test_delete(self):
+		from grease import World, Entity
+		from grease.set import EntitySet
+		class Entity1(Entity):
+			pass
+		class Entity2(Entity):
+			pass
+		class Entity3(Entity):
+			pass
+		world = World()
+		entities = [Entity1(world), Entity2(world), Entity2(world), Entity3(world)]
+		s = EntitySet(world)
+		s.add(entities[2])
+		s.add(entities[3])
+		world.delete(s)
+		self.assertEqual(sorted(world.entities), sorted(entities[:2]))
+		self.assertEqual(list(world[Entity1]), [entities[0]])
+		self.assertEqual(list(world[Entity2]), [entities[1]])
+		self.assertEqual(list(world[Entity3]), [])
+
 
 	def test_configure_components(self):
 		from grease import World
@@ -483,6 +486,15 @@ class WorldTestCase(unittest.TestCase):
 		world.systems.insert('onemore', onemore, index=1)
 		self.assertEqual(list(world.systems), [sys1, onemore, inserted, sys2, another, sys3])
 		self.assertTrue(world.systems.onemore is onemore)
+	
+	def test_insert_system_replaces_same_named_system(self):
+		from grease import World
+		world = World()
+		sys1 = world.systems.sys1 = TestSystem()
+		sys2 = world.systems.sys2 = TestSystem()
+		replacement = TestSystem()
+		world.systems.insert("sys1", replacement, before=sys2)
+		self.assert_(world.systems.sys1 is replacement)
 	
 	def test_system_step_order(self):
 		from grease import World

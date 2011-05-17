@@ -13,13 +13,11 @@ class TestIdGen(object):
 
 
 class WorldEntities(set):
-	
-	def __init__(self):
-		self.id_to_entity = {}
-	
-	def add(self, e):
-		super(WorldEntities, self).add(e)
-		self.id_to_entity[e.entity_id] = e
+
+	def iter_intersection(self, entity_set):
+		for entity in self:
+			if entity in entity_set:
+				yield entity
 
 
 class TestWorld(object):
@@ -507,7 +505,6 @@ class ComponentAccessorTestCase(unittest.TestCase):
 		self.assertFalse(accessor)
 		component.add(entity)
 		self.assertTrue(accessor)
-
 
 
 if __name__ == '__main__':

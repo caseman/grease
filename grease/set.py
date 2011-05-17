@@ -97,13 +97,7 @@ class EntitySet(object):
 		return False
 	
 	def __iter__(self):
-		id_to_entity = self.world.entities.id_to_entity
-		for block_id, block in self.blocks.items():
-			for index, gen in enumerate(block):
-				try:
-					yield id_to_entity[gen, block_id, index]
-				except KeyError:
-					pass
+		return self.world.entities.iter_intersection(self)
 	
 	def __nonzero__(self):
 		for block in self.blocks.values():
@@ -261,34 +255,4 @@ class EntitySet(object):
 	
 	__isub__ = difference_update
 
-
-class ComponentEntitySet(EntitySet):
-	"""Set of entities in a component, can be queried by component fields"""
-
-	_component = None
-
-	def __init__(self, component, entities=None):
-		super(ComponentEntitySet, self).__init__(component.world)
-		self._component = component
-		if entities is not None:
-			for blk_id, blk in entities.blocks.items():
-				self.blocks[blk_id] = blk.copy()
-
-	def new_empty(self):
-		new = super(ComponentEntitySet, self).new_empty()
-		new._component = self._component
-		return new
-
-	def __getattr__(self, name):
-		if self._component is not None and name in self._component.fields:
-			return self._component.fields[name].accessor(self)
-		raise AttributeError(name)
-	
-	def __setattr__(self, name, value):
-		if not hasattr(ComponentEntitySet, name):
-			if self._component is not None and name in self._component.fields:
-				self._component.fields[name].accessor(self).__set__(value)
-			raise AttributeError(name)
-		else:
-			super(ComponentEntitySet, self).__setattr__(name, value)
 
