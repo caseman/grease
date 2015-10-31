@@ -11,7 +11,7 @@ class TestWorld(object):
 
 	def join(self, *components):
 		assert components == ('shape', 'position', 'renderable')
-		return itertools.izip(self.shapes, self.positions, self.renderable)
+		return zip(self.shapes, self.positions, self.renderable)
 
 class Data(object):
 

@@ -163,26 +163,26 @@ if __name__ == '__main__':
 		@KeyControls.key_hold(key.UP)
 		@KeyControls.key_hold(key.W)
 		def up(self, dt):
-			print 'UP!'
+			print('UP!')
 		
 		@KeyControls.key_hold(key.LEFT)
 		@KeyControls.key_hold(key.A)
 		def left(self, dt):
-			print 'LEFT!'
+			print('LEFT!')
 		
 		@KeyControls.key_hold(key.RIGHT)
 		@KeyControls.key_hold(key.D)
 		def right(self, dt):
-			print 'RIGHT!'
+			print('RIGHT!')
 		
 		@KeyControls.key_hold(key.DOWN)
 		@KeyControls.key_hold(key.S)
 		def down(self, dt):
-			print 'DOWN!'
+			print('DOWN!')
 
 		@KeyControls.key_press(key.SPACE)
 		def fire(self):
-			print 'FIRE!'
+			print('FIRE!')
 
 		@KeyControls.key_press(key.R)
 		def remap_keys(self):

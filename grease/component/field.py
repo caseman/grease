@@ -32,7 +32,7 @@ class Schema(dict):
 	"""Field schema definition for custom components"""
 
 	def __init__(self, **fields):
-		for ftype in fields.values():
+		for ftype in list(fields.values()):
 			assert ftype in types, fname + " has an illegal field type"
 		self.update(fields)
 
@@ -135,7 +135,7 @@ class FieldAccessor(object):
 			self.__class__.__name__, 
 			'.'.join((self.__field.name,) + self.__attrs), id(self))
 	
-	def __nonzero__(self):
+	def __bool__(self):
 		return bool(self.__entities)
 	
 	def __iter__(self):

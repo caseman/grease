@@ -24,7 +24,7 @@ from grease.world import World
 
 import abc
 
-class System(object):
+class System(object, metaclass=abc.ABCMeta):
 	"""Grease system abstract base class. Systems define behaviorial aspects
 	of a |World|. All systems must define a :meth:`step`
 	method that is invoked by the world each timestep.  User-defined systems
@@ -32,7 +32,6 @@ class System(object):
 	
 	See :ref:`an example system from the tutorial <tut-system-example>`.
 	"""
-	__metaclass__ = abc.ABCMeta
 
 	world = None
 	"""The |World| this system belongs to"""
@@ -51,7 +50,7 @@ class System(object):
 		"""
 
 
-class Renderer(object):
+class Renderer(object, metaclass=abc.ABCMeta):
 	"""Grease renderer abstract base class. Renderers define the presentation
 	of a |World|. All renderers must define a :meth:`draw`
 	method that is invoked by the world when the display needs to be redrawn.
@@ -59,7 +58,6 @@ class Renderer(object):
 
 	See :ref:`an example renderer from the tutorial <tut-renderer-example>`.
 	"""
-	__metaclass__ = abc.ABCMeta
 
 	world = None
 	"""The |World| this renderer belongs to"""

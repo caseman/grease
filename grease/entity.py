@@ -55,7 +55,7 @@ class EntityMeta(type):
 		return type.__new__(cls, name, bases, clsdict)
 
 
-class Entity(object):
+class Entity(object, metaclass=EntityMeta):
 	"""Base class for grease entities.
 	
 	Entity objects themselves are merely identifiers within a :class:`grease.world.World`.
@@ -69,7 +69,6 @@ class Entity(object):
 	as their first argument (after ``self``). Other constructor arguments can be
 	specified arbitarily by the subclass.
 	"""
-	__metaclass__ = EntityMeta
 
 	def __new__(cls, world, *args, **kw):
 		"""Create a new entity and add it to the world"""
@@ -163,7 +162,7 @@ class EntityComponentAccessor(object):
 		self.__dict__['_%s__component' % clsname] = component
 		self.__dict__['_%s__entity' % clsname] = entity
 	
-	def __nonzero__(self):
+	def __bool__(self):
 		"""The accessor is True if the entity is in the component,
 		False if not, for convenient membership tests
 		"""

@@ -36,9 +36,12 @@ def looping_sound(name):
     """Load a sound from the `sfx` directory and configure it too loop
     continuously
     """
+    sound = load_sound(name)
+    looper = pyglet.media.SourceGroup(sound.audio_format, None)
+    looper.loop = True
+    looper.queue(sound)
     player = pyglet.media.Player()
-    player.queue(load_sound(name, streaming=True))
-    player.eos_action = player.EOS_LOOP
+    player.queue(looper)
     return player
 
 ## Define entity classes ##
@@ -296,7 +299,7 @@ class GameSystem(KeyControls):
     def chime(self, dt=0):
         """Play tension building chime sounds"""
         if self.lives:
-            self.chimes.next().play()
+            next(self.chimes).play()
             self.chime_time = max(self.chime_time - dt * 0.01, self.MIN_CHIME_TIME)
             if not self.world[Asteroid].entities:
                 self.start_level()

@@ -175,7 +175,7 @@ class GeneralTestCase(unittest.TestCase):
 		c.set_world(world)
 		self.assertEqual(list(c), [])
 		ed = [c.set(TestEntity()), c.set(TestEntity()), c.set(TestEntity())]
-		self.assertEqual(sorted(c.itervalues()), sorted(ed))
+		self.assertEqual(sorted(c.values()), sorted(ed))
 	
 	def test_set_world(self):
 		from grease.component import Component
