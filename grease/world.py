@@ -83,7 +83,7 @@ class World(mode.Mode):
 		self.components = ComponentParts(self)
 		self.systems = Parts(self)
 		self.renderers = Parts(self)
-		self.new_entity_id = itertools.count().next
+		self.new_entity_id = itertools.count().__next__
 		self.new_entity_id() # skip id 0
 		self.entities = WorldEntitySet(self)
 		self._full_extent = EntityExtent(self, self.entities)

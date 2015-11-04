@@ -140,7 +140,7 @@ class BroadSweepAndPrune(object):
 			append_x = by_x.append
 			by_y = self._by_y = []
 			append_y = by_y.append
-			for data in component.itervalues():
+			for data in component.values():
 				append_x([data.aabb.left, LEFT, data])
 				append_x([data.aabb.right, RIGHT, data])
 				append_y([data.aabb.bottom, BOTTOM, data])
@@ -182,8 +182,8 @@ class BroadSweepAndPrune(object):
 		# Because positions tend to change little each frame
 		# we take advantage of this here. Obviously things are
 		# less efficient with very fast moving, or teleporting entities
-		by_x.sort()
-		by_y.sort()
+		by_x.sort(key=lambda x: (x[0], x[1]))
+		by_y.sort(key=lambda y: (y[0], y[1]))
 		self._collision_pairs = None
 	
 	@property
@@ -206,7 +206,7 @@ class BroadSweepAndPrune(object):
 			open = {}
 			for _, side, data in self._by_x:
 				if side is LEFT:
-					for open_entity, (from_mask, into_mask) in open.iteritems():
+					for open_entity, (from_mask, into_mask) in open.items():
 						if data.from_mask & into_mask or from_mask & data.into_mask:
 							add_xoverlap(Pair(data.entity, open_entity))
 					open[data.entity] = (data.from_mask, data.into_mask)

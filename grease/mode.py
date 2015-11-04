@@ -172,7 +172,7 @@ class ManagerWindow(BaseManager, pyglet.window.Window):
 		self.dispatch_event('on_close')
 
 
-class Mode(object):
+class Mode(object, metaclass=abc.ABCMeta):
 	"""Application mode abstract base class
 
 	Subclasses must implement the :meth:`step` method
@@ -183,7 +183,6 @@ class Mode(object):
 		as the master clock that ticks the world's clock. This 
 		defaults to the main pyglet clock.
 	"""
-	__metaclass__ = abc.ABCMeta
 
 	clock = None
 	"""The :class:`pyglet.clock.Clock` instance used as this mode's clock.

@@ -8,9 +8,9 @@ class TestWorld(object):
 		self.__dict__.update(kw)
 		self.components = self
 		self.entities = set()
-		self.new_entity_id = itertools.count().next
+		self.new_entity_id = itertools.count().__next__
 		self.new_entity_id() # skip id 0
-		for comp in kw.values():
+		for comp in list(kw.values()):
 			comp.world = self
 
 
@@ -114,9 +114,9 @@ class EntityTestCase(unittest.TestCase):
 		world = TestWorld(test=comp)
 		entity = Entity(world)
 		comp.set(entity)
-		self.failUnless(entity in comp)
+		self.assertTrue(entity in comp)
 		del entity.test
-		self.failIf(entity in comp)
+		self.assertFalse(entity in comp)
 	
 	def test_entity_id(self):
 		from grease import Entity
